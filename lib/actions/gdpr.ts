@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { CONSENT_VERSION } from "@/lib/constants";
+import { upsertConsents } from "@/lib/consents";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUserContext } from "@/lib/workspace";
 import type { ConsentType, Json } from "@/types/database";
@@ -16,16 +16,13 @@ export async function updateConsentAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
   const now = new Date().toISOString();
 
-  await supabase.from("user_consents").insert({
-    user_id: ctx.user.id,
-    workspace_id: ctx.activeWorkspace?.id ?? null,
-    consent_type: consentType,
-    consent_version: CONSENT_VERSION,
-    granted,
-    granted_at: granted ? now : null,
-    revoked_at: granted ? null : now,
-    source: "privacy_center",
-  });
+  await upsertConsents(
+    supabase,
+    ctx.user.id,
+    [{ type: consentType, granted }],
+    "privacy_center",
+    ctx.activeWorkspace?.id ?? null,
+  );
 
   if (consentType === "anonymized_industry_research") {
     await supabase.from("gdpr_requests").insert({

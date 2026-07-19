@@ -1,19 +1,12 @@
-import { createClient } from "@supabase/supabase-js";
-
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getSiteUrl } from "@/lib/url";
-import type { Database } from "@/types/database";
 
 export async function GET() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const appUrl = getSiteUrl();
-
   let urls: string[] = [];
 
-  if (url && serviceKey) {
-    const supabase = createClient<Database>(url, serviceKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
+  try {
+    const supabase = createAdminClient();
     const { data } = await supabase
       .from("wedding_sites")
       .select("slug, updated_at")
@@ -27,6 +20,8 @@ export async function GET() {
     <lastmod>${new Date(site.updated_at).toISOString()}</lastmod>
   </url>`,
     );
+  } catch {
+    // Service role missing in some environments — empty sitemap is fine
   }
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>

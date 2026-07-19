@@ -13,8 +13,14 @@ type LoginPageProps = {
 };
 
 function callbackErrorMessage(reason?: string) {
+  if (reason === "link_expired") {
+    return "Linkul a expirat. Solicită un mesaj nou de confirmare sau resetare parolă.";
+  }
   if (reason === "exchange_failed" || reason === "missing_code") {
     return "Linkul de confirmare este invalid sau a expirat. Solicită un mesaj nou.";
+  }
+  if (reason === "recovery_session") {
+    return "Sesiunea de resetare lipsește sau a expirat. Cere un link nou de parolă.";
   }
   if (reason === "no_user") {
     return "Nu am putut finaliza autentificarea. Încearcă din nou.";

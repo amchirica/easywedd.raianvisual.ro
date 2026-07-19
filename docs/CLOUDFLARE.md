@@ -86,7 +86,7 @@ ERROR Node.js middleware is not currently supported.
 
 Păstrează `middleware.ts` (Edge) până când OpenNext suportă oficial `proxy`.
 
-## Secrets producție
+## Secrets / Variables producție
 
 Nu folosi `.dev.vars` în producție.
 
@@ -94,4 +94,14 @@ Nu folosi `.dev.vars` în producție.
 Workers & Pages → easywedd-raianvisual → Settings → Variables and Secrets
 ```
 
-`.dev.vars` este gitignored; local: `.dev.vars.example`.
+Obligatoriu:
+
+```text
+NEXT_PUBLIC_SITE_URL=https://easywedd.raianvisual.ro
+NEXT_PUBLIC_APP_URL=https://easywedd.raianvisual.ro
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...   (tip Secret)
+```
+
+`.dev.vars` este gitignored; local: `.dev.vars.example`. Detalii: `docs/ENV.md`.

@@ -509,6 +509,42 @@ export interface Database {
         };
         Relationships: [];
       };
+      user_consent_history: {
+        Row: {
+          id: string;
+          original_id: string | null;
+          user_id: string;
+          workspace_id: string | null;
+          consent_type: ConsentType;
+          consent_version: string;
+          granted: boolean;
+          granted_at: string | null;
+          revoked_at: string | null;
+          source: string | null;
+          created_at: string;
+          archived_at: string;
+          archive_reason: string;
+        };
+        Insert: {
+          id?: string;
+          original_id?: string | null;
+          user_id: string;
+          workspace_id?: string | null;
+          consent_type: ConsentType;
+          consent_version: string;
+          granted: boolean;
+          granted_at?: string | null;
+          revoked_at?: string | null;
+          source?: string | null;
+          created_at?: string;
+          archived_at?: string;
+          archive_reason?: string;
+        };
+        Update: Partial<{
+          archive_reason: string;
+        }>;
+        Relationships: [];
+      };
       wedding_tasks: {
         Row: WeddingTask;
         Insert: Partial<WeddingTask> &

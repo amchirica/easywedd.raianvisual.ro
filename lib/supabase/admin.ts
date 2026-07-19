@@ -1,20 +1,16 @@
+import "server-only";
+
 import { createClient } from "@supabase/supabase-js";
 
+import { requireServiceRoleKey, requireSupabasePublicEnv } from "@/lib/env";
 import type { Database } from "@/types/database";
 
 /**
- * Service-role client. Use only on the server for privileged operations.
- * Never expose SUPABASE_SERVICE_ROLE_KEY to the browser.
+ * Service-role client. Server-only. Never import from client components.
  */
 export function createAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !serviceRoleKey) {
-    throw new Error(
-      "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY",
-    );
-  }
+  const { url } = requireSupabasePublicEnv();
+  const serviceRoleKey = requireServiceRoleKey();
 
   return createClient<Database>(url, serviceRoleKey, {
     auth: {

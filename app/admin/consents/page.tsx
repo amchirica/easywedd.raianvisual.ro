@@ -1,59 +1,120 @@
 import type { Metadata } from "next";
 
+import { consentTypeLabel } from "@/lib/consents";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Consimțăminte · Admin" };
 
 export default async function AdminConsentsPage() {
   const supabase = await createClient();
+
+  // Effective consents only (unique constraint keeps one current row)
   const { data: consents } = await supabase
     .from("user_consents")
     .select(
-      "id, user_id, consent_type, consent_version, granted, granted_at, source, created_at",
+      "id, user_id, workspace_id, consent_type, consent_version, granted, granted_at, source, created_at",
     )
     .order("created_at", { ascending: false })
-    .limit(100);
+    .limit(200);
+
+  const { data: history } = await supabase
+    .from("user_consent_history")
+    .select(
+      "id, user_id, consent_type, consent_version, granted, source, created_at, archived_at",
+    )
+    .order("archived_at", { ascending: false })
+    .limit(50);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <header>
         <h1 className="font-heading text-4xl">Consimțăminte</h1>
         <p className="mt-2 text-muted-foreground">
-          Cercetarea de piață necesită consimțământ separat{" "}
-          <code>anonymized_industry_research</code>.
+          Vizualizare consimțăminte efective (un rând per tip/versiune). Istoricul
+          GDPR este separat mai jos.
         </p>
       </header>
-      {!consents?.length ? (
-        <p className="text-sm text-muted-foreground">
-          Niciun consimțământ înregistrat.
-        </p>
-      ) : (
-        <div className="overflow-x-auto border border-border bg-card">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-border text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 font-medium">Tip</th>
-                <th className="px-4 py-3 font-medium">Acordat</th>
-                <th className="px-4 py-3 font-medium">Versiune</th>
-                <th className="px-4 py-3 font-medium">Sursă</th>
-              </tr>
-            </thead>
-            <tbody>
-              {consents.map((consent) => (
-                <tr
-                  key={consent.id}
-                  className="border-b border-border last:border-0"
-                >
-                  <td className="px-4 py-3">{consent.consent_type}</td>
-                  <td className="px-4 py-3">{consent.granted ? "Da" : "Nu"}</td>
-                  <td className="px-4 py-3">{consent.consent_version}</td>
-                  <td className="px-4 py-3">{consent.source}</td>
+
+      <section className="space-y-3">
+        <h2 className="font-heading text-2xl">Consimțăminte curente</h2>
+        {!consents?.length ? (
+          <p className="text-sm text-muted-foreground">
+            Niciun consimțământ înregistrat.
+          </p>
+        ) : (
+          <div className="overflow-x-auto border border-border bg-card">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-border text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Tip</th>
+                  <th className="px-4 py-3 font-medium">Acordat</th>
+                  <th className="px-4 py-3 font-medium">Versiune</th>
+                  <th className="px-4 py-3 font-medium">Sursă</th>
+                  <th className="px-4 py-3 font-medium">Utilizator</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {consents.map((consent) => (
+                  <tr
+                    key={consent.id}
+                    className="border-b border-border last:border-0"
+                  >
+                    <td className="px-4 py-3">
+                      {consentTypeLabel(consent.consent_type)}
+                    </td>
+                    <td className="px-4 py-3">
+                      {consent.granted ? "Da" : "Nu"}
+                    </td>
+                    <td className="px-4 py-3">{consent.consent_version}</td>
+                    <td className="px-4 py-3">{consent.source}</td>
+                    <td className="px-4 py-3 font-mono text-xs">
+                      {consent.user_id.slice(0, 8)}…
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-heading text-2xl">Istoric (arhivă)</h2>
+        <p className="text-sm text-muted-foreground">
+          Rânduri arhivate la deduplicare — păstrate pentru audit GDPR.
+        </p>
+        {!history?.length ? (
+          <p className="text-sm text-muted-foreground">Niciun istoric încă.</p>
+        ) : (
+          <div className="overflow-x-auto border border-border bg-card">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-border text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Tip</th>
+                  <th className="px-4 py-3 font-medium">Acordat</th>
+                  <th className="px-4 py-3 font-medium">Arhivat</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="border-b border-border last:border-0"
+                  >
+                    <td className="px-4 py-3">
+                      {consentTypeLabel(row.consent_type)}
+                    </td>
+                    <td className="px-4 py-3">{row.granted ? "Da" : "Nu"}</td>
+                    <td className="px-4 py-3">
+                      {new Date(row.archived_at).toLocaleString("ro-RO")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

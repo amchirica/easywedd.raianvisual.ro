@@ -27,13 +27,16 @@ signup
 | Variabilă | Rol |
 |-----------|-----|
 | `NEXT_PUBLIC_SITE_URL` | Preferat — URL canonic (ex. `https://easywedd.raianvisual.ro`) |
-| `NEXT_PUBLIC_APP_URL` | Alias acceptat de `getSiteUrl()` |
-| `VERCEL_PROJECT_PRODUCTION_URL` / `VERCEL_URL` | Fallback automat pe Vercel |
+| `NEXT_PUBLIC_APP_URL` | Alias acceptat de `getSiteUrl()` (același URL) |
 | `RESEND_API_KEY` | Trimitere invitații partener |
 | `RESEND_FROM_EMAIL` | Expeditor (ex. `notifications@easywedd.raianvisual.ro`) |
 | `RESEND_FROM_NAME` | Opțional (ex. `EasyWedd`) |
 
 Helper central: `lib/url.ts` → `getSiteUrl()`, `getSafeNextPath()`, `getAuthCallbackUrl()`.
+
+Redirect-uri auth:
+- Signup confirm: `/auth/callback?next=/dashboard/onboarding`
+- Reset parolă: `/auth/callback?next=/update-password` → pagina `/update-password`
 
 ## Setări manuale Supabase
 
@@ -61,7 +64,7 @@ http://localhost:3000/auth/callback/**
 ```
 
 Site URL trebuie să fie URL-ul de producție (nu localhost) pe proiectul live.
-Callback-ul acceptă `code` (PKCE) și `token_hash` + `type` (OTP). Recovery duce la `/auth/update-password`.
+Callback-ul acceptă `code` (PKCE) și `token_hash` + `type` (OTP). Recovery duce la `/update-password`.
 
 Supabase acceptă wildcard `/**` pe path. Nu folosi URL-uri externe.
 

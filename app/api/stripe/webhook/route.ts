@@ -6,17 +6,16 @@ import {
   BILLING_PRODUCTS,
   type BillingProductKey,
 } from "@/lib/billing/catalog";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
-import { createClient } from "@supabase/supabase-js";
-import type { Database, Json } from "@/types/database";
+import type { Json } from "@/types/database";
 
 function serviceClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return null;
-  return createClient<Database>(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  try {
+    return createAdminClient();
+  } catch {
+    return null;
+  }
 }
 
 export async function POST(request: Request) {

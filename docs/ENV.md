@@ -1,47 +1,60 @@
 # Variabile de mediu EasyWedd
 
-## Obligatorii
+## Obligatorii (local + producție)
 
 | Variabilă | Descriere |
 |-----------|-----------|
-| `NEXT_PUBLIC_SITE_URL` | URL canonic (local: `http://localhost:3000`, producție: `https://easywedd.raianvisual.ro`). Preferat față de `NEXT_PUBLIC_APP_URL`. |
-| `NEXT_PUBLIC_APP_URL` | Alias acceptat de `getSiteUrl()` (compatibilitate) |
+| `NEXT_PUBLIC_SITE_URL` | URL canonic. Local: `http://localhost:3000`. Producție: `https://easywedd.raianvisual.ro`. **Obligatoriu în producție** — fără el auth redirectează greșit. |
+| `NEXT_PUBLIC_APP_URL` | Alias opțional (același URL ca SITE_URL). Evită valori contradictorii. |
 | `NEXT_PUBLIC_SUPABASE_URL` | URL proiect Supabase |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Cheia anon (publică) Supabase |
-| `SUPABASE_SERVICE_ROLE_KEY` | Cheia service role — **doar server**, niciodată în client |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Cheia anon (publică) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role — **doar server** (`import "server-only"` / `createAdminClient`). Niciodată în client. |
+
+## Cloudflare Worker (producție)
+
+Setează în **Workers & Pages → easywedd-raianvisual → Settings → Variables and Secrets**
+(nu în `.env.local` din repo):
+
+```text
+NEXT_PUBLIC_SITE_URL=https://easywedd.raianvisual.ro
+NEXT_PUBLIC_APP_URL=https://easywedd.raianvisual.ro
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...   (Secret)
+```
+
+Opțional: Stripe / Resend keys ca Secrets.
+
+`getSiteUrl()` în producție **eșuează clar** dacă lipsește SITE/APP URL sau dacă e setat pe localhost.
 
 ## Billing (Stripe)
 
 | Variabilă | Descriere |
 |-----------|-----------|
-| `STRIPE_SECRET_KEY` | Client Stripe server-side; fără ea, checkout e inactiv (grant local în UI) |
-| `STRIPE_WEBHOOK_SECRET` | Semnătură webhook `/api/stripe/webhook` |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Publishable key |
-| `STRIPE_PRICE_STARTER_MONTHLY` | Price ID Starter subscription |
-| `STRIPE_PRICE_PREMIUM_PASS_12` | Price ID Premium Pass 12 luni (one-time) |
-| `STRIPE_PRICE_PREMIUM_PASS_18` | Price ID Premium Pass 18 luni (one-time) |
-| `STRIPE_PRICE_PRO_MONTHLY` | Price ID Pro subscription |
+| `STRIPE_SECRET_KEY` | Server-side |
+| `STRIPE_WEBHOOK_SECRET` | Webhook `/api/stripe/webhook` |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Client |
+| `STRIPE_PRICE_*` | Price IDs (vezi `.env.example`) |
 
-## Email (Resend) — invitații partener / tranzacționale app
+## Email (Resend)
 
 | Variabilă | Descriere |
 |-----------|-----------|
-| `RESEND_API_KEY` | Trimite emailuri; fără ea → outbox rămâne pending / failed |
-| `RESEND_FROM_EMAIL` | Expeditor (ex. `notifications@easywedd.raianvisual.ro`) |
-| `RESEND_FROM_NAME` | Opțional (ex. `EasyWedd`) |
+| `RESEND_API_KEY` | Outbox tranzacțional |
+| `RESEND_FROM_EMAIL` / `RESEND_FROM_NAME` | Expeditor |
 
-Confirmarea de cont **nu** trece prin Resend — o trimite Supabase Auth (vezi `docs/AUTH_ONBOARDING.md`).
+Confirmarea de cont o trimite **Supabase Auth**, nu Resend.
 
 ## Setup rapid
 
-1. Copiază `.env.example` → `.env.local`
-2. Completează valorile din dashboard-ul Supabase (Settings → API)
-3. Rulează migrațiile `20260719000000` … `00011` în SQL Editor (sau CLI)
-4. Auth: Site URL + Redirect URLs (`/auth/callback`) — detalii în `docs/AUTH_ONBOARDING.md`
-5. Stripe CLI (dev): `stripe listen --forward-to localhost:3000/api/stripe/webhook`
+1. Copiază `.env.example` → `.env.local` (doar local)
+2. Completează Supabase Settings → API
+3. Aplică migrațiile până la `20260719000013_...`
+4. Auth redirect URLs — vezi raportul din `docs/AUTH_ONBOARDING.md`
+5. În Cloudflare, setează variabilele de mai sus
 
-## Note de securitate
+## Securitate
 
-- Nu comite `.env.local`
-- Service role doar în webhook / sitemap / cleanup GDPR
-- Public wedding/invitation access doar prin RPC security definer
+- Nu comite `.env.local` / `.dev.vars`
+- Nu loga valori secret
+- Service role doar prin `lib/supabase/admin.ts`

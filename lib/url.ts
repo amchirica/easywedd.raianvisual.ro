@@ -1,6 +1,6 @@
 /**
  * Central site URL + safe internal redirect helpers.
- * Prefer NEXT_PUBLIC_SITE_URL; keep NEXT_PUBLIC_APP_URL as alias for compatibility.
+ * Prefer NEXT_PUBLIC_SITE_URL; NEXT_PUBLIC_APP_URL is a compatibility alias.
  */
 
 function stripTrailingSlash(url: string): string {
@@ -11,28 +11,38 @@ function ensureProtocol(url: string): string {
   const trimmed = url.trim();
   if (!trimmed) return trimmed;
   if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  // Vercel hostnames arrive without protocol
-  if (
-    trimmed.startsWith("localhost") ||
-    trimmed.startsWith("127.0.0.1")
-  ) {
+  if (trimmed.startsWith("localhost") || trimmed.startsWith("127.0.0.1")) {
     return `http://${trimmed}`;
   }
   return `https://${trimmed}`;
 }
 
+/**
+ * Canonical public origin for auth redirects and absolute links.
+ * Production: requires NEXT_PUBLIC_SITE_URL (or APP_URL alias).
+ * Local only: falls back to http://localhost:3000 when unset.
+ */
 export function getSiteUrl(): string {
   const candidates = [
     process.env.NEXT_PUBLIC_SITE_URL,
     process.env.NEXT_PUBLIC_APP_URL,
-    process.env.VERCEL_PROJECT_PRODUCTION_URL,
-    process.env.VERCEL_URL,
   ];
 
   for (const candidate of candidates) {
     if (!candidate || candidate.includes("undefined")) continue;
     const normalized = stripTrailingSlash(ensureProtocol(candidate));
     if (normalized) return normalized;
+  }
+
+  const isProd =
+    process.env.NODE_ENV === "production" ||
+    process.env.CF_PAGES === "1" ||
+    Boolean(process.env.CF_PAGES_URL);
+
+  if (isProd) {
+    throw new Error(
+      "NEXT_PUBLIC_SITE_URL lipsește în producție. Setează https://easywedd.raianvisual.ro în Cloudflare Variables.",
+    );
   }
 
   return "http://localhost:3000";
@@ -44,6 +54,7 @@ const SAFE_NEXT_PREFIXES = [
   "/admin",
   "/check-email",
   "/auth/update-password",
+  "/update-password",
 ] as const;
 
 /**
@@ -70,16 +81,21 @@ export function getSafeNextPath(
   if (trimmed.includes("\\")) return fallback;
 
   const pathOnly = trimmed.split("?")[0]?.split("#")[0] ?? trimmed;
+
+  // Normalize legacy recovery path
+  if (pathOnly === "/auth/update-password") {
+    return "/update-password";
+  }
+
   const allowed = SAFE_NEXT_PREFIXES.some(
     (prefix) => pathOnly === prefix || pathOnly.startsWith(prefix),
   );
 
-  if (!allowed && pathOnly !== "/dashboard/onboarding") {
-    // /dashboard and nested paths already covered by prefix "/dashboard"
-    if (!pathOnly.startsWith("/dashboard")) return fallback;
+  if (!allowed && !pathOnly.startsWith("/dashboard")) {
+    return fallback;
   }
 
-  return trimmed;
+  return trimmed === "/auth/update-password" ? "/update-password" : trimmed;
 }
 
 export function getAuthCallbackUrl(next = "/dashboard/onboarding"): string {

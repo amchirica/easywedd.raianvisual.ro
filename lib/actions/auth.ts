@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { CONSENT_VERSION } from "@/lib/constants";
+import { upsertConsents } from "@/lib/consents";
 import { logAuthEvent } from "@/lib/logging/auth-events";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthCallbackUrl, getSafeNextPath, getSiteUrl } from "@/lib/url";
@@ -53,23 +53,7 @@ async function recordConsents(
   source: string,
 ) {
   const supabase = await createClient();
-  const now = new Date().toISOString();
-
-  const rows = consents.map((consent) => ({
-    user_id: userId,
-    workspace_id: null as string | null,
-    consent_type: consent.type,
-    consent_version: CONSENT_VERSION,
-    granted: consent.granted,
-    granted_at: consent.granted ? now : null,
-    revoked_at: consent.granted ? null : now,
-    source,
-  }));
-
-  const { error } = await supabase.from("user_consents").insert(rows);
-  if (error) {
-    console.error("[auth:consents]", { code: error.code, message: error.message });
-  }
+  await upsertConsents(supabase, userId, consents, source, null);
 }
 
 function mapAuthError(error: { message: string; code?: string; status?: number }) {
@@ -362,7 +346,7 @@ export async function forgotPasswordAction(
 
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-    redirectTo: getAuthCallbackUrl("/auth/update-password"),
+    redirectTo: getAuthCallbackUrl("/update-password"),
   });
 
   if (error) {

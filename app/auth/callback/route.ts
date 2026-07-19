@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
 
-import { CONSENT_VERSION } from "@/lib/constants";
+import { upsertConsents } from "@/lib/consents";
 import { logAuthEvent } from "@/lib/logging/auth-events";
 import { createClient } from "@/lib/supabase/server";
 import { getSafeNextPath, getSiteUrl } from "@/lib/url";
@@ -14,7 +14,6 @@ async function recordPendingConsentsFromMetadata(
   if (!metadata) return;
 
   const supabase = await createClient();
-  const now = new Date().toISOString();
   const marketing = Boolean(metadata.pending_marketing);
   const analytics = Boolean(metadata.pending_analytics);
 
@@ -25,24 +24,7 @@ async function recordPendingConsentsFromMetadata(
     { type: "analytics", granted: analytics },
   ];
 
-  const rows = consents.map((consent) => ({
-    user_id: userId,
-    workspace_id: null as string | null,
-    consent_type: consent.type,
-    consent_version: CONSENT_VERSION,
-    granted: consent.granted,
-    granted_at: consent.granted ? now : null,
-    revoked_at: consent.granted ? null : now,
-    source: "auth_callback",
-  }));
-
-  const { error } = await supabase.from("user_consents").insert(rows);
-  if (error && !error.message.toLowerCase().includes("duplicate")) {
-    console.error("[auth/callback:consents]", {
-      code: error.code,
-      message: error.message,
-    });
-  }
+  await upsertConsents(supabase, userId, consents, "auth_callback", null);
 }
 
 function resolveDestination(
@@ -51,7 +33,10 @@ function resolveDestination(
   authType: string | null,
 ) {
   if (authType === "recovery") {
-    return getSafeNextPath("/auth/update-password", "/auth/update-password");
+    return "/update-password";
+  }
+  if (next === "/update-password" || next.startsWith("/update-password?")) {
+    return "/update-password";
   }
   if (next.startsWith("/invite/")) return next;
   if (onboardingCompleted) {
@@ -59,6 +44,12 @@ function resolveDestination(
     return dest === "/dashboard/onboarding" ? "/dashboard" : dest;
   }
   return "/dashboard/onboarding";
+}
+
+function loginErrorRedirect(siteUrl: string, reason: string) {
+  return NextResponse.redirect(
+    `${siteUrl}/login?error=auth_callback&reason=${encodeURIComponent(reason)}`,
+  );
 }
 
 export async function GET(request: Request) {
@@ -69,7 +60,7 @@ export async function GET(request: Request) {
   const type = searchParams.get("type");
   const siteUrl = getSiteUrl();
   const defaultNext =
-    type === "recovery" ? "/auth/update-password" : "/dashboard/onboarding";
+    type === "recovery" ? "/update-password" : "/dashboard/onboarding";
   const next = getSafeNextPath(searchParams.get("next"), defaultNext);
 
   logAuthEvent("AUTH_CALLBACK_START", { requestId });
@@ -92,9 +83,7 @@ export async function GET(request: Request) {
       message: "missing_code_or_token",
       ok: false,
     });
-    return NextResponse.redirect(
-      `${siteUrl}/login?error=auth_callback&reason=missing_code`,
-    );
+    return loginErrorRedirect(siteUrl, "missing_code");
   }
 
   if (exchangeError) {
@@ -104,9 +93,12 @@ export async function GET(request: Request) {
       message: exchangeError.message,
       ok: false,
     });
-    return NextResponse.redirect(
-      `${siteUrl}/login?error=auth_callback&reason=exchange_failed`,
-    );
+    const reason =
+      exchangeError.message.toLowerCase().includes("expired") ||
+      exchangeError.code === "otp_expired"
+        ? "link_expired"
+        : "exchange_failed";
+    return loginErrorRedirect(siteUrl, reason);
   }
 
   logAuthEvent("AUTH_CALLBACK_EXCHANGE_SUCCESS", { requestId, ok: true });
@@ -121,9 +113,7 @@ export async function GET(request: Request) {
       message: "no_user_after_exchange",
       ok: false,
     });
-    return NextResponse.redirect(
-      `${siteUrl}/login?error=auth_callback&reason=no_user`,
-    );
+    return loginErrorRedirect(siteUrl, "no_user");
   }
 
   const { error: profileError } = await supabase.rpc("ensure_own_profile");

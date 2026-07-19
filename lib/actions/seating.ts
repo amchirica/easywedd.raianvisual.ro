@@ -17,8 +17,6 @@ export async function createTableAction(formData: FormData): Promise<void> {
     label: formData.get("label"),
     shape: formData.get("shape") || "round",
     capacity: formData.get("capacity") || 8,
-    pos_x: formData.get("pos_x") || 80 + Math.random() * 120,
-    pos_y: formData.get("pos_y") || 80 + Math.random() * 80,
   });
 
   if (!parsed.success) return;
@@ -52,6 +50,12 @@ export async function createTableAction(formData: FormData): Promise<void> {
     .select("*", { count: "exact", head: true })
     .eq("wedding_id", weddingId);
 
+  const index = countExisting.count ?? 0;
+  const col = index % 3;
+  const row = Math.floor(index / 3);
+  const defaultX = 24 + col * 220;
+  const defaultY = 24 + row * 180;
+
   await supabase.from("tables").insert({
     workspace_id: workspaceId,
     wedding_id: weddingId,
@@ -59,9 +63,9 @@ export async function createTableAction(formData: FormData): Promise<void> {
     label: parsed.data.label,
     shape: parsed.data.shape,
     capacity: parsed.data.capacity,
-    pos_x: parsed.data.pos_x ?? 80,
-    pos_y: parsed.data.pos_y ?? 80,
-    sort_order: (countExisting.count ?? 0) + 1,
+    pos_x: parsed.data.pos_x ?? defaultX,
+    pos_y: parsed.data.pos_y ?? defaultY,
+    sort_order: index + 1,
   });
 
   revalidatePath("/dashboard/seating");

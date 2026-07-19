@@ -17,6 +17,7 @@ const PUBLIC_PREFIXES = [
   "/sitemap-weddings.xml",
   "/auth",
   "/check-email",
+  "/update-password",
 ];
 
 // /auth/* (callback, update-password) is covered by "/auth" prefix
