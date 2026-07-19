@@ -12,6 +12,7 @@ import { trackProductEvent } from "@/lib/analytics/product";
 import { syncWorkspaceEntitlements } from "@/lib/entitlements/service";
 import { getStripe, isStripeConfigured } from "@/lib/stripe";
 import { requireWeddingContext } from "@/lib/planner/context";
+import { getSiteUrl } from "@/lib/url";
 
 export async function startCheckoutAction(productKey: BillingProductKey) {
   const ctx = await requireWeddingContext();
@@ -26,9 +27,7 @@ export async function startCheckoutAction(productKey: BillingProductKey) {
   const stripe = getStripe();
   if (!stripe || !priceId) return;
 
-  const appUrl = (
-    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-  ).replace(/\/$/, "");
+  const appUrl = getSiteUrl();
 
   const { data: sub } = await ctx.context.supabase
     .from("subscriptions")
@@ -82,9 +81,7 @@ export async function openBillingPortalAction() {
 
   if (!sub?.stripe_customer_id) return;
 
-  const appUrl = (
-    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-  ).replace(/\/$/, "");
+  const appUrl = getSiteUrl();
 
   const portal = await stripe.billingPortal.sessions.create({
     customer: sub.stripe_customer_id,

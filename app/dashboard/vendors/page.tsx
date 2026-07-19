@@ -14,6 +14,10 @@ import {
 import { canAccessFeature, canManagePlanner } from "@/lib/planner/access";
 import { requireWeddingContext } from "@/lib/planner/context";
 import { VendorStatusButtons } from "@/components/planner/vendor-status-buttons";
+import {
+  VENDOR_CATEGORIES,
+  vendorCategoryLabel,
+} from "@/lib/vendors/categories";
 
 export const metadata: Metadata = { title: "Furnizori" };
 
@@ -63,7 +67,18 @@ export default async function VendorsPage() {
           </div>
           <div className="space-y-1">
             <Label>Categorie</Label>
-            <Input name="category" defaultValue="photo_video" />
+            <select
+              name="category"
+              className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
+              defaultValue="photo_video"
+              required
+            >
+              {VENDOR_CATEGORIES.map((category) => (
+                <option key={category.slug} value={category.slug}>
+                  {category.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="space-y-1">
             <Label>Contact</Label>
@@ -108,7 +123,7 @@ export default async function VendorsPage() {
                   <div>
                     <h2 className="font-heading text-2xl">{vendor.company_name}</h2>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {vendor.category} · {vendor.status}
+                      {vendorCategoryLabel(vendor.category)} · {vendor.status}
                       {vendor.due_date ? ` · termen ${vendor.due_date}` : ""}
                     </p>
                     <p className="mt-2 text-sm">

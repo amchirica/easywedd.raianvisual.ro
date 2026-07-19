@@ -362,7 +362,7 @@ export async function forgotPasswordAction(
 
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-    redirectTo: getAuthCallbackUrl("/dashboard/settings"),
+    redirectTo: getAuthCallbackUrl("/auth/update-password"),
   });
 
   if (error) {

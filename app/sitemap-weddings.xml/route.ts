@@ -1,13 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
+
+import { getSiteUrl } from "@/lib/url";
 import type { Database } from "@/types/database";
 
 export async function GET() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(
-    /\/$/,
-    "",
-  );
+  const appUrl = getSiteUrl();
 
   let urls: string[] = [];
 

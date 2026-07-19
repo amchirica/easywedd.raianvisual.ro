@@ -43,6 +43,7 @@ const SAFE_NEXT_PREFIXES = [
   "/invite/",
   "/admin",
   "/check-email",
+  "/auth/update-password",
 ] as const;
 
 /**

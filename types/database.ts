@@ -738,6 +738,8 @@ export interface Database {
           shape: TableShape;
           capacity: number;
           sort_order: number;
+          pos_x: number;
+          pos_y: number;
           created_at: string;
           updated_at: string;
         };
@@ -749,6 +751,8 @@ export interface Database {
           shape?: TableShape;
           capacity?: number;
           sort_order?: number;
+          pos_x?: number;
+          pos_y?: number;
         };
         Update: Partial<{
           label: string;
@@ -756,6 +760,9 @@ export interface Database {
           capacity: number;
           sort_order: number;
           layout_id: string | null;
+          pos_x: number;
+          pos_y: number;
+          updated_at: string;
         }>;
         Relationships: [];
       };

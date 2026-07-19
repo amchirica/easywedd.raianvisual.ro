@@ -19,6 +19,8 @@ const PUBLIC_PREFIXES = [
   "/check-email",
 ];
 
+// /auth/* (callback, update-password) is covered by "/auth" prefix
+
 function isPublicPath(pathname: string) {
   if (AUTH_ROUTES.includes(pathname)) return true;
   return PUBLIC_PREFIXES.some((prefix) => {

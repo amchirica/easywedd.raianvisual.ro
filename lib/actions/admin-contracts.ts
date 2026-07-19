@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { sendTemplatedEmail } from "@/lib/emails/send";
 import { syncWorkspaceEntitlements } from "@/lib/entitlements/service";
 import { createClient } from "@/lib/supabase/server";
+import { getSiteUrl } from "@/lib/url";
 import { getCurrentUserContext } from "@/lib/workspace";
 import type { SubscriptionPlan } from "@/types/database";
 import { buildDefaultEntitlements } from "@/lib/entitlements";
@@ -108,13 +109,9 @@ export async function createClientContractAction(formData: FormData): Promise<vo
     invited_by: admin.user.id,
   });
 
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(
-    /\/$/,
-    "",
-  );
   await sendTemplatedEmail("partner_invite", {
     to: clientEmail,
-    vars: { url: `${appUrl}/invite/${token}` },
+    vars: { url: `${getSiteUrl()}/invite/${token}` },
   });
 
   revalidatePath("/admin/contracts");

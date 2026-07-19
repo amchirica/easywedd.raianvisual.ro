@@ -43,7 +43,8 @@ export default async function SeatingPage() {
         <div>
           <h1 className="font-heading text-4xl">Seating Plan</h1>
           <p className="mt-2 text-muted-foreground">
-            Mese rotunde/dreptunghiulare, capacitate și asignări. Fără editor CAD.
+            Plan vizual 2D: mese rotunde/dreptunghiulare, poziții și alocări
+            prin drag-and-drop.
           </p>
         </div>
         <PrintButton label="Listă restaurant / Print" />
@@ -79,7 +80,7 @@ export default async function SeatingPage() {
         </form>
       ) : null}
 
-      {(tables ?? []).length === 0 ? (
+      {(tables ?? []).length === 0 && !canWrite ? (
         <EmptyState
           title="Nicio masă"
           description="Creează mesele, apoi alocă invitații."
@@ -89,6 +90,7 @@ export default async function SeatingPage() {
           tables={tables ?? []}
           guests={guests ?? []}
           assignments={assignments ?? []}
+          canWrite={canWrite}
         />
       )}
     </div>

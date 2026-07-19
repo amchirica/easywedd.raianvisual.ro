@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getSiteUrl } from "@/lib/url";
 
 type RouteContext = { params: Promise<{ slug: string }> };
 
@@ -15,11 +16,7 @@ export async function POST(request: Request, context: RouteContext) {
     p_password: password,
   });
 
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(
-    /\/$/,
-    "",
-  );
-  const redirectUrl = `${appUrl}/w/${slug}`;
+  const redirectUrl = `${getSiteUrl()}/w/${slug}`;
 
   if (!ok) {
     return NextResponse.redirect(`${redirectUrl}?error=password`, { status: 303 });

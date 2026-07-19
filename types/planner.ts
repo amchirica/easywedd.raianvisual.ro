@@ -191,6 +191,8 @@ export type VenueTable = {
   shape: TableShape;
   capacity: number;
   sort_order: number;
+  pos_x?: number | null;
+  pos_y?: number | null;
   created_at: string;
   updated_at: string;
 };

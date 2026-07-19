@@ -70,9 +70,13 @@ Deschide [http://localhost:3000](http://localhost:3000).
 | `npm run lint` | ESLint |
 | `npm run typecheck` | TypeScript (`tsc --noEmit`) |
 | `npm run test` | Vitest (calcule buget + acces) |
-| `npm run build` | Production build |
+| `npm run build` | Next.js production build (local / non-CF) |
+| `npm run cf:build` | OpenNext Cloudflare build (`.open-next/`) — **obligatoriu în CI Cloudflare** |
+| `npm run deploy` | `cf:build` + deploy Cloudflare |
 | `npm run start` | Start build-ul de producție |
 | `npm run seed:dev` | Reminder: aplică `supabase/seed.dev.sql` doar în DEV |
+
+Deploy Cloudflare: vezi [`docs/CLOUDFLARE.md`](docs/CLOUDFLARE.md). Build command în Dashboard trebuie să fie `npm run cf:build`, nu `npm run build`.
 
 ## Auth & onboarding
 

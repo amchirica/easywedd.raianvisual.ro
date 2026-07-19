@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { EmailOtpType } from "@supabase/supabase-js";
 
 import { CONSENT_VERSION } from "@/lib/constants";
 import { logAuthEvent } from "@/lib/logging/auth-events";
@@ -44,22 +45,51 @@ async function recordPendingConsentsFromMetadata(
   }
 }
 
+function resolveDestination(
+  next: string,
+  onboardingCompleted: boolean | null | undefined,
+  authType: string | null,
+) {
+  if (authType === "recovery") {
+    return getSafeNextPath("/auth/update-password", "/auth/update-password");
+  }
+  if (next.startsWith("/invite/")) return next;
+  if (onboardingCompleted) {
+    const dest = getSafeNextPath(next, "/dashboard");
+    return dest === "/dashboard/onboarding" ? "/dashboard" : dest;
+  }
+  return "/dashboard/onboarding";
+}
+
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
+  const tokenHash = searchParams.get("token_hash");
+  const type = searchParams.get("type");
   const siteUrl = getSiteUrl();
-  const next = getSafeNextPath(
-    searchParams.get("next"),
-    "/dashboard/onboarding",
-  );
+  const defaultNext =
+    type === "recovery" ? "/auth/update-password" : "/dashboard/onboarding";
+  const next = getSafeNextPath(searchParams.get("next"), defaultNext);
 
   logAuthEvent("AUTH_CALLBACK_START", { requestId });
 
-  if (!code) {
+  const supabase = await createClient();
+  let exchangeError: { code?: string; message: string } | null = null;
+
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) exchangeError = error;
+  } else if (tokenHash && type) {
+    const { error } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: type as EmailOtpType,
+    });
+    if (error) exchangeError = error;
+  } else {
     logAuthEvent("AUTH_CALLBACK_EXCHANGE_ERROR", {
       requestId,
-      message: "missing_code",
+      message: "missing_code_or_token",
       ok: false,
     });
     return NextResponse.redirect(
@@ -67,14 +97,11 @@ export async function GET(request: Request) {
     );
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
-
-  if (error) {
+  if (exchangeError) {
     logAuthEvent("AUTH_CALLBACK_EXCHANGE_ERROR", {
       requestId,
-      code: error.code,
-      message: error.message,
+      code: exchangeError.code,
+      message: exchangeError.message,
       ok: false,
     });
     return NextResponse.redirect(
@@ -116,10 +143,12 @@ export async function GET(request: Request) {
     });
   }
 
-  await recordPendingConsentsFromMetadata(
-    user.id,
-    user.user_metadata as Record<string, unknown> | undefined,
-  );
+  if (type !== "recovery") {
+    await recordPendingConsentsFromMetadata(
+      user.id,
+      user.user_metadata as Record<string, unknown> | undefined,
+    );
+  }
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -127,17 +156,11 @@ export async function GET(request: Request) {
     .eq("id", user.id)
     .maybeSingle();
 
-  let destination = next;
-  if (next.startsWith("/invite/")) {
-    destination = next;
-  } else if (profile?.onboarding_completed) {
-    destination = getSafeNextPath(next, "/dashboard");
-    if (destination === "/dashboard/onboarding") {
-      destination = "/dashboard";
-    }
-  } else {
-    destination = "/dashboard/onboarding";
-  }
+  const destination = resolveDestination(
+    next,
+    profile?.onboarding_completed,
+    type,
+  );
 
   return NextResponse.redirect(`${siteUrl}${destination}`);
 }

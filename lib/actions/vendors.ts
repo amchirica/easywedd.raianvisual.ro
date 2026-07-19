@@ -6,6 +6,7 @@ import { trackProductEvent } from "@/lib/analytics/product";
 import { canManagePlanner } from "@/lib/planner/access";
 import { requireWeddingContext } from "@/lib/planner/context";
 import { vendorSchema } from "@/lib/validations/vendors";
+import { isVendorCategorySlug } from "@/lib/vendors/categories";
 import type { VendorStatus } from "@/types/planner";
 
 export type ActionState = { error?: string; success?: string };
@@ -15,9 +16,14 @@ export async function createVendorAction(formData: FormData): Promise<void> {
   if (ctx.error || !ctx.context) return;
   if (!canManagePlanner(ctx.context.role)) return;
 
+  const categoryRaw = String(formData.get("category") || "other");
+  if (!isVendorCategorySlug(categoryRaw)) {
+    return;
+  }
+
   const parsed = vendorSchema.safeParse({
     company_name: formData.get("company_name"),
-    category: formData.get("category") || "other",
+    category: categoryRaw,
     contact_name: String(formData.get("contact_name") || "") || undefined,
     phone: String(formData.get("phone") || "") || undefined,
     email: String(formData.get("email") || "") || undefined,

@@ -7,6 +7,7 @@ import { canManageGuests } from "@/lib/planner/access";
 import { logAudit, requireWeddingContext } from "@/lib/planner/context";
 import { parseGuestCsv, toCsv } from "@/lib/planner/exports";
 import { guestGroupSchema, guestSchema } from "@/lib/validations/guests";
+import { getSiteUrl } from "@/lib/url";
 import type { GuestSide } from "@/types/planner";
 
 export type ActionState = {
@@ -207,10 +208,9 @@ export async function createRsvpLinkAction(guestId: string): Promise<ActionState
 
   if (error || !token) return { error: error?.message ?? "Nu am putut crea linkul." };
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   return {
     success: "Link RSVP creat.",
-    rsvpUrl: `${appUrl}/rsvp/${token}`,
+    rsvpUrl: `${getSiteUrl()}/rsvp/${token}`,
   };
 }
 

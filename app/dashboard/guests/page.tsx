@@ -79,8 +79,10 @@ export default async function GuestsPage({ searchParams }: GuestsPageProps) {
         <div>
           <h1 className="font-heading text-4xl">Invitați</h1>
           <p className="mt-2 text-muted-foreground">
-            Datele personale (telefon, email, alergii) sunt protejate prin RLS.
-            Nu se folosesc automat pentru marketing.
+            Datele personale sunt colectate exclusiv pentru a facilita organizarea
+            nunții, comunicarea dintre participanți și gestionarea eficientă a
+            evenimentului. Acestea sunt protejate și nu sunt utilizate automat în
+            scopuri de marketing.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

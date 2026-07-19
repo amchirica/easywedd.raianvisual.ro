@@ -6,6 +6,7 @@ import { SiteCanvas } from "@/components/website/site-canvas";
 import { deviceClassFromUa } from "@/lib/invitations/analytics";
 import { defaultSiteTheme, siteThemeSchema } from "@/lib/website/schema";
 import { createClient } from "@/lib/supabase/server";
+import { getSiteUrl } from "@/lib/url";
 import type { SiteSectionConfig, SiteThemeConfig } from "@/types/website";
 
 type PageProps = { params: Promise<{ slug: string }> };
@@ -37,7 +38,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: "Site indisponibil", robots: { index: false, follow: false } };
   }
 
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
+  const appUrl = getSiteUrl();
   const title = site.seo_title || `Nuntă · ${site.slug}`;
   const description = site.seo_description || undefined;
 

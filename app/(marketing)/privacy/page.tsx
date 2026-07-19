@@ -10,8 +10,10 @@ export default function PrivacyPage() {
       <article className="mx-auto max-w-3xl px-6 pb-20 pt-28 prose-neutral">
         <h1 className="font-heading text-4xl">Politica de confidențialitate</h1>
         <p className="mt-6 text-muted-foreground">
-          EasyWedd prelucrează date personale pentru organizarea nunții, gestionarea
-          contului și a workspace-urilor. Datele invitaților nu sunt publice.
+          Datele personale sunt colectate exclusiv pentru a facilita organizarea
+          nunții, comunicarea dintre participanți și gestionarea eficientă a
+          evenimentului. Acestea sunt protejate și nu sunt utilizate automat în
+          scopuri de marketing.
         </p>
         <h2 className="mt-10 font-heading text-2xl">Consimțăminte</h2>
         <p className="mt-3 text-muted-foreground">
@@ -22,7 +24,7 @@ export default function PrivacyPage() {
         <h2 className="mt-10 font-heading text-2xl">Cercetare de industrie</h2>
         <p className="mt-3 text-muted-foreground">
           Datele pentru cercetare de piață nu sunt folosite fără consimțământul
-          explicit <em>anonymized_industry_research</em>.
+          explicit pentru cercetare anonimizată de industrie.
         </p>
       </article>
     </div>

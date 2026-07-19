@@ -60,6 +60,9 @@ http://localhost:3000/auth/callback
 http://localhost:3000/auth/callback/**
 ```
 
+Site URL trebuie să fie URL-ul de producție (nu localhost) pe proiectul live.
+Callback-ul acceptă `code` (PKCE) și `token_hash` + `type` (OTP). Recovery duce la `/auth/update-password`.
+
 Supabase acceptă wildcard `/**` pe path. Nu folosi URL-uri externe.
 
 ### Email Templates → Confirm signup

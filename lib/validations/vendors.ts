@@ -1,11 +1,20 @@
 import { z } from "zod";
 
+import { VENDOR_CATEGORIES } from "@/lib/vendors/categories";
+
+const vendorCategoryEnum = z.enum(
+  VENDOR_CATEGORIES.map((c) => c.slug) as [
+    (typeof VENDOR_CATEGORIES)[number]["slug"],
+    ...(typeof VENDOR_CATEGORIES)[number]["slug"][],
+  ],
+);
+
 export const vendorSchema = z.object({
-  company_name: z.string().min(1),
-  category: z.string().min(1).default("other"),
+  company_name: z.string().min(1, "Numele companiei este obligatoriu"),
+  category: vendorCategoryEnum.default("other"),
   contact_name: z.string().optional(),
   phone: z.string().optional(),
-  email: z.email().optional().or(z.literal("")),
+  email: z.email("Email invalid").optional().or(z.literal("")),
   website: z.string().optional(),
   social_url: z.string().optional(),
   quoted_price: z.coerce.number().nonnegative().optional(),
