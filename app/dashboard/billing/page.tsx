@@ -9,7 +9,7 @@ import {
 import { BILLING_PRODUCTS } from "@/lib/billing/catalog";
 import { featureFlagsForUi } from "@/lib/entitlements/ui";
 import { getWorkspaceEntitlementSnapshot } from "@/lib/entitlements/service";
-import { PLAN_CATALOG, isStripeConfigured } from "@/lib/stripe";
+import { PLAN_CATALOG, isStripeConfigured } from "@/lib/billing/plans";
 import { requireWeddingContext } from "@/lib/planner/context";
 
 export const metadata: Metadata = { title: "Abonament" };

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button";
-import { PLAN_CATALOG } from "@/lib/stripe";
+import { PLAN_CATALOG } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {

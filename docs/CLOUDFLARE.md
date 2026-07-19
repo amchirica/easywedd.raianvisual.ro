@@ -12,6 +12,23 @@ Deploy command:
 npx wrangler deploy
 ```
 
+În `wrangler.jsonc` este setat `minify: true` (necesar pe plan Free — limita gzip Worker = 3 MiB).
+
+### Eroare 10027 — Worker > 3 MiB
+
+Log tipic:
+
+```text
+Your Worker exceeded the size limit of 3 MiB. Please upgrade to a paid plan
+[code: 10027]
+Total Upload: … / gzip: ~3198 KiB
+```
+
+- Contul Cloudflare e pe **Workers Free** (max **3 MiB** gzip). Paid = până la **10 MiB**.
+- Upload-ul anterior era ~126 KiB peste limită; minify + bundle mai mic ar trebui să treacă.
+- Verificare locală după build: `npm run cf:size` (dry-run; uită-te la linia `gzip:`).
+- Dacă tot ești peste 3 MiB: [Workers Paid](https://dash.cloudflare.com/?to=/:account/workers/plans).
+
 ### De ce eșuează `npm run build` + `npx wrangler deploy`
 
 Log tipic:
@@ -51,6 +68,23 @@ Worker-ul real: `easywedd-raianvisual` — vezi `wrangler.jsonc`.
 - `WORKER_SELF_REFERENCE.service` — același nume
 - `open-next.config.ts`
 - Nu rula migrate/autoconfig pe CI; fișierele sunt deja în repo
+
+## `middleware.ts` vs `proxy.ts` (Next 16)
+
+Next 16 afișează:
+
+```text
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.
+```
+
+**Nu migra la `proxy.ts` încă.** Cu `@opennextjs/cloudflare@1.20.1`, `proxy.ts`
+este tratat ca Node middleware și build-ul eșuează cu:
+
+```text
+ERROR Node.js middleware is not currently supported.
+```
+
+Păstrează `middleware.ts` (Edge) până când OpenNext suportă oficial `proxy`.
 
 ## Secrets producție
 

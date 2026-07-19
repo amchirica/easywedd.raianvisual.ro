@@ -21,6 +21,8 @@
       "service": "easywedd-raianvisual"
     }
   ],
+  // Required to stay under Workers Free gzip limit (3 MiB).
+  "minify": true,
   "observability": {
     "enabled": true
   }

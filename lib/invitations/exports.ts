@@ -1,6 +1,3 @@
-import { toJpeg, toPng } from "html-to-image";
-import { jsPDF } from "jspdf";
-
 export type ExportViewport = "story" | "square" | "desktop";
 
 export const EXPORT_VIEWPORTS: Record<
@@ -13,12 +10,14 @@ export const EXPORT_VIEWPORTS: Record<
 };
 
 export async function exportElementAsPng(node: HTMLElement, filename: string) {
+  const { toPng } = await import("html-to-image");
   const dataUrl = await toPng(node, { pixelRatio: 2, cacheBust: true });
   downloadDataUrl(dataUrl, filename.endsWith(".png") ? filename : `${filename}.png`);
   return dataUrl;
 }
 
 export async function exportElementAsJpg(node: HTMLElement, filename: string) {
+  const { toJpeg } = await import("html-to-image");
   const dataUrl = await toJpeg(node, {
     pixelRatio: 2,
     quality: 0.92,
@@ -29,6 +28,10 @@ export async function exportElementAsJpg(node: HTMLElement, filename: string) {
 }
 
 export async function exportElementAsPdf(node: HTMLElement, filename: string) {
+  const [{ toPng }, { jsPDF }] = await Promise.all([
+    import("html-to-image"),
+    import("jspdf"),
+  ]);
   const dataUrl = await toPng(node, { pixelRatio: 2, cacheBust: true });
   const width = node.offsetWidth || 1080;
   const height = node.offsetHeight || 1920;
