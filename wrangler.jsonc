@@ -1,0 +1,34 @@
+/**
+ * Cloudflare Workers config for OpenNext.
+ * Worker name MUST match the existing Cloudflare Worker and WORKER_SELF_REFERENCE.
+ * Do not rename without updating Dashboard + custom domains.
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "easywedd-raianvisual",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-07-19",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      // Required by OpenNext for background ISR / cache revalidation.
+      // Must equal wrangler "name" exactly.
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "easywedd-raianvisual"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+  // Optional later: R2 incremental cache
+  // "r2_buckets": [
+  //   {
+  //     "binding": "NEXT_INC_CACHE_R2_BUCKET",
+  //     "bucket_name": "easywedd-raianvisual-cache"
+  //   }
+  // ]
+}

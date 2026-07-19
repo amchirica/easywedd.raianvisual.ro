@@ -1,0 +1,3 @@
+# Local Wrangler / OpenNext preview only — copy to .dev.vars (gitignored).
+# Production secrets belong in Cloudflare Dashboard → Variables and Secrets.
+NEXTJS_ENV=development
