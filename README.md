@@ -1,36 +1,124 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# EasyWedd
 
-## Getting Started
+Platformă SaaS pentru organizarea nunții — oferită inițial clienților Raian Visual, apoi ca produs independent.
 
-First, run the development server:
+**Domeniu:** [easywedd.raianvisual.ro](https://easywedd.raianvisual.ro)
+
+## Etapa 1 — Fundație
+
+Această etapă livrează:
+
+- Next.js App Router + TypeScript strict + Tailwind + shadcn/ui
+- Multi-tenancy (`workspaces`, `workspace_members`)
+- Auth Supabase (register, login, logout, reset password, email verify callback)
+- Onboarding + invitație partener
+- Schema PostgreSQL + RLS
+- Dashboard shell cu empty states reale
+- Admin shell (acces via workspace `admin`)
+- Stripe & Resend pregătite, fără plăți / emailuri obligatorii
+
+## Etapa 2 — Wedding Planner
+
+Implementat:
+
+- Task management (listă / kanban / calendar, checklist, recurență, template)
+- Budget planner (categorii, plăți, curs EUR/RON manual, export CSV / print)
+- Guest management (CSV, RSVP tokenizat, duplicate, anonimizare)
+- Seating plan (mese + asignări, fără editor CAD)
+- Vendor CRM, timeline zi, agenda contacte
+- Dashboard analytics reale
+
+Invitation Studio și Website Builder rămân pentru etape viitoare.
+
+## Stack
+
+- Next.js (App Router)
+- TypeScript
+- Tailwind CSS + shadcn/ui
+- Supabase (Auth, PostgreSQL, RLS, Storage ready)
+- Zod + React Hook Form ready
+- Stripe / Resend stubs
+
+## Setup local
+
+### Cerințe
+
+- Node.js 20+
+- Cont Supabase
+
+### Pași
+
+```bash
+npm install
+cp .env.example .env.local
+# completează variabilele — vezi docs/ENV.md
+```
+
+Aplică migrațiile SQL din `supabase/migrations/` în ordinea numelui, în Supabase SQL Editor (sau CLI `supabase db push`).
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Deschide [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Scripturi
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Script | Descriere |
+|--------|-----------|
+| `npm run dev` | Development server |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | TypeScript (`tsc --noEmit`) |
+| `npm run test` | Vitest (calcule buget + acces) |
+| `npm run build` | Production build |
+| `npm run start` | Start build-ul de producție |
+| `npm run seed:dev` | Reminder: aplică `supabase/seed.dev.sql` doar în DEV |
 
-## Learn More
+## Auth & onboarding
 
-To learn more about Next.js, take a look at the following resources:
+1. `/register` — cont + consimțăminte terms/privacy
+2. Verificare email (dacă e activată în Supabase) via `/auth/callback`
+3. `/dashboard/onboarding` — tip workspace, detalii nuntă, invitație partener
+4. `/dashboard` — analytics reale (task-uri, RSVP, buget, furnizori)
+5. RSVP public: `/rsvp/[token]` (token hashed, one-shot)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Admin
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Accesul `/admin/*` necesită membership `accepted` cu rol `admin` pe un workspace cu `workspace_type = 'admin'`.
 
-## Deploy on Vercel
+Creează manual în SQL (după ce ai un user):
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```sql
+insert into public.workspaces (name, slug, workspace_type, owner_id, status)
+values ('EasyWedd Admin', 'easywedd-admin', 'admin', '<USER_UUID>', 'active');
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+insert into public.workspace_members (workspace_id, user_id, role, invitation_status)
+values ('<WORKSPACE_UUID>', '<USER_UUID>', 'admin', 'accepted');
+```
+
+## Deployment (Vercel)
+
+1. Importă repo-ul în Vercel
+2. Setează variabilele din `.env.example`
+3. Domain: `easywedd.raianvisual.ro`
+4. Asigură-te că migrațiile sunt aplicate pe proiectul Supabase de producție
+5. Adaugă URL-ul de producție în Supabase Auth Redirect URLs
+
+Cloudflare Pages/Workers rămâne o alternativă ulterioară; App Router + Vercel este ținta etapei 1.
+
+## Structură
+
+```
+app/                 # rute marketing, auth, dashboard, admin
+components/          # UI, marketing, dashboard, auth, onboarding
+lib/                 # supabase, actions, validations, stripe, resend
+supabase/migrations/ # schema + RLS
+types/               # Database types
+docs/                # documentație env
+```
+
+## Confidențialitate
+
+- Consimțământ separat pentru `anonymized_industry_research`
+- Fără politici publice pe date de invitați (tabelul nu există încă)
+- Site-urile publice de nuntă vor folosi RPC/views controlate în etape viitoare
