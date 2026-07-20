@@ -14,6 +14,7 @@ import {
 
 type RegisterFormProps = {
   nextPath?: string;
+  claimToken?: string;
 };
 
 const initialState: SignupResult = {
@@ -21,7 +22,7 @@ const initialState: SignupResult = {
   message: "",
 };
 
-export function RegisterForm({ nextPath }: RegisterFormProps) {
+export function RegisterForm({ nextPath, claimToken }: RegisterFormProps) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(
     registerAction,
@@ -45,6 +46,9 @@ export function RegisterForm({ nextPath }: RegisterFormProps) {
   return (
     <form action={formAction} className="space-y-5">
       {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
+      {claimToken ? (
+        <input type="hidden" name="claim" value={claimToken} />
+      ) : null}
 
       <div className="space-y-2">
         <Label htmlFor="full_name">Nume complet</Label>

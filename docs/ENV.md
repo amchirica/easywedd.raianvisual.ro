@@ -25,7 +25,7 @@ SUPABASE_SERVICE_ROLE_KEY=...   (Secret)
 
 Opțional: Stripe / Resend keys ca Secrets.
 
-`getSiteUrl()` în producție **eșuează clar** dacă lipsește SITE/APP URL sau dacă e setat pe localhost.
+`getSiteUrl()` în producție **ignoră localhost** și folosește `https://easywedd.raianvisual.ro` dacă SITE/APP URL lipsește sau e greșit — altfel Supabase blochează emailurile Auth.
 
 ## Billing (Stripe)
 

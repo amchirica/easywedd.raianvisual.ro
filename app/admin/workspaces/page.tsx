@@ -1,53 +1,196 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { AdminConfirmDelete } from "@/components/admin/admin-confirm-delete";
+import { adminSoftDeleteWorkspaceBound } from "@/lib/actions/admin-billing";
 import { createClient } from "@/lib/supabase/server";
+import type { WorkspaceStatus, WorkspaceType } from "@/types/database";
 
 export const metadata: Metadata = { title: "Workspace-uri · Admin" };
 
-export default async function AdminWorkspacesPage() {
+type PageProps = {
+  searchParams: Promise<{ q?: string; status?: string; type?: string }>;
+};
+
+export default async function AdminWorkspacesPage({ searchParams }: PageProps) {
+  const params = await searchParams;
   const supabase = await createClient();
-  const { data: workspaces } = await supabase
+
+  let query = supabase
     .from("workspaces")
-    .select("id, name, slug, workspace_type, status, created_at")
+    .select(
+      "id, name, slug, workspace_type, status, soft_deleted_at, owner_id, created_at",
+    )
     .order("created_at", { ascending: false })
-    .limit(50);
+    .limit(100);
+
+  if (params.q) {
+    query = query.or(
+      `name.ilike.%${params.q}%,slug.ilike.%${params.q}%`,
+    );
+  }
+  if (params.type && params.type !== "all") {
+    query = query.eq("workspace_type", params.type as WorkspaceType);
+  }
+  if (params.status === "deleted") {
+    query = query.not("soft_deleted_at", "is", null);
+  } else if (params.status !== "all") {
+    query = query.is("soft_deleted_at", null);
+    if (params.status && params.status !== "active") {
+      query = query.eq("status", params.status as WorkspaceStatus);
+    }
+  }
+
+  const { data: workspaces } = await query;
+
+  const ownerIds = [
+    ...new Set((workspaces ?? []).map((w) => w.owner_id).filter(Boolean)),
+  ];
+  const { data: owners } =
+    ownerIds.length > 0
+      ? await supabase
+          .from("profiles")
+          .select("id, email, full_name")
+          .in("id", ownerIds)
+      : { data: [] };
+
+  const ownerById = new Map((owners ?? []).map((o) => [o.id, o]));
+
+  const { data: subs } =
+    (workspaces?.length ?? 0) > 0
+      ? await supabase
+          .from("subscriptions")
+          .select("workspace_id, plan_key, plan, status, access_source")
+          .in(
+            "workspace_id",
+            (workspaces ?? []).map((w) => w.id),
+          )
+          .is("soft_deleted_at", null)
+      : { data: [] };
+
+  const subByWs = new Map((subs ?? []).map((s) => [s.workspace_id, s]));
 
   return (
     <div className="space-y-6">
-      <h1 className="font-heading text-4xl">Workspace-uri</h1>
+      <header>
+        <h1 className="font-heading text-4xl">Workspace-uri</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Caută, filtrează, deschide și arhivează (soft delete) spațiile de
+          lucru.
+        </p>
+      </header>
+
+      <form className="flex flex-wrap gap-2">
+        <input
+          name="q"
+          defaultValue={params.q ?? ""}
+          placeholder="Nume sau slug…"
+          className="h-9 min-w-[220px] rounded-lg border border-input bg-background px-3 text-sm"
+        />
+        <select
+          name="type"
+          defaultValue={params.type ?? "all"}
+          className="h-9 rounded-lg border border-input bg-background px-2 text-sm"
+        >
+          <option value="all">Toate tipurile</option>
+          <option value="couple">couple</option>
+          <option value="planner">planner</option>
+          <option value="admin">admin</option>
+        </select>
+        <select
+          name="status"
+          defaultValue={params.status ?? "active"}
+          className="h-9 rounded-lg border border-input bg-background px-2 text-sm"
+        >
+          <option value="active">Active (nu șterse)</option>
+          <option value="all">Toate</option>
+          <option value="archived">Arhivate</option>
+          <option value="deleted">Soft delete</option>
+        </select>
+        <button
+          type="submit"
+          className="h-9 rounded-lg bg-foreground px-4 text-sm text-background"
+        >
+          Filtrează
+        </button>
+      </form>
+
       {!workspaces?.length ? (
-        <p className="text-sm text-muted-foreground">Niciun workspace încă.</p>
+        <p className="text-sm text-muted-foreground">Niciun workspace.</p>
       ) : (
         <div className="overflow-x-auto border border-border bg-card">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-border text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-medium">Nume</th>
+                <th className="px-4 py-3 font-medium">Owner</th>
                 <th className="px-4 py-3 font-medium">Tip</th>
                 <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Slug</th>
+                <th className="px-4 py-3 font-medium">Plan</th>
+                <th className="px-4 py-3 font-medium">Acțiuni</th>
               </tr>
             </thead>
             <tbody>
-              {workspaces.map((workspace) => (
-                <tr
-                  key={workspace.id}
-                  className="border-b border-border last:border-0"
-                >
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/admin/workspaces/${workspace.id}`}
-                      className="underline-offset-4 hover:underline"
-                    >
-                      {workspace.name}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3">{workspace.workspace_type}</td>
-                  <td className="px-4 py-3">{workspace.status}</td>
-                  <td className="px-4 py-3">{workspace.slug}</td>
-                </tr>
-              ))}
+              {workspaces.map((workspace) => {
+                const owner = ownerById.get(workspace.owner_id);
+                const sub = subByWs.get(workspace.id);
+                const deleted = Boolean(workspace.soft_deleted_at);
+                const protectedWs = workspace.workspace_type === "admin";
+                return (
+                  <tr
+                    key={workspace.id}
+                    className="border-b border-border last:border-0"
+                  >
+                    <td className="px-4 py-3">
+                      <Link
+                        href={`/admin/workspaces/${workspace.id}`}
+                        className="underline-offset-4 hover:underline"
+                      >
+                        {workspace.name}
+                      </Link>
+                      <p className="text-xs text-muted-foreground">
+                        {workspace.slug}
+                      </p>
+                    </td>
+                    <td className="px-4 py-3">
+                      {owner ? (
+                        <Link
+                          href={`/admin/users?q=${encodeURIComponent(owner.email)}`}
+                          className="underline-offset-4 hover:underline"
+                        >
+                          {owner.email}
+                        </Link>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="px-4 py-3">{workspace.workspace_type}</td>
+                    <td className="px-4 py-3">
+                      {deleted ? "Șters" : workspace.status}
+                    </td>
+                    <td className="px-4 py-3">
+                      {sub
+                        ? `${sub.plan_key ?? sub.plan} (${sub.status})`
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      {!deleted && !protectedWs ? (
+                        <AdminConfirmDelete
+                          workspaceId={workspace.id}
+                          id={workspace.id}
+                          label="Arhivează"
+                          confirmLabel="Confirmă arhivarea"
+                          action={adminSoftDeleteWorkspaceBound}
+                        />
+                      ) : protectedWs ? (
+                        <span className="text-xs text-muted-foreground">
+                          Protejat
+                        </span>
+                      ) : null}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

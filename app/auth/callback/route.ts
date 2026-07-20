@@ -1,10 +1,19 @@
 import { NextResponse } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
 
+import {
+  authCallbackErrorPath,
+  getSafeNextPath,
+  hasRecoveryAmr,
+  isPasswordRecoveryNext,
+  PASSWORD_RESET_PATH,
+  resolveAuthCallbackDestination,
+} from "@/lib/auth/callback-destination";
+import { fulfillPendingCheckoutsForUser } from "@/lib/billing/claim-checkout";
 import { upsertConsents } from "@/lib/consents";
 import { logAuthEvent } from "@/lib/logging/auth-events";
 import { createClient } from "@/lib/supabase/server";
-import { getSafeNextPath, getSiteUrl } from "@/lib/url";
+import { getSiteUrl } from "@/lib/url";
 import type { ConsentType } from "@/types/database";
 
 async function recordPendingConsentsFromMetadata(
@@ -27,29 +36,27 @@ async function recordPendingConsentsFromMetadata(
   await upsertConsents(supabase, userId, consents, "auth_callback", null);
 }
 
-function resolveDestination(
-  next: string,
-  onboardingCompleted: boolean | null | undefined,
-  authType: string | null,
-) {
-  if (authType === "recovery") {
-    return "/update-password";
-  }
-  if (next === "/update-password" || next.startsWith("/update-password?")) {
-    return "/update-password";
-  }
-  if (next.startsWith("/invite/")) return next;
-  if (onboardingCompleted) {
-    const dest = getSafeNextPath(next, "/dashboard");
-    return dest === "/dashboard/onboarding" ? "/dashboard" : dest;
-  }
-  return "/dashboard/onboarding";
+function errorRedirect(siteUrl: string, reason: string) {
+  return NextResponse.redirect(`${siteUrl}${authCallbackErrorPath(reason)}`);
 }
 
-function loginErrorRedirect(siteUrl: string, reason: string) {
-  return NextResponse.redirect(
-    `${siteUrl}/login?error=auth_callback&reason=${encodeURIComponent(reason)}`,
-  );
+/** Read AMR from JWT payload (post-exchange). Do not log the token. */
+function readAmrFromAccessToken(accessToken: string | undefined): unknown {
+  if (!accessToken) return undefined;
+  try {
+    const parts = accessToken.split(".");
+    if (parts.length < 2 || !parts[1]) return undefined;
+    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+    const json = JSON.parse(
+      typeof atob === "function"
+        ? atob(padded)
+        : Buffer.from(padded, "base64").toString("utf8"),
+    ) as { amr?: unknown };
+    return json.amr;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function GET(request: Request) {
@@ -59,9 +66,11 @@ export async function GET(request: Request) {
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type");
   const siteUrl = getSiteUrl();
+
+  const requestedNext = searchParams.get("next");
   const defaultNext =
-    type === "recovery" ? "/update-password" : "/dashboard/onboarding";
-  const next = getSafeNextPath(searchParams.get("next"), defaultNext);
+    type === "recovery" ? PASSWORD_RESET_PATH : "/dashboard/onboarding";
+  const next = getSafeNextPath(requestedNext, defaultNext);
 
   logAuthEvent("AUTH_CALLBACK_START", { requestId });
 
@@ -83,7 +92,7 @@ export async function GET(request: Request) {
       message: "missing_code_or_token",
       ok: false,
     });
-    return loginErrorRedirect(siteUrl, "missing_code");
+    return errorRedirect(siteUrl, "invalid_or_expired_link");
   }
 
   if (exchangeError) {
@@ -93,12 +102,7 @@ export async function GET(request: Request) {
       message: exchangeError.message,
       ok: false,
     });
-    const reason =
-      exchangeError.message.toLowerCase().includes("expired") ||
-      exchangeError.code === "otp_expired"
-        ? "link_expired"
-        : "exchange_failed";
-    return loginErrorRedirect(siteUrl, reason);
+    return errorRedirect(siteUrl, "invalid_or_expired_link");
   }
 
   logAuthEvent("AUTH_CALLBACK_EXCHANGE_SUCCESS", { requestId, ok: true });
@@ -113,7 +117,28 @@ export async function GET(request: Request) {
       message: "no_user_after_exchange",
       ok: false,
     });
-    return loginErrorRedirect(siteUrl, "no_user");
+    return errorRedirect(siteUrl, "invalid_or_expired_link");
+  }
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  const sessionAmr =
+    (sessionData.session &&
+    typeof sessionData.session === "object" &&
+    "amr" in sessionData.session
+      ? (sessionData.session as { amr?: unknown }).amr
+      : undefined) ?? readAmrFromAccessToken(accessToken);
+
+  const isRecoverySession =
+    type === "recovery" ||
+    isPasswordRecoveryNext(next) ||
+    hasRecoveryAmr(sessionAmr);
+
+  // Password recovery: skip profile ensure side-effects that aren't needed,
+  // never run consents/claim/onboarding routing.
+  if (isRecoverySession) {
+    logAuthEvent("AUTH_CALLBACK_RECOVERY", { requestId, userId: user.id, ok: true });
+    return NextResponse.redirect(new URL(PASSWORD_RESET_PATH, siteUrl));
   }
 
   const { error: profileError } = await supabase.rpc("ensure_own_profile");
@@ -133,24 +158,46 @@ export async function GET(request: Request) {
     });
   }
 
-  if (type !== "recovery") {
-    await recordPendingConsentsFromMetadata(
-      user.id,
-      user.user_metadata as Record<string, unknown> | undefined,
-    );
+  await recordPendingConsentsFromMetadata(
+    user.id,
+    user.user_metadata as Record<string, unknown> | undefined,
+  );
+
+  if (user.email) {
+    try {
+      await fulfillPendingCheckoutsForUser({
+        userId: user.id,
+        email: user.email,
+        claimToken:
+          searchParams.get("claim") ||
+          (typeof user.user_metadata?.pending_claim_token === "string"
+            ? user.user_metadata.pending_claim_token
+            : null),
+      });
+    } catch {
+      /* claim is best-effort; onboarding will retry */
+    }
   }
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("onboarding_completed")
+    .select("onboarding_completed, suspended_at")
     .eq("id", user.id)
     .maybeSingle();
 
-  const destination = resolveDestination(
-    next,
-    profile?.onboarding_completed,
-    type,
-  );
+  if (profile?.suspended_at) {
+    await supabase.auth.signOut();
+    return NextResponse.redirect(
+      `${siteUrl}/login?error=account_suspended`,
+    );
+  }
 
-  return NextResponse.redirect(`${siteUrl}${destination}`);
+  const destination = resolveAuthCallbackDestination({
+    next,
+    onboardingCompleted: profile?.onboarding_completed,
+    authType: type,
+    isRecoverySession: false,
+  });
+
+  return NextResponse.redirect(new URL(destination, siteUrl));
 }

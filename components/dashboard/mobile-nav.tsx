@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { useState } from "react";
 
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { dashboardNav } from "@/components/dashboard/nav-config";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -14,7 +15,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { APP_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 export function MobileNav() {
@@ -34,7 +34,8 @@ export function MobileNav() {
       </SheetTrigger>
       <SheetContent side="left" className="w-72 bg-sidebar p-0">
         <SheetHeader className="border-b border-sidebar-border px-6 py-5 text-left">
-          <SheetTitle className="font-heading text-2xl">{APP_NAME}</SheetTitle>
+          <SheetTitle className="sr-only">Meniu EasyWedd</SheetTitle>
+          <BrandLogo href="/dashboard" size={24} wordmarkClassName="text-2xl" />
         </SheetHeader>
         <nav className="flex flex-col gap-1 p-3">
           {dashboardNav.map((item) => {

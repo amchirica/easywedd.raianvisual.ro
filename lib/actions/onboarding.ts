@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { trackProductEvent } from "@/lib/analytics/product";
+import { fulfillPendingCheckoutsForUser } from "@/lib/billing/claim-checkout";
 import { CONSENT_VERSION, TRIAL_DAYS } from "@/lib/constants";
 import { processWorkspaceEmailOutbox } from "@/lib/emails/outbox";
 import { sendTemplatedEmail } from "@/lib/emails/send";
@@ -280,6 +281,18 @@ export async function completeOnboardingAction(
   });
 
   await setActiveWorkspaceId(workspaceId);
+
+  if (user.email) {
+    try {
+      await fulfillPendingCheckoutsForUser({
+        userId: user.id,
+        email: user.email,
+        workspaceId,
+      });
+    } catch {
+      /* paid claim retry is non-blocking */
+    }
+  }
 
   if (partnerWarning) {
     const cookieStore = await cookies();

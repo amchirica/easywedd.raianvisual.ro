@@ -93,6 +93,22 @@ export type ConsentType =
   | "analytics"
   | "anonymized_industry_research";
 
+export type AccessSource =
+  | "stripe_subscription"
+  | "stripe_one_time"
+  | "admin_grant"
+  | "trial"
+  | "partner"
+  | "legacy";
+
+export type ContractStatus =
+  | "draft"
+  | "pending_signature"
+  | "active"
+  | "expired"
+  | "canceled"
+  | "completed";
+
 export type Json =
   | string
   | number
@@ -114,6 +130,8 @@ export interface Database {
           locale: string;
           timezone: string;
           onboarding_completed: boolean;
+          suspended_at: string | null;
+          soft_deleted_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -126,6 +144,8 @@ export interface Database {
           locale?: string;
           timezone?: string;
           onboarding_completed?: boolean;
+          suspended_at?: string | null;
+          soft_deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -138,6 +158,8 @@ export interface Database {
           locale?: string;
           timezone?: string;
           onboarding_completed?: boolean;
+          suspended_at?: string | null;
+          soft_deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -151,6 +173,7 @@ export interface Database {
           workspace_type: WorkspaceType;
           owner_id: string;
           status: WorkspaceStatus;
+          soft_deleted_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -161,6 +184,7 @@ export interface Database {
           workspace_type?: WorkspaceType;
           owner_id: string;
           status?: WorkspaceStatus;
+          soft_deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -171,6 +195,7 @@ export interface Database {
           workspace_type?: WorkspaceType;
           owner_id?: string;
           status?: WorkspaceStatus;
+          soft_deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -367,6 +392,14 @@ export interface Database {
           billing_interval: BillingInterval | null;
           access_ends_at: string | null;
           cancel_at_period_end: boolean;
+          access_source: AccessSource;
+          plan_key: string | null;
+          stripe_checkout_session_id: string | null;
+          last_payment_at: string | null;
+          last_payment_stripe_id: string | null;
+          admin_notes: string | null;
+          soft_deleted_at: string | null;
+          granted_by: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -383,6 +416,14 @@ export interface Database {
           billing_interval?: BillingInterval | null;
           access_ends_at?: string | null;
           cancel_at_period_end?: boolean;
+          access_source?: AccessSource;
+          plan_key?: string | null;
+          stripe_checkout_session_id?: string | null;
+          last_payment_at?: string | null;
+          last_payment_stripe_id?: string | null;
+          admin_notes?: string | null;
+          soft_deleted_at?: string | null;
+          granted_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -399,9 +440,92 @@ export interface Database {
           billing_interval?: BillingInterval | null;
           access_ends_at?: string | null;
           cancel_at_period_end?: boolean;
+          access_source?: AccessSource;
+          plan_key?: string | null;
+          stripe_checkout_session_id?: string | null;
+          last_payment_at?: string | null;
+          last_payment_stripe_id?: string | null;
+          admin_notes?: string | null;
+          soft_deleted_at?: string | null;
+          granted_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [];
+      };
+      billing_plans: {
+        Row: {
+          key: string;
+          name: string;
+          description: string;
+          maps_to_subscription_plan: SubscriptionPlan;
+          billing_type: string;
+          interval: BillingInterval;
+          guest_limit: number;
+          website_publishing: boolean;
+          pdf_export: boolean;
+          invitations: boolean;
+          seating: boolean;
+          vendors: boolean;
+          analytics: boolean;
+          storage_mb: number;
+          workspace_limit: number;
+          access_months: number | null;
+          stripe_price_env: string | null;
+          is_public: boolean;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Record<string, unknown>;
+        Update: Record<string, unknown>;
+        Relationships: [];
+      };
+      pending_checkouts: {
+        Row: {
+          id: string;
+          email: string;
+          plan_key: string;
+          stripe_checkout_session_id: string | null;
+          stripe_customer_id: string | null;
+          stripe_payment_intent_id: string | null;
+          stripe_subscription_id: string | null;
+          status: string;
+          claim_token: string | null;
+          workspace_id: string | null;
+          user_id: string | null;
+          metadata: Json;
+          paid_at: string | null;
+          fulfilled_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Record<string, unknown>;
+        Update: Record<string, unknown>;
+        Relationships: [];
+      };
+      contracts: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          user_id: string | null;
+          subscription_id: string | null;
+          plan_key: string | null;
+          client_contract_link_id: string | null;
+          status: ContractStatus;
+          title: string;
+          document_url: string | null;
+          signature_status: string;
+          starts_at: string | null;
+          ends_at: string | null;
+          internal_notes: string | null;
+          soft_deleted_at: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Record<string, unknown>;
+        Update: Record<string, unknown>;
         Relationships: [];
       };
       feature_entitlements: {

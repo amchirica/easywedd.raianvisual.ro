@@ -9,6 +9,7 @@ type Props = {
   id: string;
   action: (workspaceId: string, id: string) => Promise<void>;
   label?: string;
+  confirmLabel?: string;
 };
 
 export function AdminConfirmDelete({
@@ -16,6 +17,7 @@ export function AdminConfirmDelete({
   id,
   action,
   label = "Șterge",
+  confirmLabel = "Confirmă",
 }: Props) {
   const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -41,7 +43,7 @@ export function AdminConfirmDelete({
           })
         }
       >
-        {pending ? "..." : "Confirmă"}
+        {pending ? "..." : confirmLabel}
       </Button>
       <Button
         type="button"

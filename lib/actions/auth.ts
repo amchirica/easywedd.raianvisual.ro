@@ -3,21 +3,24 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { fulfillPendingCheckoutsForUser } from "@/lib/billing/claim-checkout";
 import { upsertConsents } from "@/lib/consents";
 import { logAuthEvent } from "@/lib/logging/auth-events";
 import { createClient } from "@/lib/supabase/server";
-import { getAuthCallbackUrl, getSafeNextPath, getSiteUrl } from "@/lib/url";
+import { getAuthCallbackUrl, getPasswordResetCallbackUrl, getSafeNextPath, getSiteUrl } from "@/lib/url";
 import {
   forgotPasswordSchema,
   loginSchema,
   registerSchema,
   resendConfirmationSchema,
+  resetPasswordSchema,
 } from "@/lib/validations/auth";
 import type { ConsentType } from "@/types/database";
 
 export type ActionResult = {
   error?: string;
   success?: string;
+  redirectTo?: string;
 };
 
 export type SignupResult =
@@ -99,7 +102,9 @@ export async function loginAction(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+  const { data: signInData, error } = await supabase.auth.signInWithPassword(
+    parsed.data,
+  );
 
   if (error) {
     return {
@@ -108,6 +113,31 @@ export async function loginAction(
           ? "Email sau parolă incorrectă."
           : "Nu am putut autentifica. Încearcă din nou.",
     };
+  }
+
+  const user = signInData.user;
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("suspended_at")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profile?.suspended_at) {
+      await supabase.auth.signOut();
+      return { error: "Contul este suspendat. Contactează suportul." };
+    }
+
+    const claim = String(formData.get("claim") || "").trim() || null;
+    try {
+      await fulfillPendingCheckoutsForUser({
+        userId: user.id,
+        email: user.email ?? parsed.data.email,
+        claimToken: claim,
+      });
+    } catch {
+      /* claim retry after onboarding */
+    }
   }
 
   const next = getSafeNextPath(String(formData.get("next") || ""), "/dashboard");
@@ -151,8 +181,12 @@ export async function registerAction(
 
   logAuthEvent("AUTH_SIGNUP_START", { requestId });
 
+  const claim = String(formData.get("claim") || "").trim() || null;
   const supabase = await createClient();
-  const emailRedirectTo = getAuthCallbackUrl(nextPath);
+  let emailRedirectTo = getAuthCallbackUrl(nextPath);
+  if (claim) {
+    emailRedirectTo += `&claim=${encodeURIComponent(claim)}`;
+  }
 
   const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,
@@ -163,6 +197,7 @@ export async function registerAction(
         source: "easywedd_registration",
         pending_marketing: parsed.data.marketing,
         pending_analytics: parsed.data.analytics,
+        pending_claim_token: claim,
       },
       emailRedirectTo,
     },
@@ -344,18 +379,72 @@ export async function forgotPasswordAction(
     return { error: parsed.error.issues[0]?.message ?? "Date invalide" };
   }
 
+  const redirectTo = getPasswordResetCallbackUrl();
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-    redirectTo: getAuthCallbackUrl("/update-password"),
+    redirectTo,
   });
 
   if (error) {
-    console.error("[auth:forgot]", { code: error.code, message: error.message });
+    // Common cause: redirectTo not on Supabase allow-list, or localhost in prod.
+    console.error("[auth:forgot]", {
+      code: error.code,
+      status: error.status,
+      message: error.message,
+      redirectTo,
+    });
+  } else {
+    console.info("[auth:forgot]", { ok: true, redirectTo });
   }
 
+  // Always neutral — do not reveal whether the email exists or if send failed.
   return {
     success:
-      "Dacă există un cont cu acest email, vei primi instrucțiuni de resetare.",
+      "Dacă există un cont asociat acestei adrese, vei primi în câteva minute un link pentru resetarea parolei.",
+  };
+}
+
+export async function resetPasswordAction(
+  _prev: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const parsed = resetPasswordSchema.safeParse({
+    password: formData.get("password"),
+    confirm_password: formData.get("confirm_password"),
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Date invalide" };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      error: "Linkul de resetare este invalid sau a expirat.",
+    };
+  }
+
+  const { error } = await supabase.auth.updateUser({
+    password: parsed.data.password,
+  });
+
+  if (error) {
+    console.error("[auth:reset-password]", { code: error.code });
+    return {
+      error:
+        "Nu am putut actualiza parola. Solicită un link nou dacă problema persistă.",
+    };
+  }
+
+  await supabase.auth.signOut();
+
+  return {
+    success: "Parola a fost actualizată cu succes.",
+    redirectTo: "/login?reset=success",
   };
 }
 

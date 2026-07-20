@@ -32,6 +32,8 @@ export const EMAIL_TEMPLATE_META: Record<
   payment_failed: { subject: "Plată eșuată", category: "transactional" },
 };
 
+import { brandMarkImgHtml } from "@/lib/brand";
+
 export function renderEmailHtml(
   id: EmailTemplateId,
   vars: Record<string, string>,
@@ -49,5 +51,6 @@ export function renderEmailHtml(
     payment_failed: `<p>Plata a eșuat. Actualizează metoda de plată din Billing.</p>`,
   };
 
-  return `<!doctype html><html><body style="font-family:Georgia,serif;color:#2A2420;background:#F7F4EF;padding:24px">${body[id]}</body></html>`;
+  const header = `<div style="margin:0 0 16px">${brandMarkImgHtml(28)}</div>`;
+  return `<!doctype html><html><body style="font-family:Georgia,serif;color:#2A2420;background:#F7F4EF;padding:24px">${header}${body[id]}</body></html>`;
 }

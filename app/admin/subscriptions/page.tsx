@@ -1,50 +1,284 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
+import { AdminConfirmDelete } from "@/components/admin/admin-confirm-delete";
+import { AdminSubscriptionForm } from "@/components/admin/admin-subscription-form";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  adminExtendAccessFormAction,
+  adminReactivateAccessBound,
+  adminRevokeAccessBound,
+  adminUpdateSubscriptionDatesFormAction,
+} from "@/lib/actions/admin-billing";
+import { listAdminUserOptions } from "@/lib/admin/admin-directory";
+import { ACCESS_SOURCE_LABELS } from "@/lib/billing/labels";
+import { listPublicBillingPlans } from "@/lib/billing/plan-catalog";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Abonamente · Admin" };
 
 export default async function AdminSubscriptionsPage() {
   const supabase = await createClient();
+  const [plans, users] = await Promise.all([
+    listPublicBillingPlans(),
+    listAdminUserOptions(),
+  ]);
+
   const { data: subscriptions } = await supabase
     .from("subscriptions")
-    .select("id, workspace_id, plan, status, trial_ends_at, created_at")
-    .order("created_at", { ascending: false })
-    .limit(50);
+    .select(
+      "id, workspace_id, plan, status, product_key, plan_key, access_source, billing_interval, stripe_customer_id, stripe_subscription_id, stripe_checkout_session_id, access_ends_at, current_period_ends_at, trial_ends_at, cancel_at_period_end, last_payment_at, last_payment_stripe_id, admin_notes, created_at, soft_deleted_at",
+    )
+    .order("updated_at", { ascending: false })
+    .limit(80);
+
+  const workspaceIds = [
+    ...new Set((subscriptions ?? []).map((s) => s.workspace_id)),
+  ];
+  const { data: workspaces } =
+    workspaceIds.length > 0
+      ? await supabase
+          .from("workspaces")
+          .select("id, name, owner_id, workspace_type")
+          .in("id", workspaceIds)
+      : { data: [] };
+
+  const ownerIds = [
+    ...new Set((workspaces ?? []).map((w) => w.owner_id).filter(Boolean)),
+  ];
+  const { data: owners } =
+    ownerIds.length > 0
+      ? await supabase
+          .from("profiles")
+          .select("id, email, full_name")
+          .in("id", ownerIds as string[])
+      : { data: [] };
+
+  const { data: entitlements } =
+    workspaceIds.length > 0
+      ? await supabase
+          .from("feature_entitlements")
+          .select("workspace_id, feature_key, enabled")
+          .in("workspace_id", workspaceIds)
+          .eq("enabled", true)
+      : { data: [] };
+
+  const { data: contracts } =
+    workspaceIds.length > 0
+      ? await supabase
+          .from("contracts")
+          .select("id, workspace_id, title, status")
+          .in("workspace_id", workspaceIds)
+          .is("soft_deleted_at", null)
+      : { data: [] };
+
+  const { data: payments } =
+    workspaceIds.length > 0
+      ? await supabase
+          .from("one_time_payments")
+          .select("workspace_id, created_at, status, product_key")
+          .in("workspace_id", workspaceIds)
+          .order("created_at", { ascending: false })
+      : { data: [] };
+
+  const wsById = new Map((workspaces ?? []).map((w) => [w.id, w]));
+  const ownerById = new Map((owners ?? []).map((o) => [o.id, o]));
+  const planByKey = new Map(plans.map((p) => [p.key, p]));
 
   return (
-    <div className="space-y-6">
-      <h1 className="font-heading text-4xl">Abonamente</h1>
-      {!subscriptions?.length ? (
-        <p className="text-sm text-muted-foreground">Niciun abonament încă.</p>
-      ) : (
-        <div className="overflow-x-auto border border-border bg-card">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-border text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 font-medium">Plan</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Workspace</th>
-                <th className="px-4 py-3 font-medium">Trial</th>
-              </tr>
-            </thead>
-            <tbody>
-              {subscriptions.map((sub) => (
-                <tr key={sub.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-3">{sub.plan}</td>
-                  <td className="px-4 py-3">{sub.status}</td>
-                  <td className="px-4 py-3 font-mono text-xs">{sub.workspace_id}</td>
-                  <td className="px-4 py-3">
-                    {sub.trial_ends_at
-                      ? new Date(sub.trial_ends_at).toLocaleDateString("ro-RO")
-                      : "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+    <div className="space-y-10">
+      <header>
+        <h1 className="font-heading text-4xl">Abonamente</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Selectează utilizatorul și workspace-ul — fără UUID-uri în interfață.
+        </p>
+      </header>
+
+      <AdminSubscriptionForm
+        users={users}
+        plans={plans.map((p) => ({
+          key: p.key,
+          name: p.name,
+          billing_type: p.billing_type,
+        }))}
+      />
+
+      <div className="space-y-6">
+        <h2 className="font-heading text-2xl">Abonamente existente</h2>
+        {!(subscriptions ?? []).length ? (
+          <p className="text-sm text-muted-foreground">Niciun abonament.</p>
+        ) : (
+          (subscriptions ?? []).map((sub) => {
+            const ws = wsById.get(sub.workspace_id);
+            const owner = ws?.owner_id ? ownerById.get(ws.owner_id) : null;
+            const planKey = sub.plan_key ?? sub.product_key ?? sub.plan;
+            const plan = planByKey.get(planKey ?? "");
+            const feats = (entitlements ?? [])
+              .filter((e) => e.workspace_id === sub.workspace_id)
+              .map((e) => e.feature_key);
+            const contract = (contracts ?? []).find(
+              (c) => c.workspace_id === sub.workspace_id,
+            );
+            const lastPay = (payments ?? []).find(
+              (p) => p.workspace_id === sub.workspace_id,
+            );
+            const revoked = Boolean(sub.soft_deleted_at);
+
+            return (
+              <article
+                key={sub.id}
+                className="space-y-3 border border-border bg-card p-4 text-sm"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-heading text-xl">
+                      {plan?.name ?? planKey} · {sub.status}
+                      {revoked ? " · revocat" : ""}
+                    </p>
+                    <p className="text-muted-foreground">
+                      Workspace:{" "}
+                      <Link
+                        href={`/admin/workspaces/${sub.workspace_id}`}
+                        className="underline-offset-4 hover:underline"
+                      >
+                        {ws?.name ?? "Workspace"}
+                      </Link>
+                      {ws ? ` · ${ws.workspace_type}` : null}
+                      {owner
+                        ? ` · ${owner.full_name || owner.email}`
+                        : null}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {revoked ? (
+                      <AdminConfirmDelete
+                        workspaceId={sub.workspace_id}
+                        id={sub.id}
+                        label="Reactivează acces"
+                        confirmLabel="Confirmă reactivarea"
+                        action={adminReactivateAccessBound}
+                      />
+                    ) : (
+                      <AdminConfirmDelete
+                        workspaceId={sub.workspace_id}
+                        id={sub.id}
+                        label="Revocă acces"
+                        confirmLabel="Confirmă revocarea"
+                        action={adminRevokeAccessBound}
+                      />
+                    )}
+                  </div>
+                </div>
+
+                <dl className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  <div>
+                    <dt className="text-muted-foreground">Sursă acces</dt>
+                    <dd>
+                      {ACCESS_SOURCE_LABELS[sub.access_source ?? "legacy"] ??
+                        sub.access_source}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Tip billing</dt>
+                    <dd>{sub.billing_interval ?? plan?.billing_type ?? "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Expiră</dt>
+                    <dd>
+                      {sub.access_ends_at
+                        ? new Date(sub.access_ends_at).toLocaleDateString(
+                            "ro-RO",
+                          )
+                        : "Permanent / n/a"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Ultima plată</dt>
+                    <dd>
+                      {sub.last_payment_at
+                        ? new Date(sub.last_payment_at).toLocaleString("ro-RO")
+                        : lastPay
+                          ? new Date(lastPay.created_at).toLocaleString("ro-RO")
+                          : "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Contract</dt>
+                    <dd>
+                      {contract
+                        ? `${contract.title} (${contract.status})`
+                        : "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Client</dt>
+                    <dd>{owner?.email ?? "—"}</dd>
+                  </div>
+                </dl>
+
+                <p className="text-xs text-muted-foreground">
+                  Funcții: {feats.length ? feats.join(", ") : "—"}
+                </p>
+                {sub.admin_notes ? (
+                  <p className="text-xs">Motiv: {sub.admin_notes}</p>
+                ) : null}
+
+                <div className="flex flex-wrap items-end gap-3">
+                  <form
+                    action={adminExtendAccessFormAction}
+                    className="flex items-end gap-2"
+                  >
+                    <input
+                      type="hidden"
+                      name="workspace_id"
+                      value={sub.workspace_id}
+                    />
+                    <input type="hidden" name="months" value="3" />
+                    <Button type="submit" size="sm" variant="outline">
+                      Prelungește accesul (+3 luni)
+                    </Button>
+                  </form>
+
+                  <form
+                    action={adminUpdateSubscriptionDatesFormAction}
+                    className="flex flex-wrap items-end gap-2"
+                  >
+                    <input
+                      type="hidden"
+                      name="workspace_id"
+                      value={sub.workspace_id}
+                    />
+                    <div className="space-y-1">
+                      <Label>Data expirării</Label>
+                      <Input
+                        type="date"
+                        name="access_ends_at"
+                        defaultValue={
+                          sub.access_ends_at
+                            ? sub.access_ends_at.slice(0, 10)
+                            : ""
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Motiv administrativ</Label>
+                      <Input
+                        name="admin_notes"
+                        defaultValue={sub.admin_notes ?? ""}
+                      />
+                    </div>
+                    <Button type="submit" size="sm" variant="outline">
+                      Actualizează
+                    </Button>
+                  </form>
+                </div>
+              </article>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }

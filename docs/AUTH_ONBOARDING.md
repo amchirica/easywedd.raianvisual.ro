@@ -32,11 +32,45 @@ signup
 | `RESEND_FROM_EMAIL` | Expeditor (ex. `notifications@easywedd.raianvisual.ro`) |
 | `RESEND_FROM_NAME` | Opțional (ex. `EasyWedd`) |
 
-Helper central: `lib/url.ts` → `getSiteUrl()`, `getSafeNextPath()`, `getAuthCallbackUrl()`.
+Helper central: `lib/url.ts` → `getSiteUrl()`, `getSafeNextPath()`, `getAuthCallbackUrl()`, `getPasswordResetCallbackUrl()`.
 
 Redirect-uri auth:
 - Signup confirm: `/auth/callback?next=/dashboard/onboarding`
-- Reset parolă: `/auth/callback?next=/update-password` → pagina `/update-password`
+- Reset parolă: `/auth/callback?next=/auth/reset-password` → pagina `/auth/reset-password`
+
+## Flux resetare parolă
+
+```text
+/auth/forgot-password
+→ resetPasswordForEmail(redirectTo = /auth/callback?next=/auth/reset-password)
+→ email Supabase (ConfirmationURL)
+→ /auth/callback (exchangeCodeForSession)
+→ /auth/reset-password (sesiune recovery)
+→ updateUser({ password })
+→ signOut
+→ /login?reset=success
+```
+
+Nu rulează onboarding, nu creează workspace, nu acordă entitlements.
+
+### Email Templates → Reset Password
+
+Subject:
+
+```text
+Resetează parola contului EasyWedd
+```
+
+Body (HTML), păstrează `{{ .ConfirmationURL }}` generat de Supabase:
+
+```html
+<h2>Resetare parolă EasyWedd</h2>
+<p>Am primit o cerere de resetare a parolei pentru contul tău.</p>
+<p><a href="{{ .ConfirmationURL }}">Resetează parola</a></p>
+<p>Linkul expiră în scurt timp. Dacă nu ai solicitat tu resetarea, ignoră acest email.</p>
+```
+
+Nu construi manual token-uri. Nu expune codul de recovery în UI.
 
 ## Setări manuale Supabase
 
@@ -54,7 +88,7 @@ http://localhost:3000
 
 ### Redirect URLs
 
-Adaugă în Authentication → URL Configuration:
+Adaugă în Authentication → URL Configuration (exact aceste forme):
 
 ```text
 https://easywedd.raianvisual.ro/auth/callback
@@ -63,10 +97,23 @@ http://localhost:3000/auth/callback
 http://localhost:3000/auth/callback/**
 ```
 
-Site URL trebuie să fie URL-ul de producție (nu localhost) pe proiectul live.
-Callback-ul acceptă `code` (PKCE) și `token_hash` + `type` (OTP). Recovery duce la `/update-password`.
+**Important:** folosește `callback/**` (cu slash), nu `callback**`.  
+Dacă `redirectTo` nu e pe listă, Supabase **nu trimite emailul** (reset / confirmare), iar aplicația arată tot mesajul neutru de succes.
 
-Supabase acceptă wildcard `/**` pe path. Nu folosi URL-uri externe.
+Site URL trebuie să fie:
+
+```text
+https://easywedd.raianvisual.ro
+```
+
+Cloudflare Variables (obligatoriu în producție):
+
+```text
+NEXT_PUBLIC_SITE_URL=https://easywedd.raianvisual.ro
+NEXT_PUBLIC_APP_URL=https://easywedd.raianvisual.ro
+```
+
+Nu seta `APP_URL=http://localhost:3000` pe Cloudflare — blochează emailurile Auth.
 
 ### Email Templates → Confirm signup
 

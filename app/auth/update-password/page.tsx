@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Legacy path — keep for old emails; canonical is /update-password */
-export default function AuthUpdatePasswordRedirectPage() {
-  redirect("/update-password");
+/** Legacy path — keep for old emails; canonical is /auth/reset-password */
+export default function LegacyAuthUpdatePasswordPage() {
+  redirect("/auth/reset-password");
 }

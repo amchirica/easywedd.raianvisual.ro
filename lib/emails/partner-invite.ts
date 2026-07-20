@@ -1,3 +1,5 @@
+import { brandMarkImgHtml } from "@/lib/brand";
+
 type PartnerInviteVars = {
   inviterName: string;
   workspaceName: string;
@@ -25,6 +27,7 @@ export function renderPartnerInviteEmail(vars: PartnerInviteVars): {
 } {
   const expiry = formatExpiry(vars.expiresAt);
   const subject = "Ai fost invitat(ă) în EasyWedd";
+  const mark = brandMarkImgHtml(28);
 
   const text = [
     `${vars.inviterName} te-a invitat(ă) să colaborezi pe EasyWedd.`,
@@ -42,6 +45,7 @@ export function renderPartnerInviteEmail(vars: PartnerInviteVars): {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#fffdf9;border:1px solid #e7dfd2">
     <tr>
       <td style="padding:28px">
+        <div style="margin:0 0 16px">${mark}</div>
         <p style="margin:0 0 12px;font-size:14px;letter-spacing:0.08em;text-transform:uppercase;color:#8a7a68">EasyWedd</p>
         <h1 style="margin:0 0 16px;font-size:28px;font-weight:400;line-height:1.2">Ai fost invitat(ă)</h1>
         <p style="margin:0 0 12px;font-size:16px;line-height:1.5">

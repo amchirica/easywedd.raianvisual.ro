@@ -1,9 +1,9 @@
 import Link from "next/link";
 
-import { MobileNav } from "@/components/dashboard/mobile-nav";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { Button } from "@/components/ui/button";
+import { MobileNav } from "@/components/dashboard/mobile-nav";
 import { logoutAction } from "@/lib/actions/auth";
-import { APP_NAME } from "@/lib/constants";
 import type { Profile, Workspace } from "@/types/database";
 
 type TopbarProps = {
@@ -23,7 +23,7 @@ export function DashboardTopbar({
       <div className="flex items-center gap-3">
         <MobileNav />
         <div className="lg:hidden">
-          <p className="font-heading text-xl">{APP_NAME}</p>
+          <BrandLogo href="/dashboard" size={22} wordmarkClassName="text-xl" />
         </div>
         <div className="hidden lg:block">
           <p className="text-sm text-muted-foreground">Workspace activ</p>

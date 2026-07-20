@@ -39,9 +39,19 @@ export function SiteCanvas({
         />
       ))}
       {showBranding ? (
-        <p className="px-6 pb-8 text-center text-[10px] tracking-[0.2em] uppercase opacity-40">
-          EasyWedd
-        </p>
+        <div className="flex items-center justify-center gap-2 px-6 pb-8 opacity-40">
+          {/* eslint-disable-next-line @next/next/no-img-element -- public wedding sites may be static-exported contexts */}
+          <img
+            src="/brand/raian-mark-32.png"
+            alt=""
+            width={14}
+            height={14}
+            className="opacity-80"
+          />
+          <p className="text-center text-[10px] tracking-[0.2em] uppercase">
+            EasyWedd
+          </p>
+        </div>
       ) : null}
     </div>
   );

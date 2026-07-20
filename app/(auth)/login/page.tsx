@@ -9,7 +9,13 @@ export const metadata: Metadata = {
 };
 
 type LoginPageProps = {
-  searchParams: Promise<{ next?: string; error?: string; reason?: string }>;
+  searchParams: Promise<{
+    next?: string;
+    error?: string;
+    reason?: string;
+    claim?: string;
+    reset?: string;
+  }>;
 };
 
 function callbackErrorMessage(reason?: string) {
@@ -25,6 +31,9 @@ function callbackErrorMessage(reason?: string) {
   if (reason === "no_user") {
     return "Nu am putut finaliza autentificarea. Încearcă din nou.";
   }
+  if (reason === "account_suspended") {
+    return "Contul este suspendat. Contactează suportul.";
+  }
   return "Autentificarea a eșuat. Încearcă din nou.";
 }
 
@@ -38,16 +47,33 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       <p className="mt-2 mb-6 text-sm text-muted-foreground">
         Continuă organizarea nunții în EasyWedd.
       </p>
+      {params.reset === "success" ? (
+        <p
+          className="mb-4 rounded-md border border-champagne/40 bg-secondary px-3 py-2 text-sm"
+          role="status"
+        >
+          Parola a fost schimbată. Te poți autentifica folosind noua parolă.
+        </p>
+      ) : null}
       {params.error === "auth_callback" ? (
         <p className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
           {callbackErrorMessage(params.reason)}
+        </p>
+      ) : params.error === "account_suspended" ? (
+        <p className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          Contul este suspendat. Contactează suportul.
         </p>
       ) : params.error ? (
         <p className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
           Autentificarea a eșuat. Încearcă din nou.
         </p>
       ) : null}
-      <AuthForm mode="login" action={loginAction} nextPath={nextPath} />
+      <AuthForm
+        mode="login"
+        action={loginAction}
+        nextPath={nextPath}
+        claimToken={params.claim}
+      />
     </div>
   );
 }

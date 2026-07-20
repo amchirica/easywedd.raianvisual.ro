@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 };
 
 type RegisterPageProps = {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; claim?: string }>;
 };
 
 export default async function RegisterPage({ searchParams }: RegisterPageProps) {
@@ -21,7 +21,7 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
       <p className="mt-2 mb-6 text-sm text-muted-foreground">
         Începe cu un workspace pentru nunta ta.
       </p>
-      <RegisterForm nextPath={nextPath} />
+      <RegisterForm nextPath={nextPath} claimToken={params.claim} />
     </div>
   );
 }

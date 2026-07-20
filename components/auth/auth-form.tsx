@@ -16,14 +16,18 @@ type AuthFormProps = {
     formData: FormData,
   ) => Promise<ActionResult>;
   nextPath?: string;
+  claimToken?: string;
 };
 
-export function AuthForm({ mode, action, nextPath }: AuthFormProps) {
+export function AuthForm({ mode, action, nextPath, claimToken }: AuthFormProps) {
   const [state, formAction, pending] = useActionState(action, {});
 
   return (
     <form action={formAction} className="space-y-5">
       {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
+      {claimToken ? (
+        <input type="hidden" name="claim" value={claimToken} />
+      ) : null}
 
       {mode === "register" ? (
         <div className="space-y-2">
@@ -56,7 +60,7 @@ export function AuthForm({ mode, action, nextPath }: AuthFormProps) {
             <Label htmlFor="password">Parolă</Label>
             {mode === "login" ? (
               <Link
-                href="/forgot-password"
+                href="/auth/forgot-password"
                 className="text-sm text-muted-foreground underline-offset-4 hover:underline"
               >
                 Ai uitat parola?

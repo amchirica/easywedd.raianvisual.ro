@@ -56,14 +56,16 @@ export async function getWorkspaceEntitlementSnapshot(
       .eq("workspace_id", workspaceId),
     supabase
       .from("subscriptions")
-      .select("plan, access_ends_at, status")
+      .select("plan, access_ends_at, status, soft_deleted_at")
       .eq("workspace_id", workspaceId)
+      .is("soft_deleted_at", null)
       .maybeSingle(),
   ]);
 
   const plan = (sub?.plan ?? "trial") as SubscriptionPlan;
   const accessEndsAt = sub?.access_ends_at ?? null;
   const expired =
+    !sub ||
     Boolean(accessEndsAt && new Date(accessEndsAt) < new Date()) ||
     sub?.status === "canceled";
 

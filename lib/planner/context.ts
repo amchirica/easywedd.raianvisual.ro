@@ -62,7 +62,7 @@ export async function requireWeddingContext() {
 }
 
 export async function logAudit(
-  workspaceId: string,
+  workspaceId: string | null,
   userId: string | null,
   action: string,
   entityType: string,

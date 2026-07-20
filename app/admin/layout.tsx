@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { Button } from "@/components/ui/button";
 import { logoutAction } from "@/lib/actions/auth";
-import { APP_NAME } from "@/lib/constants";
 import { getCurrentUserContext } from "@/lib/workspace";
 
 const adminNav = [
@@ -38,14 +38,22 @@ export default async function AdminLayout({
     <div className="min-h-[100svh] bg-background">
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div>
-            <p className="font-heading text-2xl">{APP_NAME} Admin</p>
-            <p className="text-xs text-muted-foreground">
-              Acces rezervat workspace-urilor de tip admin
-            </p>
+          <div className="flex items-center gap-3">
+            <BrandLogo
+              href="/admin"
+              size={26}
+              showWordmark
+              wordmarkClassName="text-2xl"
+            />
+            <span className="rounded border border-border px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+              Admin
+            </span>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/dashboard" className="text-sm underline-offset-4 hover:underline">
+            <Link
+              href="/dashboard"
+              className="text-sm underline-offset-4 hover:underline"
+            >
               Dashboard
             </Link>
             <form action={logoutAction}>
