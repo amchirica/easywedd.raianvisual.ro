@@ -88,19 +88,17 @@ http://localhost:3000
 
 ### Redirect URLs
 
-Adaugă în Authentication → URL Configuration (exact aceste forme):
+Allowed redirects:
 
 ```text
 https://easywedd.raianvisual.ro/auth/callback
-https://easywedd.raianvisual.ro/auth/callback/**
 http://localhost:3000/auth/callback
-http://localhost:3000/auth/callback/**
 ```
 
-**Important:** folosește `callback/**` (cu slash), nu `callback**`.  
-Dacă `redirectTo` nu e pe listă, Supabase **nu trimite emailul** (reset / confirmare), iar aplicația arată tot mesajul neutru de succes.
+Adaugă wildcard (`/**`) doar dacă o altă rută reală o cere.
+Nu este necesar un entry separat pentru `?next=/auth/reset-password` — baza rămâne `/auth/callback`.
 
-Site URL trebuie să fie:
+Site URL:
 
 ```text
 https://easywedd.raianvisual.ro
@@ -113,7 +111,7 @@ NEXT_PUBLIC_SITE_URL=https://easywedd.raianvisual.ro
 NEXT_PUBLIC_APP_URL=https://easywedd.raianvisual.ro
 ```
 
-Nu seta `APP_URL=http://localhost:3000` pe Cloudflare — blochează emailurile Auth.
+Nu seta `APP_URL=http://localhost:3000` pe Cloudflare.
 
 ### Email Templates → Confirm signup
 

@@ -340,6 +340,21 @@ export async function resendConfirmationAction(
     },
   });
 
+  if (error) {
+    console.error("[auth:resend]", {
+      ok: false,
+      code: error.code ?? null,
+      message: error.message,
+      status: error.status ?? null,
+      emailRedirectTo: getAuthCallbackUrl("/dashboard/onboarding"),
+    });
+  } else {
+    console.info("[auth:resend]", {
+      ok: true,
+      emailRedirectTo: getAuthCallbackUrl("/dashboard/onboarding"),
+    });
+  }
+
   cookieStore.set(RESEND_COOLDOWN_COOKIE, String(Date.now()), {
     httpOnly: true,
     sameSite: "lax",
@@ -347,10 +362,6 @@ export async function resendConfirmationAction(
     path: "/",
     maxAge: 120,
   });
-
-  if (error) {
-    console.error("[auth:resend]", { code: error.code, message: error.message });
-  }
 
   // Neutral message — avoid account enumeration
   return {
@@ -379,25 +390,37 @@ export async function forgotPasswordAction(
     return { error: parsed.error.issues[0]?.message ?? "Date invalide" };
   }
 
+  const siteUrl = getSiteUrl();
   const redirectTo = getPasswordResetCallbackUrl();
   const supabase = await createClient();
-  const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-    redirectTo,
-  });
+
+  const { data, error } = await supabase.auth.resetPasswordForEmail(
+    parsed.data.email,
+    { redirectTo },
+  );
 
   if (error) {
-    // Common cause: redirectTo not on Supabase allow-list, or localhost in prod.
     console.error("[auth:forgot]", {
-      code: error.code,
-      status: error.status,
-      message: error.message,
+      ok: false,
+      siteUrl,
       redirectTo,
+      code: error.code ?? null,
+      message: error.message,
+      status: error.status ?? null,
+      name: error.name ?? null,
+      // Do not log email, tokens, or secrets.
     });
   } else {
-    console.info("[auth:forgot]", { ok: true, redirectTo });
+    console.info("[auth:forgot]", {
+      ok: true,
+      siteUrl,
+      redirectTo,
+      // data is typically empty; do not claim provider delivery here.
+      hasData: data != null,
+    });
   }
 
-  // Always neutral — do not reveal whether the email exists or if send failed.
+  // Neutral public message — does not assert that an email was delivered.
   return {
     success:
       "Dacă există un cont asociat acestei adrese, vei primi în câteva minute un link pentru resetarea parolei.",
