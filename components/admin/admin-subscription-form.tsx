@@ -56,8 +56,11 @@ export function AdminSubscriptionForm({ users, plans }: Props) {
     }
     setLoadingWs(true);
     const res = await getUserWorkspacesAction(nextUserId);
-    setWorkspaces(res.data ?? []);
-    setWorkspaceId("");
+    const rows = res.data ?? [];
+    setWorkspaces(rows);
+    // Prefer grantable (non-system) workspaces — never auto-pick type "admin".
+    const grantable = rows.find((w) => w.workspaceType !== "admin");
+    setWorkspaceId(grantable?.id ?? "");
     setLoadingWs(false);
   }
 
@@ -79,14 +82,22 @@ export function AdminSubscriptionForm({ users, plans }: Props) {
 
   const workspaceOptions = useMemo(
     () =>
-      workspaces.map((w) => ({
-        value: w.id,
-        label: `${w.name} · ${w.workspaceType} · ${w.planLabel}`,
-        description: `Status: ${w.status ?? "—"} · Expiră: ${formatExpiry(w.accessEndsAt)}`,
-        keywords: `${w.name} ${w.workspaceType} ${w.planLabel}`,
-      })),
+      workspaces.map((w) => {
+        const system = w.workspaceType === "admin";
+        return {
+          value: w.id,
+          label: `${w.name} · ${w.workspaceType} · ${w.planLabel}`,
+          description: system
+            ? "Workspace de sistem — nu poate primi grant de abonament"
+            : `Status: ${w.status ?? "—"} · Expiră: ${formatExpiry(w.accessEndsAt)}`,
+          keywords: `${w.name} ${w.workspaceType} ${w.planLabel}`,
+          disabled: system,
+        };
+      }),
     [workspaces],
   );
+
+  const selectedIsSystem = selectedWs?.workspaceType === "admin";
 
   function handleCreateWorkspace() {
     if (!userId || !createName.trim()) return;
@@ -205,6 +216,17 @@ export function AdminSubscriptionForm({ users, plans }: Props) {
         </dl>
       ) : null}
 
+      {selectedIsSystem ? (
+        <p
+          role="alert"
+          className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+        >
+          Workspace-ul selectat este de tip <strong>admin</strong> (sistem) și
+          nu poate primi grant. Alege workspace-ul de tip{" "}
+          <strong>couple</strong> (ex. nunta clientului).
+        </p>
+      ) : null}
+
       <div className="space-y-1">
         <Label htmlFor="plan_key">Plan</Label>
         <select
@@ -316,7 +338,10 @@ export function AdminSubscriptionForm({ users, plans }: Props) {
         <Input id="notes" name="notes" placeholder="Ticket, partener, promo…" />
       </div>
 
-      <Button type="submit" disabled={pending || !workspaceId}>
+      <Button
+        type="submit"
+        disabled={pending || !workspaceId || selectedIsSystem}
+      >
         {pending ? "Se salvează…" : "Acordă acces"}
       </Button>
     </form>

@@ -1,9 +1,13 @@
+import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 import type { Database } from "@/types/database";
 
-export async function createClient() {
+/**
+ * Request-scoped Supabase client. React.cache dedupes within a single RSC/action render.
+ */
+export const createClient = cache(async () => {
   const cookieStore = await cookies();
 
   return createServerClient<Database>(
@@ -26,4 +30,4 @@ export async function createClient() {
       },
     },
   );
-}
+});

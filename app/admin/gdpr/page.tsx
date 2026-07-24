@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { AdminGdprControls } from "@/components/admin/admin-deletion-controls";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "GDPR requests" };
@@ -17,7 +18,7 @@ export default async function AdminGdprPage() {
       <header>
         <h1 className="font-heading text-4xl">Cereri GDPR</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Export / delete / anonymize / consent revoke
+          Export / delete / anonymize / consent revoke · fulfill soft-delete
         </p>
       </header>
       <div className="overflow-x-auto border border-border">
@@ -28,6 +29,7 @@ export default async function AdminGdprPage() {
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">User</th>
               <th className="px-4 py-3">Creat</th>
+              <th className="px-4 py-3">Acțiuni</th>
             </tr>
           </thead>
           <tbody>
@@ -38,6 +40,13 @@ export default async function AdminGdprPage() {
                 <td className="px-4 py-3 font-mono text-xs">{r.user_id}</td>
                 <td className="px-4 py-3">
                   {new Date(r.created_at).toLocaleString("ro-RO")}
+                </td>
+                <td className="px-4 py-3">
+                  <AdminGdprControls
+                    requestId={r.id}
+                    status={r.status}
+                    isDeleteRequest={r.request_type === "delete"}
+                  />
                 </td>
               </tr>
             ))}

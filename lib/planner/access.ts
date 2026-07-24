@@ -30,6 +30,7 @@ export function canAccessFeature(
   featureKey: string,
 ) {
   const row = entitlements.find((e) => e.feature_key === featureKey);
-  if (!row) return true;
+  // Fail-closed: missing row means no access
+  if (!row) return false;
   return row.enabled;
 }

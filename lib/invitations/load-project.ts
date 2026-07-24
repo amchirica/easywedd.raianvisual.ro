@@ -3,6 +3,7 @@ import {
   parseContentConfig,
   parseThemeConfig,
 } from "@/lib/invitations/renderer-defaults";
+import { upgradeContentForTemplate } from "@/lib/invitations/sections";
 import { requireWeddingContext } from "@/lib/planner/context";
 import { getSiteUrl } from "@/lib/url";
 
@@ -30,9 +31,37 @@ export async function loadInvitationProject(projectId: string) {
     return { error: "Proiectul nu a fost găsit.", data: null };
   }
 
+  let templateSections: string[] | null = null;
+  if (project.template_id) {
+    const { data: template } = await ctx.context.supabase
+      .from("invitation_templates")
+      .select("template_schema")
+      .eq("id", project.template_id)
+      .maybeSingle();
+    const schema = (template?.template_schema ?? {}) as { sections?: string[] };
+    if (schema.sections?.length) {
+      templateSections = schema.sections;
+    }
+  }
+
   const limits = getInvitationLimits(subscription?.plan);
   const theme = parseThemeConfig(project.theme_config);
-  const content = parseContentConfig(project.content_config);
+  let content = parseContentConfig(project.content_config, {
+    wedding: {
+      couple_name_1: ctx.context.wedding?.couple_name_1,
+      couple_name_2: ctx.context.wedding?.couple_name_2,
+      wedding_date: ctx.context.wedding?.wedding_date,
+    },
+    templateSections,
+  });
+
+  if (templateSections?.length) {
+    content = upgradeContentForTemplate(content, templateSections, {
+      couple_name_1: ctx.context.wedding?.couple_name_1,
+      couple_name_2: ctx.context.wedding?.couple_name_2,
+      wedding_date: ctx.context.wedding?.wedding_date,
+    });
+  }
 
   return {
     error: null,

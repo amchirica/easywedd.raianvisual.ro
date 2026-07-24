@@ -37,6 +37,25 @@ function isPublicPath(pathname: string) {
   });
 }
 
+function hasSupabaseAuthCookie(request: NextRequest) {
+  return request.cookies
+    .getAll()
+    .some(
+      (c) =>
+        c.name.includes("-auth-token") ||
+        (c.name.startsWith("sb-") && c.name.includes("auth")),
+    );
+}
+
+function needsSessionWork(pathname: string, request: NextRequest) {
+  if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")) {
+    return true;
+  }
+  if (AUTH_ROUTES.includes(pathname)) return true;
+  // Refresh session only when an auth cookie exists on public pages.
+  return hasSupabaseAuthCookie(request);
+}
+
 export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -45,8 +64,6 @@ export async function updateSession(request: NextRequest) {
   if (pathname === "/" && request.nextUrl.searchParams.has("code")) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/auth/callback";
-    // Preserve existing next; if absent and type=recovery, target reset page.
-    // Otherwise leave unset so callback can detect recovery via AMR after exchange.
     if (
       !redirectUrl.searchParams.get("next") &&
       redirectUrl.searchParams.get("type") === "recovery"
@@ -62,6 +79,11 @@ export async function updateSession(request: NextRequest) {
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !anonKey) {
+    return supabaseResponse;
+  }
+
+  // Cloudflare-friendly: skip Supabase auth round-trip for anonymous public traffic.
+  if (!needsSessionWork(pathname, request) && isPublicPath(pathname)) {
     return supabaseResponse;
   }
 
@@ -109,15 +131,28 @@ export async function updateSession(request: NextRequest) {
   if (user && (pathname.startsWith("/dashboard") || pathname.startsWith("/admin"))) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("onboarding_completed, suspended_at")
+      .select("onboarding_completed, suspended_at, account_status")
       .eq("id", user.id)
       .maybeSingle();
 
-    if (profile?.suspended_at) {
+    if (profile?.suspended_at || profile?.account_status === "suspended") {
       await supabase.auth.signOut();
       const redirectUrl = request.nextUrl.clone();
       redirectUrl.pathname = "/login";
       redirectUrl.searchParams.set("error", "account_suspended");
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    if (
+      pathname.startsWith("/dashboard") &&
+      pathname !== "/dashboard/onboarding" &&
+      pathname !== "/dashboard/pending" &&
+      pathname !== "/dashboard/billing" &&
+      profile &&
+      (profile as { account_status?: string }).account_status === "pending"
+    ) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/dashboard/pending";
       return NextResponse.redirect(redirectUrl);
     }
 

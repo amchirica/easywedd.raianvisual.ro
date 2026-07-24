@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { trackProductEvent } from "@/lib/analytics/product";
+import { normalizeTemplateSchema } from "@/lib/builder/template-schema";
 import { sendTemplatedEmail } from "@/lib/emails/send";
 import {
   assertWithinLimit,
@@ -18,6 +19,7 @@ import {
   sanitizeSectionConfig,
   siteThemeSchema,
 } from "@/lib/website/schema";
+import { mapWebsiteSectionType } from "@/lib/website/section-adapter";
 import { isValidSiteSlug, slugifyCoupleNames } from "@/lib/website/slug";
 import type { Json } from "@/types/database";
 import type { WeddingSiteSectionType } from "@/types/website";
@@ -63,6 +65,7 @@ export async function createWeddingSiteAction(formData: FormData): Promise<void>
     sections?: WeddingSiteSectionType[];
     theme?: Record<string, string>;
   };
+  const normalizedTpl = normalizeTemplateSchema(template.template_schema);
 
   const wedding = ctx.context.wedding;
   if (!wedding) return;
@@ -81,6 +84,7 @@ export async function createWeddingSiteAction(formData: FormData): Promise<void>
 
   const theme = siteThemeSchema.parse({
     ...defaultSiteTheme(),
+    ...normalizedTpl.theme,
     ...schema.theme,
   });
 
@@ -110,20 +114,53 @@ export async function createWeddingSiteAction(formData: FormData): Promise<void>
     sort_order: 0,
   });
 
-  const sectionTypes = schema.sections?.length
-    ? schema.sections
-    : (["hero", "story", "schedule", "locations", "rsvp", "contact"] as WeddingSiteSectionType[]);
+  const sectionTypes = (
+    schema.sections?.length
+      ? schema.sections
+      : normalizedTpl.sectionOrder.length
+        ? (normalizedTpl.sectionOrder.map((k) =>
+            k === "timeline"
+              ? "schedule"
+              : k === "when_where"
+                ? "locations"
+                : k === "couple"
+                  ? "family"
+                  : k === "footer"
+                    ? "contact"
+                    : k,
+          ) as WeddingSiteSectionType[])
+        : (["hero", "story", "schedule", "locations", "rsvp", "contact"] as WeddingSiteSectionType[])
+  );
 
   await ctx.context.supabase.from("wedding_site_sections").insert(
-    sectionTypes.map((section_type, index) => ({
-      wedding_site_id: site.id,
-      section_type,
-      section_config: sanitizeSectionConfig(
-        defaultSectionConfig(section_type, wedding),
-      ) as unknown as Json,
-      sort_order: index,
-      is_visible: true,
-    })),
+    sectionTypes.map((section_type, index) => {
+      const canonical = mapWebsiteSectionType(section_type);
+      const defaults = defaultSectionConfig(section_type, wedding);
+      const style =
+        canonical && normalizedTpl.sectionStyles[canonical]
+          ? (normalizedTpl.sectionStyles[canonical] as unknown as Record<
+              string,
+              unknown
+            >)
+          : undefined;
+      const richDefaults =
+        canonical && normalizedTpl.sectionDefaults[canonical]
+          ? normalizedTpl.sectionDefaults[canonical]
+          : undefined;
+      return {
+        wedding_site_id: site.id,
+        section_type,
+        section_config: sanitizeSectionConfig({
+          ...defaults,
+          ...(richDefaults ? { rich: richDefaults } : {}),
+          ...(style ? { style } : {}),
+        }) as unknown as Json,
+        sort_order: index,
+        is_visible: canonical
+          ? normalizedTpl.enabledSections.includes(canonical)
+          : true,
+      };
+    }),
   );
 
   await trackProductEvent("wedding_site_created", {
@@ -162,23 +199,27 @@ export async function saveWeddingSiteSectionsAction(
       .eq("workspace_id", ctx.context.workspaceId);
   }
 
-  for (const section of payload.sections) {
-    const parsed = sanitizeSectionConfig(
-      (section.section_config ?? {}) as Parameters<typeof sanitizeSectionConfig>[0],
-    );
-    await ctx.context.supabase
-      .from("wedding_site_sections")
-      .update({
-        section_config: parsed as unknown as Json,
-        sort_order: section.sort_order,
-        is_visible: section.is_visible,
-      })
-      .eq("id", section.id)
-      .eq("wedding_site_id", siteId);
-  }
+  // Parallel section writes — avoids N sequential round-trips per autosave.
+  await Promise.all(
+    payload.sections.map(async (section) => {
+      const parsed = sanitizeSectionConfig(
+        (section.section_config ?? {}) as Parameters<
+          typeof sanitizeSectionConfig
+        >[0],
+      );
+      await ctx.context.supabase
+        .from("wedding_site_sections")
+        .update({
+          section_config: parsed as unknown as Json,
+          sort_order: section.sort_order,
+          is_visible: section.is_visible,
+        })
+        .eq("id", section.id)
+        .eq("wedding_site_id", siteId);
+    }),
+  );
 
-  revalidatePath(`/dashboard/website/${siteId}`);
-  revalidatePath(`/dashboard/website/${siteId}/edit`);
+  // Editor owns local state — skip RSC revalidation on draft autosave.
 }
 
 export async function publishWeddingSiteAction(siteId: string): Promise<void> {

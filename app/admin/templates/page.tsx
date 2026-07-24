@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { AdminTemplateDeleteButton } from "@/components/admin/admin-deletion-controls";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,10 +18,20 @@ export const metadata: Metadata = { title: "Admin Templates" };
 
 export default async function AdminTemplatesPage() {
   const supabase = await createClient();
-  const { data: templates } = await supabase
-    .from("invitation_templates")
-    .select("*")
-    .order("name");
+  const [{ data: templates }, { data: siteTemplates }] = await Promise.all([
+    supabase
+      .from("invitation_templates")
+      .select(
+        "id, name, slug, category, is_active, is_premium, thumbnail_url, created_at",
+      )
+      .order("name")
+      .limit(100),
+    supabase
+      .from("wedding_site_templates")
+      .select("id, name, slug, is_active, is_premium, created_at")
+      .order("name")
+      .limit(100),
+  ]);
 
   return (
     <div className="space-y-10">
@@ -129,9 +140,40 @@ export default async function AdminTemplatesPage() {
                   {template.is_active ? "Dezactivează" : "Activează"}
                 </Button>
               </form>
+              <AdminTemplateDeleteButton
+                templateId={template.id}
+                name={template.name}
+                kind="invitation"
+              />
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="font-heading text-2xl">Website templates</h2>
+        <div className="divide-y divide-border border-y border-border">
+          {(siteTemplates ?? []).map((template) => (
+            <div
+              key={template.id}
+              className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div>
+                <p className="font-heading text-xl">{template.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {template.slug}
+                  {template.is_premium ? " · premium" : ""}
+                  {template.is_active ? " · activ" : " · inactiv"}
+                </p>
+              </div>
+              <AdminTemplateDeleteButton
+                templateId={template.id}
+                name={template.name}
+                kind="website"
+              />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

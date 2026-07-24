@@ -88,6 +88,7 @@ export default async function InvitationsPage() {
                   ? templateMap.get(project.template_id)
                   : null
               }
+              canDelete={canWrite}
             />
           ))}
         </div>

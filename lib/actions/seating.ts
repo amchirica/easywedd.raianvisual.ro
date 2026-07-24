@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { requireFeature } from "@/lib/entitlements/service";
 import { canManageGuests } from "@/lib/planner/access";
 import { requireWeddingContext } from "@/lib/planner/context";
 import { tableSchema, updateTableSchema } from "@/lib/validations/seating";
@@ -12,6 +13,9 @@ export async function createTableAction(formData: FormData): Promise<void> {
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) return;
   if (!canManageGuests(ctx.context.role)) return;
+
+  const feature = await requireFeature(ctx.context.workspaceId, "seating");
+  if (!feature.ok) return;
 
   const parsed = tableSchema.safeParse({
     label: formData.get("label"),
@@ -122,11 +126,30 @@ export async function updateTablePositionAction(
   posX: number,
   posY: number,
 ): Promise<ActionState> {
-  return updateTableAction({
-    table_id: tableId,
-    pos_x: Math.max(0, Math.round(posX)),
-    pos_y: Math.max(0, Math.round(posY)),
-  });
+  const ctx = await requireWeddingContext();
+  if (ctx.error || !ctx.context) {
+    return { error: ctx.error ?? "Workspace incomplet" };
+  }
+  if (!canManageGuests(ctx.context.role)) {
+    return { error: "Nu ai permisiunea de a edita mesele." };
+  }
+
+  const { error } = await ctx.context.supabase
+    .from("tables")
+    .update({
+      pos_x: Math.max(0, Math.round(posX)),
+      pos_y: Math.max(0, Math.round(posY)),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", tableId)
+    .eq("workspace_id", ctx.context.workspaceId);
+
+  if (error) {
+    return { error: "Nu am putut actualiza poziția mesei." };
+  }
+
+  // Optimistic UI on the board — skip full seating RSC refresh on drag.
+  return { success: "Poziție salvată." };
 }
 
 export async function assignGuestToTableAction(

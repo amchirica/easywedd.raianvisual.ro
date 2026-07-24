@@ -5,8 +5,9 @@ import { z } from "zod";
 
 import {
   getBillingPlan,
-  getStripePriceIdForPlan,
+  resolveCheckoutPriceForPlan,
 } from "@/lib/billing/plan-catalog";
+import { INVALID_STRIPE_PRICE_MESSAGE } from "@/lib/billing/stripe-ids";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
 import { getSiteUrl } from "@/lib/url";
@@ -44,9 +45,18 @@ export async function startPublicCheckoutAction(
     return { error: "Plan indisponibil pentru checkout public." };
   }
 
-  const priceId = getStripePriceIdForPlan(plan);
+  const resolved = resolveCheckoutPriceForPlan(plan);
+  if ("error" in resolved) {
+    return {
+      error:
+        resolved.error === INVALID_STRIPE_PRICE_MESSAGE
+          ? "Selected billing plan does not have a valid Stripe Price ID configured."
+          : resolved.error,
+    };
+  }
+  const priceId = resolved.priceId;
   const stripe = getStripe();
-  if (!stripe || !priceId) {
+  if (!stripe) {
     return {
       error:
         "Plățile Stripe nu sunt configurate încă. Contactează-ne sau încearcă mai târziu.",

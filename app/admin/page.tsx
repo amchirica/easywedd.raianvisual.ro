@@ -17,7 +17,11 @@ export default async function AdminHomePage() {
     { count: invitationsCount },
     { count: rsvpsCount },
     { count: gdprCount },
-    { data: subscriptions },
+    { count: trialsCount },
+    { count: starterCount },
+    { count: premiumCount },
+    { count: churnedCount },
+    { data: activeSubsForMrr },
     { data: oneTime },
   ] = await Promise.all([
     supabase.from("profiles").select("*", { count: "exact", head: true }),
@@ -42,27 +46,48 @@ export default async function AdminHomePage() {
       .from("gdpr_requests")
       .select("*", { count: "exact", head: true })
       .eq("status", "pending"),
-    supabase.from("subscriptions").select("plan, status"),
+    supabase
+      .from("subscriptions")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "trialing"),
+    supabase
+      .from("subscriptions")
+      .select("*", { count: "exact", head: true })
+      .eq("plan", "starter")
+      .in("status", ["active", "trialing"]),
+    supabase
+      .from("subscriptions")
+      .select("*", { count: "exact", head: true })
+      .eq("plan", "premium")
+      .in("status", ["active", "trialing"]),
+    supabase
+      .from("subscriptions")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "canceled"),
+    // Cap MRR sample — full table scan avoided for overview.
+    supabase
+      .from("subscriptions")
+      .select("plan, status")
+      .in("status", ["active", "trialing"])
+      .limit(500),
     supabase
       .from("one_time_payments")
       .select("amount_ron")
-      .eq("status", "succeeded"),
+      .eq("status", "succeeded")
+      .limit(500),
   ]);
 
-  const trials =
-    subscriptions?.filter((s) => s.status === "trialing").length ?? 0;
+  const trials = trialsCount ?? 0;
   const mrr =
-    subscriptions?.reduce(
+    activeSubsForMrr?.reduce(
       (sum, s) => sum + mrrEstimateRon(s.plan, s.status),
       0,
     ) ?? 0;
   const oneTimeRevenue =
     oneTime?.reduce((sum, p) => sum + (p.amount_ron ?? 0), 0) ?? 0;
-  const starter = subscriptions?.filter((s) => s.plan === "starter").length ?? 0;
-  const premium =
-    subscriptions?.filter((s) => s.plan === "premium").length ?? 0;
-  const churned =
-    subscriptions?.filter((s) => s.status === "canceled").length ?? 0;
+  const starter = starterCount ?? 0;
+  const premium = premiumCount ?? 0;
+  const churned = churnedCount ?? 0;
 
   const cards = [
     { label: "Utilizatori", value: usersCount ?? 0 },

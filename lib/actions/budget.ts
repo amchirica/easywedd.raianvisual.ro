@@ -57,7 +57,6 @@ export async function createBudgetItemAction(formData: FormData): Promise<void> 
     properties: {},
   });
   revalidatePath("/dashboard/budget");
-  revalidatePath("/dashboard");
   return;
 }
 
@@ -107,7 +106,6 @@ export async function addPaymentAction(formData: FormData): Promise<void> {
   }
 
   revalidatePath("/dashboard/budget");
-  revalidatePath("/dashboard");
   return;
 }
 

@@ -26,7 +26,16 @@ const CHECKOUTABLE_KEYS = new Set([
   "pro",
 ]);
 
-export default async function BillingPage() {
+type PageProps = {
+  searchParams?: Promise<{ checkout_error?: string }>;
+};
+
+export default async function BillingPage({ searchParams }: PageProps) {
+  const params = searchParams ? await searchParams : {};
+  const checkoutError = params.checkout_error
+    ? decodeURIComponent(params.checkout_error)
+    : null;
+
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) {
     return (
@@ -48,7 +57,10 @@ export default async function BillingPage() {
   const snapshot = await getWorkspaceEntitlementSnapshot(ctx.context.workspaceId);
   const flags = featureFlagsForUi(snapshot.rows);
   const planKey =
-    subscription?.plan_key ?? subscription?.product_key ?? subscription?.plan ?? "trial";
+    subscription?.plan_key ??
+    subscription?.product_key ??
+    subscription?.plan ??
+    "trial";
   const plan =
     plans.find((p) => p.key === planKey) ??
     FALLBACK_BILLING_PLANS.find((p) => p.key === planKey) ??
@@ -64,6 +76,15 @@ export default async function BillingPage() {
           Planuri din catalogul EasyWedd · Stripe checkout și portal.
         </p>
       </header>
+
+      {checkoutError ? (
+        <div
+          role="alert"
+          className="border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+        >
+          {checkoutError}
+        </div>
+      ) : null}
 
       <section className="border border-border bg-card p-6">
         <h2 className="font-heading text-2xl">{plan?.name ?? planKey}</h2>
@@ -91,7 +112,9 @@ export default async function BillingPage() {
             <dt className="text-muted-foreground">Acces până la</dt>
             <dd>
               {subscription?.access_ends_at
-                ? new Date(subscription.access_ends_at).toLocaleDateString("ro-RO")
+                ? new Date(subscription.access_ends_at).toLocaleDateString(
+                    "ro-RO",
+                  )
                 : "—"}
             </dd>
           </div>

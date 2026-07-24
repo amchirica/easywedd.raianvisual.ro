@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AdminConfirmDelete } from "@/components/admin/admin-confirm-delete";
+import { AdminUserDeleteControls } from "@/components/admin/admin-deletion-controls";
 import {
   adminReactivateUserBound,
   adminSuspendUserBound,
@@ -168,6 +169,11 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
                           action={adminSuspendUserBound}
                         />
                       )}
+                      <AdminUserDeleteControls
+                        userId={user.id}
+                        label={user.fullName || user.email}
+                        softDeleted={Boolean(user.softDeleted)}
+                      />
                     </div>
                   </td>
                 </tr>

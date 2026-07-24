@@ -83,7 +83,12 @@ export function BrandLogo({
   if (!href) return content;
 
   return (
-    <Link href={href} className="inline-flex items-center" aria-label={APP_NAME}>
+    <Link
+      href={href}
+      prefetch={false}
+      className="inline-flex items-center"
+      aria-label={APP_NAME}
+    >
       {content}
     </Link>
   );

@@ -54,7 +54,6 @@ export async function createTaskAction(formData: FormData): Promise<void> {
   if (error) return;
   await logAudit(workspaceId, user!.id, "task.create", "wedding_task", null);
   revalidatePath("/dashboard/planner");
-  revalidatePath("/dashboard");
   return;
 }
 
@@ -113,7 +112,6 @@ export async function updateTaskStatusAction(
     status,
   });
   revalidatePath("/dashboard/planner");
-  revalidatePath("/dashboard");
 }
 
 export async function deleteTaskAction(taskId: string): Promise<void> {
@@ -128,7 +126,6 @@ export async function deleteTaskAction(taskId: string): Promise<void> {
     .eq("workspace_id", ctx.context.workspaceId);
 
   revalidatePath("/dashboard/planner");
-  revalidatePath("/dashboard");
 }
 
 export async function seedTaskTemplateAction(): Promise<void> {

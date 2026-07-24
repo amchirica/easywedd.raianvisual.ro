@@ -1,33 +1,41 @@
 "use client";
 
+import { arrayMove } from "@dnd-kit/sortable";
 import {
-  DndContext,
-  closestCenter,
-  type DragEndEvent,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  arrayMove,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { startTransition, useEffect, useState } from "react";
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
+import {
+  VisualBuilder,
+  type BuilderSectionItem,
+} from "@/components/builder/visual-builder";
 import { SiteCanvas, type SiteSectionView } from "@/components/website/site-canvas";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { CONTROLLED_FONTS } from "@/lib/invitations/fonts";
+import {
+  normalizeSectionPresentation,
+  normalizeThemePresentation,
+  type SectionPresentation,
+  type ThemePresentation,
+} from "@/lib/builder/presentation";
 import {
   publishWeddingSiteAction,
   saveWeddingSiteSectionsAction,
   unpublishWeddingSiteAction,
 } from "@/lib/actions/website";
-import type { SiteThemeConfig } from "@/types/website";
+import { sectionDefaults } from "@/lib/invitations/sections/defaults";
+import { SECTION_LABELS_RO } from "@/lib/invitations/sections/types";
+import type { CanonicalSectionKey, SectionContentMap } from "@/lib/invitations/sections/types";
+import {
+  mapWebsiteSectionType,
+  sectionDataToSiteConfig,
+  siteConfigToSectionData,
+} from "@/lib/website/section-adapter";
+import { ALL_SITE_SECTIONS, type SiteThemeConfig } from "@/types/website";
 
 type EditorProps = {
   siteId: string;
@@ -38,6 +46,8 @@ type EditorProps = {
   showBranding: boolean;
 };
 
+const AUTOSAVE_MS = 1200;
+
 export function SiteSectionEditor({
   siteId,
   initialTheme,
@@ -46,83 +56,193 @@ export function SiteSectionEditor({
   canPublish,
   showBranding,
 }: EditorProps) {
-  const [theme, setTheme] = useState(initialTheme);
+  const [theme, setTheme] = useState(() =>
+    normalizeThemePresentation(initialTheme),
+  );
   const [sections, setSections] = useState(initialSections);
   const [activeId, setActiveId] = useState(initialSections[0]?.id ?? "");
   const [savedAt, setSavedAt] = useState<string | null>(null);
-  const sensors = useSensors(useSensor(PointerSensor));
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">(
+    "idle",
+  );
+
+  const themeRef = useRef(theme);
+  const sectionsRef = useRef(sections);
+  const saveSeqRef = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dirtyRef = useRef(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      startTransition(() => {
-        void saveWeddingSiteSectionsAction(siteId, {
-          theme,
-          sections: sections.map((s) => ({
-            id: s.id,
-            section_type: s.section_type,
-            section_config: s.section_config,
-            sort_order: s.sort_order,
-            is_visible: s.is_visible,
-          })),
-        }).then(() => setSavedAt(new Date().toLocaleTimeString("ro-RO")));
-      });
-    }, 900);
-    return () => clearTimeout(timer);
-  }, [siteId, theme, sections]);
+    themeRef.current = theme;
+  }, [theme]);
+  useEffect(() => {
+    sectionsRef.current = sections;
+  }, [sections]);
 
-  function onDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    setSections((items) => {
-      const oldIndex = items.findIndex((i) => i.id === active.id);
-      const newIndex = items.findIndex((i) => i.id === over.id);
-      const moved = arrayMove(items, oldIndex, newIndex).map((item, index) => ({
-        ...item,
-        sort_order: index,
-      }));
-      return moved;
+  const persist = useCallback(async () => {
+    if (!dirtyRef.current) return;
+    const seq = ++saveSeqRef.current;
+    setSaveState("saving");
+    const snapshotTheme = themeRef.current;
+    const snapshotSections = sectionsRef.current;
+    try {
+      await saveWeddingSiteSectionsAction(siteId, {
+        theme: themeToSiteTheme(snapshotTheme),
+        sections: snapshotSections.map((s) => ({
+          id: s.id,
+          section_type: s.section_type,
+          section_config: s.section_config,
+          sort_order: s.sort_order,
+          is_visible: s.is_visible,
+        })),
+      });
+      if (saveSeqRef.current !== seq) return;
+      dirtyRef.current = false;
+      const stamp = new Date().toLocaleTimeString("ro-RO");
+      setSavedAt(stamp);
+      setSaveState("saved");
+    } catch {
+      if (saveSeqRef.current !== seq) return;
+      setSaveState("error");
+    }
+  }, [siteId]);
+
+  function scheduleSave() {
+    dirtyRef.current = true;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      startTransition(() => {
+        void persist();
+      });
+    }, AUTOSAVE_MS);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  const builderSections: BuilderSectionItem[] = useMemo(
+    () =>
+      [...sections]
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((s) => {
+          const key = mapWebsiteSectionType(s.section_type) ?? "hero";
+          return {
+            id: s.id,
+            key,
+            label: siteSectionLabel(s.section_type),
+            enabled: s.is_visible,
+          };
+        }),
+    [sections],
+  );
+
+  const active = sections.find((s) => s.id === activeId) ?? sections[0];
+  const mapped = active
+    ? siteConfigToSectionData(active.section_type, active.section_config)
+    : null;
+  const activeKey = mapped?.key ?? ("hero" as CanonicalSectionKey);
+  const activeContent =
+    mapped?.data ?? sectionDefaults(activeKey);
+  const activePresentation = normalizeSectionPresentation(
+    active?.section_config.style,
+  );
+
+  function updateActiveContent(next: SectionContentMap[CanonicalSectionKey]) {
+    if (!active) return;
+    setSections((prev) => {
+      const updated = prev.map((s) =>
+        s.id === active.id
+          ? {
+              ...s,
+              section_config: sectionDataToSiteConfig(
+                activeKey,
+                next,
+                s.section_config.style,
+                s.section_config,
+              ),
+            }
+          : s,
+      );
+      sectionsRef.current = updated;
+      scheduleSave();
+      return updated;
     });
   }
 
-  const active = sections.find((s) => s.id === activeId) ?? sections[0];
+  function updateActivePresentation(next: SectionPresentation) {
+    if (!active || !mapped) return;
+    setSections((prev) => {
+      const updated = prev.map((s) =>
+        s.id === active.id
+          ? {
+              ...s,
+              section_config: sectionDataToSiteConfig(
+                activeKey,
+                mapped.data,
+                next as unknown as Record<string, unknown>,
+                s.section_config,
+              ),
+            }
+          : s,
+      );
+      sectionsRef.current = updated;
+      scheduleSave();
+      return updated;
+    });
+  }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[240px_1fr_360px]">
-      <aside className="space-y-3">
-        <p className="text-xs tracking-wide text-muted-foreground uppercase">
-          Secțiuni
-        </p>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={onDragEnd}
-        >
-          <SortableContext
-            items={sections.map((s) => s.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            {sections.map((section) => (
-              <SortableRow
-                key={section.id}
-                id={section.id}
-                label={section.section_type}
-                active={section.id === active?.id}
-                visible={section.is_visible}
-                onSelect={() => setActiveId(section.id)}
-                onToggle={() =>
-                  setSections((prev) =>
-                    prev.map((s) =>
-                      s.id === section.id
-                        ? { ...s, is_visible: !s.is_visible }
-                        : s,
-                    ),
-                  )
-                }
-              />
-            ))}
-          </SortableContext>
-        </DndContext>
-
+    <VisualBuilder
+      sections={builderSections}
+      activeId={active?.id ?? ""}
+      onSelect={setActiveId}
+      onReorder={(a, b) => {
+        setSections((items) => {
+          const sorted = [...items].sort((x, y) => x.sort_order - y.sort_order);
+          const oldIndex = sorted.findIndex((i) => i.id === a);
+          const newIndex = sorted.findIndex((i) => i.id === b);
+          const updated = arrayMove(sorted, oldIndex, newIndex).map(
+            (item, index) => ({
+              ...item,
+              sort_order: index,
+            }),
+          );
+          sectionsRef.current = updated;
+          scheduleSave();
+          return updated;
+        });
+      }}
+      onToggle={(id) =>
+        setSections((prev) => {
+          const updated = prev.map((s) =>
+            s.id === id ? { ...s, is_visible: !s.is_visible } : s,
+          );
+          sectionsRef.current = updated;
+          scheduleSave();
+          return updated;
+        })
+      }
+      content={activeContent}
+      onContentChange={updateActiveContent}
+      presentation={activePresentation}
+      onPresentationChange={updateActivePresentation}
+      theme={theme}
+      onThemeChange={(next) => {
+        setTheme(next);
+        themeRef.current = next;
+        scheduleSave();
+      }}
+      preview={
+        <SiteCanvas
+          theme={themeToSiteTheme(theme)}
+          sections={sections}
+          showBranding={showBranding}
+        />
+      }
+      sidebarFooter={
         <div className="space-y-2 pt-4">
           {canPublish ? (
             <Button
@@ -155,183 +275,42 @@ export function SiteSectionEditor({
               Unpublish
             </Button>
           ) : null}
-          {savedAt ? (
-            <p className="text-xs text-muted-foreground">Salvat {savedAt}</p>
-          ) : null}
+          <p className="text-xs text-muted-foreground">
+            {saveState === "saving"
+              ? "Se salvează…"
+              : saveState === "error"
+                ? "Eroare la salvare"
+                : savedAt
+                  ? `Salvat la ${savedAt}`
+                  : "Modificările se salvează automat"}
+          </p>
         </div>
-      </aside>
-
-      <div className="space-y-4">
-        {active ? (
-          <>
-            <div className="space-y-2">
-              <Label>Titlu</Label>
-              <Input
-                value={active.section_config.title ?? ""}
-                onChange={(e) =>
-                  setSections((prev) =>
-                    prev.map((s) =>
-                      s.id === active.id
-                        ? {
-                            ...s,
-                            section_config: {
-                              ...s.section_config,
-                              title: e.target.value,
-                            },
-                          }
-                        : s,
-                    ),
-                  )
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Conținut</Label>
-              <textarea
-                className="min-h-28 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                value={active.section_config.body ?? ""}
-                onChange={(e) =>
-                  setSections((prev) =>
-                    prev.map((s) =>
-                      s.id === active.id
-                        ? {
-                            ...s,
-                            section_config: {
-                              ...s.section_config,
-                              body: e.target.value,
-                            },
-                          }
-                        : s,
-                    ),
-                  )
-                }
-              />
-            </div>
-            {active.section_type === "rsvp" ? (
-              <div className="space-y-2">
-                <Label>URL RSVP</Label>
-                <Input
-                  value={active.section_config.rsvpUrl ?? ""}
-                  onChange={(e) =>
-                    setSections((prev) =>
-                      prev.map((s) =>
-                        s.id === active.id
-                          ? {
-                              ...s,
-                              section_config: {
-                                ...s.section_config,
-                                rsvpUrl: e.target.value,
-                              },
-                            }
-                          : s,
-                      ),
-                    )
-                  }
-                  placeholder="/rsvp/... sau /i/..."
-                />
-              </div>
-            ) : null}
-            <div className="grid grid-cols-3 gap-2 border-t border-border pt-4">
-              {(["background", "foreground", "accent"] as const).map((key) => (
-                <div key={key} className="space-y-1">
-                  <Label className="capitalize">{key}</Label>
-                  <Input
-                    type="color"
-                    value={theme[key]}
-                    onChange={(e) =>
-                      setTheme((prev) => ({ ...prev, [key]: e.target.value }))
-                    }
-                  />
-                </div>
-              ))}
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <Label>Font titlu</Label>
-                <select
-                  className="h-9 w-full rounded-lg border border-input bg-background px-2 text-sm"
-                  value={theme.headingFont}
-                  onChange={(e) =>
-                    setTheme((prev) => ({
-                      ...prev,
-                      headingFont: e.target.value,
-                    }))
-                  }
-                >
-                  {CONTROLLED_FONTS.map((f) => (
-                    <option key={f} value={f}>
-                      {f}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <Label>Font body</Label>
-                <select
-                  className="h-9 w-full rounded-lg border border-input bg-background px-2 text-sm"
-                  value={theme.bodyFont}
-                  onChange={(e) =>
-                    setTheme((prev) => ({ ...prev, bodyFont: e.target.value }))
-                  }
-                >
-                  {CONTROLLED_FONTS.map((f) => (
-                    <option key={f} value={f}>
-                      {f}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </>
-        ) : null}
-      </div>
-
-      <div className="border border-border bg-card p-2">
-        <SiteCanvas
-          theme={theme}
-          sections={sections}
-          showBranding={showBranding}
-        />
-      </div>
-    </div>
+      }
+    />
   );
 }
 
-function SortableRow({
-  id,
-  label,
-  active,
-  visible,
-  onSelect,
-  onToggle,
-}: {
-  id: string;
-  label: string;
-  active: boolean;
-  visible: boolean;
-  onSelect: () => void;
-  onToggle: () => void;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+function themeToSiteTheme(theme: ThemePresentation): SiteThemeConfig {
+  return {
+    background: theme.background,
+    foreground: theme.foreground,
+    accent: theme.accent,
+    headingFont: theme.headingFont,
+    bodyFont: theme.bodyFont,
+    density: theme.density,
+    radius: theme.radius,
+    pageGradientFrom: theme.pageGradientFrom || undefined,
+    pageGradientTo: theme.pageGradientTo || undefined,
+    buttonBackground: theme.buttonBackground || undefined,
+    buttonForeground: theme.buttonForeground || undefined,
   };
+}
 
+function siteSectionLabel(type: string) {
+  const mapped = mapWebsiteSectionType(type);
+  if (mapped && SECTION_LABELS_RO[mapped]) return SECTION_LABELS_RO[mapped];
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`flex items-center gap-2 text-sm ${active ? "text-foreground" : "text-muted-foreground"}`}
-    >
-      <button type="button" className="cursor-grab px-1" {...attributes} {...listeners}>
-        ::
-      </button>
-      <input type="checkbox" checked={visible} onChange={onToggle} />
-      <button type="button" onClick={onSelect} className="capitalize text-left">
-        {label.replaceAll("_", " ")}
-      </button>
-    </div>
+    ALL_SITE_SECTIONS.find((s) => s.type === type)?.label ??
+    type.replaceAll("_", " ")
   );
 }

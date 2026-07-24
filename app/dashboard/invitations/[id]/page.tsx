@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AnalyticsCards } from "@/components/invitations/analytics-cards";
+import { InvitationDeleteControls } from "@/components/invitations/invitation-delete-controls";
 import { EmptyState } from "@/components/planner/empty-state";
 import { buttonVariants } from "@/components/ui/button";
 import { getProjectAnalyticsAction } from "@/lib/actions/invitations";
 import { loadInvitationProject } from "@/lib/invitations/load-project";
+import { canManagePlanner } from "@/lib/planner/access";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Proiect invitație" };
@@ -19,8 +21,12 @@ export default async function InvitationProjectPage({ params }: PageProps) {
     return <EmptyState title="Proiect indisponibil" description={loaded.error ?? ""} />;
   }
 
-  const { project, limits } = loaded.data;
+  const { project, limits, ctx } = loaded.data;
   const stats = await getProjectAnalyticsAction(id);
+  const canWrite = canManagePlanner(ctx.role);
+  const isArchived =
+    project.status === "archived" ||
+    Boolean((project as { soft_deleted_at?: string | null }).soft_deleted_at);
 
   const links = [
     { href: `/dashboard/invitations/${id}/edit`, label: "Editor" },
@@ -45,12 +51,21 @@ export default async function InvitationProjectPage({ params }: PageProps) {
               : ""}
           </p>
         </div>
-        <Link
-          href="/dashboard/invitations"
-          className={cn(buttonVariants({ variant: "outline" }))}
-        >
-          Înapoi
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/dashboard/invitations"
+            className={cn(buttonVariants({ variant: "outline" }))}
+          >
+            Înapoi
+          </Link>
+          {canWrite ? (
+            <InvitationDeleteControls
+              projectId={project.id}
+              projectName={project.name}
+              isArchived={isArchived}
+            />
+          ) : null}
+        </div>
       </header>
 
       <nav className="flex flex-wrap gap-4 text-sm">

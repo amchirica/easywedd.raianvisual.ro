@@ -10,6 +10,7 @@ export type AdminUserOption = {
   fullName: string;
   email: string;
   suspended: boolean;
+  softDeleted?: boolean;
   workspaceCount: number;
   createdAt: string;
   lastSignInAt: string | null;

@@ -9,6 +9,12 @@ export const siteThemeSchema = z.object({
   accent: z.string().min(4).max(32),
   headingFont: z.enum(CONTROLLED_FONTS),
   bodyFont: z.enum(CONTROLLED_FONTS),
+  density: z.enum(["compact", "comfortable", "spacious"]).optional(),
+  radius: z.enum(["none", "sm", "md", "lg"]).optional(),
+  pageGradientFrom: z.string().max(32).optional(),
+  pageGradientTo: z.string().max(32).optional(),
+  buttonBackground: z.string().max(32).optional(),
+  buttonForeground: z.string().max(32).optional(),
 });
 
 export const siteSectionConfigSchema = z.object({
@@ -19,6 +25,8 @@ export const siteSectionConfigSchema = z.object({
   rsvpUrl: z.string().max(500).optional(),
   items: z.array(z.string().max(300)).max(40).optional(),
   date: z.string().max(40).optional(),
+  rich: z.record(z.string(), z.unknown()).optional(),
+  style: z.record(z.string(), z.unknown()).optional(),
 });
 
 export function defaultSiteTheme(): SiteThemeConfig {
@@ -61,19 +69,70 @@ export function defaultSectionConfig(
       return { title: "Ne vedem în", date: wedding?.wedding_date ?? "" };
     case "schedule":
       return {
-        title: "Program",
-        items: ["Ceremonia", "Cocktail", "Cina", "Petrecerea"],
+        title: "Programul evenimentului",
+        items: [
+          "Cununia",
+          "Primirea invitaților",
+          "Cina festivă",
+          "Dansul mirilor",
+          "Petrecerea",
+        ],
       };
     case "locations":
       return {
-        title: "Locații",
+        title: "Când și unde",
         body: [wedding?.venue_name, wedding?.city].filter(Boolean).join(", "),
+        date: wedding?.wedding_date ?? "",
       };
     case "rsvp":
       return {
-        title: "RSVP",
+        title: "Confirmare participare",
         body: "Vă rugăm să confirmați prezența.",
         rsvpUrl: "",
+      };
+    case "dress_code":
+      return {
+        title: "Dress code",
+        body: "Vă rugăm să alegeți ținute elegante, potrivite ocaziei.",
+        items: ["#8B7355", "#F5F0E8", "#2C2416"],
+      };
+    case "accommodation":
+      return {
+        title: "Cazare",
+        body: "Recomandări de cazare pentru invitații din afara orașului.",
+      };
+    case "transport":
+      return {
+        title: "Transport",
+        body: "Informații despre deplasare și transferuri.",
+      };
+    case "gifts":
+      return {
+        title: "Daruri",
+        body: "Prezența voastră este cel mai frumos cadou.",
+      };
+    case "faq":
+      return {
+        title: "Întrebări frecvente",
+        items: [
+          "Care este dress code-ul?",
+          "Până când pot confirma participarea?",
+        ],
+      };
+    case "family":
+      return {
+        title: "Cuplu & introducere",
+        body: "Cu bucurie în inimă, vă invităm să fiți alături de noi.",
+      };
+    case "contact":
+      return {
+        title: "Cu drag,",
+        body: couple || "",
+      };
+    case "gallery":
+      return {
+        title: "Galerie",
+        items: [],
       };
     default:
       return { title: type.replaceAll("_", " "), body: "" };
@@ -91,5 +150,7 @@ export function sanitizeSectionConfig(config: SiteSectionConfig): SiteSectionCon
     rsvpUrl: strip(config.rsvpUrl),
     date: strip(config.date),
     items: config.items?.map((i) => i.replace(/<[^>]*>/g, "").trim()),
+    rich: config.rich,
+    style: config.style,
   };
 }

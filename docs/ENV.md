@@ -34,7 +34,8 @@ Opțional: Stripe / Resend keys ca Secrets.
 | `STRIPE_SECRET_KEY` | Server-side |
 | `STRIPE_WEBHOOK_SECRET` | Webhook `/api/stripe/webhook` |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Client |
-| `STRIPE_PRICE_*` | Price IDs (vezi `.env.example`) |
+| `STRIPE_PRICE_*` | **Price** IDs (`price_…`) — obligatorii pentru Checkout |
+| `STRIPE_PRODUCT_*` | **Product** IDs (`prod_…`) — doar referință; nu se trimit la Checkout |
 
 ## Email (Resend)
 

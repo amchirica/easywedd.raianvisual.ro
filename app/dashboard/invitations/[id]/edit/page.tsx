@@ -29,9 +29,9 @@ export default async function EditInvitationPage({ params }: PageProps) {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-heading text-4xl">Editor</h1>
+        <h1 className="font-heading text-4xl">Invitation Builder</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Autosave pe secțiuni · {project.name}
+          Conținut + prezentare · autosave · {project.name}
         </p>
       </header>
       <SectionEditor

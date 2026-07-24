@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { EntitlementKey } from "@/lib/entitlements/keys";
+import { FEATURE_LABELS_RO, requiredPlanHint } from "@/lib/entitlements/policy";
 import type { SubscriptionPlan } from "@/types/database";
 import {
   getInvitationLimits,
@@ -16,6 +17,7 @@ export type EntitlementRow = {
 export type EntitlementSnapshot = {
   rows: EntitlementRow[];
   plan: SubscriptionPlan;
+  planKey: string | null;
   accessEndsAt: string | null;
   expired: boolean;
 };
@@ -45,6 +47,15 @@ export function assertWithinLimit(
   return currentUsage < limit;
 }
 
+type SubRow = {
+  plan: SubscriptionPlan;
+  plan_key?: string | null;
+  access_ends_at: string | null;
+  trial_ends_at?: string | null;
+  status: string;
+  soft_deleted_at?: string | null;
+};
+
 export async function getWorkspaceEntitlementSnapshot(
   workspaceId: string,
 ): Promise<EntitlementSnapshot> {
@@ -56,37 +67,57 @@ export async function getWorkspaceEntitlementSnapshot(
       .eq("workspace_id", workspaceId),
     supabase
       .from("subscriptions")
-      .select("plan, access_ends_at, status, soft_deleted_at")
+      .select("plan, plan_key, access_ends_at, trial_ends_at, status, soft_deleted_at")
       .eq("workspace_id", workspaceId)
       .is("soft_deleted_at", null)
       .maybeSingle(),
   ]);
 
-  const plan = (sub?.plan ?? "trial") as SubscriptionPlan;
-  const accessEndsAt = sub?.access_ends_at ?? null;
-  const expired =
-    !sub ||
-    Boolean(accessEndsAt && new Date(accessEndsAt) < new Date()) ||
-    sub?.status === "canceled";
+  const subscription = sub as SubRow | null;
+  const plan = (subscription?.plan ?? "trial") as SubscriptionPlan;
+  const accessEndsAt = subscription?.access_ends_at ?? null;
+  const now = Date.now();
+  const paidExpired =
+    Boolean(subscription) &&
+    (subscription!.status === "canceled" ||
+      subscription!.status === "incomplete" ||
+      Boolean(accessEndsAt && new Date(accessEndsAt).getTime() < now) ||
+      Boolean(
+        subscription!.status === "trialing" &&
+          subscription!.trial_ends_at &&
+          new Date(subscription!.trial_ends_at).getTime() < now,
+      ));
 
   return {
     rows: rows ?? [],
     plan,
+    planKey: subscription?.plan_key ?? null,
     accessEndsAt,
-    expired,
+    expired: paidExpired && subscription?.plan_key !== "free",
   };
 }
 
+/**
+ * Central server gate. Fail-closed: missing entitlement = denied.
+ */
 export async function requireFeature(
   workspaceId: string,
   key: EntitlementKey,
-): Promise<{ ok: true; snapshot: EntitlementSnapshot } | { ok: false; error: string }> {
-  const snapshot = await getWorkspaceEntitlementSnapshot(workspaceId);
-  if (snapshot.expired) {
-    return { ok: false, error: "Accesul a expirat. Reînnoiește planul." };
+): Promise<
+  { ok: true; snapshot: EntitlementSnapshot } | { ok: false; error: string }
+> {
+  let snapshot = await getWorkspaceEntitlementSnapshot(workspaceId);
+
+  if (!snapshot.rows.length) {
+    await syncWorkspaceEntitlements(workspaceId);
+    snapshot = await getWorkspaceEntitlementSnapshot(workspaceId);
   }
-  if (!isFeatureEnabled(snapshot.rows, key, key === "planner")) {
-    return { ok: false, error: `Funcția ${key} nu este inclusă în plan.` };
+
+  if (!isFeatureEnabled(snapshot.rows, key, false)) {
+    return {
+      ok: false,
+      error: `${FEATURE_LABELS_RO[key]} nu este inclusă. ${requiredPlanHint(key)}.`,
+    };
   }
   return { ok: true, snapshot };
 }
@@ -98,7 +129,6 @@ export async function syncWorkspaceEntitlements(workspaceId: string) {
   });
 }
 
-/** Bridge for invitation studio limits derived from plan. */
 export function invitationLimitsFromEntitlements(
   plan: SubscriptionPlan,
   rows: EntitlementRow[],
@@ -110,17 +140,9 @@ export function invitationLimitsFromEntitlements(
       getUsageLimit(rows, "invitation_projects") ?? base.maxProjects,
     maxRecipients: getUsageLimit(rows, "guest_limit") ?? base.maxRecipients,
     watermark: !isFeatureEnabled(rows, "remove_branding", false),
-    allowPdf: isFeatureEnabled(rows, "pdf_export", base.allowPdf),
-    allowPremiumTemplates: isFeatureEnabled(
-      rows,
-      "premium_templates",
-      base.allowPremiumTemplates,
-    ),
-    allowAdvancedAnalytics: isFeatureEnabled(
-      rows,
-      "analytics",
-      base.allowAdvancedAnalytics,
-    ),
+    allowPdf: isFeatureEnabled(rows, "pdf_export", false),
+    allowPremiumTemplates: isFeatureEnabled(rows, "premium_templates", false),
+    allowAdvancedAnalytics: isFeatureEnabled(rows, "analytics", false),
     customDomainReady: isFeatureEnabled(rows, "custom_domain", false),
     tier: tierFromPlan(plan),
   };

@@ -124,7 +124,6 @@ export async function updateWorkspaceSettingsAction(
   }
 
   revalidatePath("/dashboard/settings");
-  revalidatePath("/dashboard");
   return { success: "Numele workspace-ului a fost actualizat." };
 }
 
@@ -286,7 +285,6 @@ export async function switchWorkspaceFormAction(
   }
 
   await setActiveWorkspaceId(workspaceId);
-  revalidatePath("/dashboard");
   revalidatePath("/dashboard/settings");
   return { success: "Workspace-ul activ a fost schimbat." };
 }

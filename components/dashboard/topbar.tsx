@@ -3,6 +3,7 @@ import Link from "next/link";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/dashboard/mobile-nav";
+import type { NavItem } from "@/components/dashboard/nav-config";
 import { logoutAction } from "@/lib/actions/auth";
 import type { Profile, Workspace } from "@/types/database";
 
@@ -11,17 +12,19 @@ type TopbarProps = {
   workspaces: Workspace[];
   activeWorkspace: Workspace | null;
   isPlatformAdmin: boolean;
+  navItems: NavItem[];
 };
 
 export function DashboardTopbar({
   profile,
   activeWorkspace,
   isPlatformAdmin,
+  navItems,
 }: TopbarProps) {
   return (
     <header className="flex items-center justify-between border-b border-border bg-card/70 px-4 py-3 backdrop-blur sm:px-6">
       <div className="flex items-center gap-3">
-        <MobileNav />
+        <MobileNav items={navItems} />
         <div className="lg:hidden">
           <BrandLogo href="/dashboard" size={22} wordmarkClassName="text-xl" />
         </div>

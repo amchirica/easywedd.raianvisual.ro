@@ -1,22 +1,40 @@
 "use client";
 
-import { startTransition, useEffect, useState } from "react";
+import { arrayMove } from "@dnd-kit/sortable";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import {
+  VisualBuilder,
+  type BuilderSectionItem,
+} from "@/components/builder/visual-builder";
 import { InvitationCanvas } from "@/components/invitations/invitation-canvas";
+import { uiSectionRegistry } from "@/components/invitations/sections/registry";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CONTROLLED_FONTS } from "@/lib/invitations/fonts";
 import {
   publishInvitationProjectAction,
   saveInvitationProjectAction,
 } from "@/lib/actions/invitations";
 import {
-  ALL_SECTIONS,
-  type InvitationContentConfig,
-  type InvitationSectionKey,
-  type InvitationThemeConfig,
+  DEFAULT_SECTION_PRESENTATION,
+  normalizeSectionPresentation,
+  normalizeThemePresentation,
+  type SectionPresentation,
+  type ThemePresentation,
+} from "@/lib/builder/presentation";
+import { sectionDefaults } from "@/lib/invitations/sections/defaults";
+import {
+  listEditorSections,
+  normalizeInvitationContent,
+  type CanonicalSectionKey,
+} from "@/lib/invitations/sections";
+import type {
+  InvitationContentConfig,
+  InvitationThemeConfig,
 } from "@/types/invitations";
+
+type SaveState = "idle" | "saving" | "saved" | "error";
 
 type SectionEditorProps = {
   projectId: string;
@@ -36,77 +54,201 @@ export function SectionEditor({
   watermark,
 }: SectionEditorProps) {
   const [name, setName] = useState(initialName);
-  const [theme, setTheme] = useState(initialTheme);
-  const [content, setContent] = useState(initialContent);
+  const [theme, setTheme] = useState(() =>
+    normalizeThemePresentation(initialTheme),
+  );
+  const [content, setContent] = useState(() =>
+    normalizeInvitationContent(initialContent),
+  );
   const [deadline, setDeadline] = useState(rsvpDeadline ?? "");
-  const [active, setActive] = useState<InvitationSectionKey>("hero");
+  const navKeys = listEditorSections(content);
+  const [activeKey, setActiveKey] = useState<CanonicalSectionKey>(
+    navKeys[0] ?? "hero",
+  );
+  const [saveState, setSaveState] = useState<SaveState>("idle");
   const [savedAt, setSavedAt] = useState<string | null>(null);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const fd = new FormData();
-      fd.set("project_id", projectId);
-      fd.set("name", name);
-      fd.set("theme_config", JSON.stringify(theme));
-      fd.set("content_config", JSON.stringify(content));
-      fd.set("rsvp_deadline", deadline);
-      startTransition(() => {
-        void saveInvitationProjectAction(fd).then(() => {
-          setSavedAt(new Date().toLocaleTimeString("ro-RO"));
-        });
-      });
-    }, 900);
-    return () => clearTimeout(timer);
-  }, [projectId, name, theme, content, deadline]);
+  const contentRef = useRef(content);
+  const themeRef = useRef(theme);
+  const nameRef = useRef(name);
+  const deadlineRef = useRef(deadline);
+  const saveSeqRef = useRef(0);
+  const metaTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function toggleSection(key: InvitationSectionKey) {
+  useEffect(() => {
+    contentRef.current = content;
+  }, [content]);
+  useEffect(() => {
+    themeRef.current = theme;
+  }, [theme]);
+  useEffect(() => {
+    nameRef.current = name;
+  }, [name]);
+  useEffect(() => {
+    deadlineRef.current = deadline;
+  }, [deadline]);
+
+  const persist = useCallback(async () => {
+    const seq = ++saveSeqRef.current;
+    setSaveState("saving");
+    const fd = new FormData();
+    fd.set("project_id", projectId);
+    fd.set("name", nameRef.current);
+    fd.set("theme_config", JSON.stringify(themeToInvitationTheme(themeRef.current)));
+    fd.set("content_config", JSON.stringify(contentRef.current));
+    fd.set("rsvp_deadline", deadlineRef.current);
+    try {
+      await saveInvitationProjectAction(fd);
+      if (saveSeqRef.current !== seq) return;
+      const stamp = new Date().toLocaleTimeString("ro-RO");
+      setSaveState("saved");
+      setSavedAt(stamp);
+    } catch {
+      if (saveSeqRef.current !== seq) return;
+      setSaveState("error");
+    }
+  }, [projectId]);
+
+  function scheduleSave() {
+    if (metaTimer.current) clearTimeout(metaTimer.current);
+    metaTimer.current = setTimeout(() => {
+      startTransition(() => {
+        void persist();
+      });
+    }, 1200);
+  }
+
+  const builderSections: BuilderSectionItem[] = useMemo(
+    () =>
+      navKeys.map((key) => ({
+        id: key,
+        key,
+        label: uiSectionRegistry[key]?.label ?? key,
+        enabled: content.enabledSections.includes(key),
+      })),
+    [navKeys, content.enabledSections],
+  );
+
+  const activePresentation = normalizeSectionPresentation(
+    content.sectionStyles?.[activeKey] ?? DEFAULT_SECTION_PRESENTATION,
+  );
+
+  function updateSectionContent(
+    next: InvitationContentConfig["sections"][CanonicalSectionKey],
+  ) {
     setContent((prev) => {
-      const exists = prev.enabledSections.includes(key);
-      if (exists && prev.enabledSections.length === 1) return prev;
-      return {
+      const updated = normalizeInvitationContent({
         ...prev,
-        enabledSections: exists
-          ? prev.enabledSections.filter((s) => s !== key)
-          : [...prev.enabledSections, key],
-      };
+        sections: {
+          ...prev.sections,
+          [activeKey]: next,
+        },
+        sectionStyles: prev.sectionStyles,
+      });
+      contentRef.current = updated;
+      scheduleSave();
+      return updated;
     });
   }
 
-  function setField<K extends keyof InvitationContentConfig>(
-    key: K,
-    value: InvitationContentConfig[K],
-  ) {
-    setContent((prev) => ({ ...prev, [key]: value }));
+  function updatePresentation(next: SectionPresentation) {
+    setContent((prev) => {
+      const updated = {
+        ...prev,
+        sectionStyles: {
+          ...(prev.sectionStyles ?? {}),
+          [activeKey]: next,
+        },
+      };
+      contentRef.current = updated;
+      scheduleSave();
+      return updated;
+    });
+  }
+
+  function updateTheme(next: ThemePresentation) {
+    setTheme(next);
+    themeRef.current = next;
+    scheduleSave();
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[240px_1fr_360px]">
-      <aside className="space-y-2">
-        <p className="text-xs tracking-wide text-muted-foreground uppercase">
-          Secțiuni
-        </p>
-        {ALL_SECTIONS.map((section) => {
-          const enabled = content.enabledSections.includes(section.key);
-          return (
-            <div key={section.key} className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={enabled}
-                onChange={() => toggleSection(section.key)}
-                aria-label={`Activează ${section.label}`}
-              />
-              <button
-                type="button"
-                onClick={() => setActive(section.key)}
-                className={`text-left text-sm ${
-                  active === section.key ? "text-foreground" : "text-muted-foreground"
-                }`}
-              >
-                {section.label}
-              </button>
-            </div>
-          );
-        })}
+    <VisualBuilder
+      sections={builderSections}
+      activeId={activeKey}
+      onSelect={(id) => setActiveKey(id as CanonicalSectionKey)}
+      onReorder={(a, b) => {
+        setContent((prev) => {
+          const order = [...listEditorSections(prev)];
+          const oldIndex = order.indexOf(a as CanonicalSectionKey);
+          const newIndex = order.indexOf(b as CanonicalSectionKey);
+          if (oldIndex < 0 || newIndex < 0) return prev;
+          const next = {
+            ...prev,
+            sectionOrder: arrayMove(order, oldIndex, newIndex),
+          };
+          contentRef.current = next;
+          scheduleSave();
+          return next;
+        });
+      }}
+      onToggle={(id) => {
+        const key = id as CanonicalSectionKey;
+        setContent((prev) => {
+          const exists = prev.enabledSections.includes(key);
+          if (exists && prev.enabledSections.length === 1) return prev;
+          const next = {
+            ...prev,
+            enabledSections: exists
+              ? prev.enabledSections.filter((s) => s !== key)
+              : [...prev.enabledSections, key],
+          };
+          contentRef.current = next;
+          scheduleSave();
+          return next;
+        });
+      }}
+      content={content.sections[activeKey] ?? sectionDefaults(activeKey)}
+      onContentChange={updateSectionContent}
+      presentation={activePresentation}
+      onPresentationChange={updatePresentation}
+      theme={theme}
+      onThemeChange={updateTheme}
+      preview={
+        <InvitationCanvas
+          theme={themeToInvitationTheme(theme)}
+          content={content}
+          watermark={watermark}
+          preview
+          className="max-h-[80vh] overflow-y-auto"
+        />
+      }
+      settingsHeader={
+        <div className="space-y-3 border-b border-border pb-4">
+          <div className="space-y-1">
+            <Label>Nume proiect</Label>
+            <Input
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                scheduleSave();
+              }}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>Deadline RSVP</Label>
+            <Input
+              type="date"
+              value={deadline}
+              onChange={(e) => {
+                setDeadline(e.target.value);
+                scheduleSave();
+              }}
+            />
+          </div>
+        </div>
+      }
+      sidebarFooter={
         <div className="pt-4">
           <Button
             type="button"
@@ -119,263 +261,46 @@ export function SectionEditor({
           >
             Publică
           </Button>
-          {savedAt ? (
-            <p className="mt-2 text-xs text-muted-foreground">Salvat {savedAt}</p>
-          ) : null}
+          <SaveStatusLabel state={saveState} savedAt={savedAt} />
         </div>
-      </aside>
-
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <Label>Nume proiect</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} />
-        </div>
-        <div className="space-y-2">
-          <Label>Deadline RSVP</Label>
-          <Input
-            type="date"
-            value={deadline}
-            onChange={(e) => setDeadline(e.target.value)}
-          />
-        </div>
-
-        {active === "hero" || active === "couple" ? (
-          <FieldGroup title="Cuplu & intro">
-            <TextField
-              label="Nume 1"
-              value={content.coupleName1}
-              onChange={(v) => setField("coupleName1", v)}
-            />
-            <TextField
-              label="Nume 2"
-              value={content.coupleName2}
-              onChange={(v) => setField("coupleName2", v)}
-            />
-            <TextField
-              label="Text intro"
-              value={content.introText}
-              onChange={(v) => setField("introText", v)}
-              multiline
-            />
-            <TextField
-              label="URL imagine hero"
-              value={content.heroImageUrl}
-              onChange={(v) => setField("heroImageUrl", v)}
-            />
-          </FieldGroup>
-        ) : null}
-
-        {active === "when_where" ? (
-          <FieldGroup title="Când & unde">
-            <TextField
-              label="Data"
-              value={content.weddingDate}
-              onChange={(v) => setField("weddingDate", v)}
-            />
-            <TextField
-              label="Ora"
-              value={content.weddingTime}
-              onChange={(v) => setField("weddingTime", v)}
-            />
-            <TextField
-              label="Locație ceremonie"
-              value={content.ceremonyLocation}
-              onChange={(v) => setField("ceremonyLocation", v)}
-            />
-            <TextField
-              label="Locație petrecere"
-              value={content.receptionLocation}
-              onChange={(v) => setField("receptionLocation", v)}
-            />
-            <TextField
-              label="URL hartă"
-              value={content.mapUrl}
-              onChange={(v) => setField("mapUrl", v)}
-            />
-          </FieldGroup>
-        ) : null}
-
-        {active === "schedule" ? (
-          <FieldGroup title="Program">
-            <TextField
-              label="Program"
-              value={content.scheduleText}
-              onChange={(v) => setField("scheduleText", v)}
-              multiline
-            />
-          </FieldGroup>
-        ) : null}
-
-        {active === "party" ? (
-          <FieldGroup title="Părinți & nași">
-            <TextField
-              label="Părinți"
-              value={content.parentsText}
-              onChange={(v) => setField("parentsText", v)}
-              multiline
-            />
-            <TextField
-              label="Nași"
-              value={content.godparentsText}
-              onChange={(v) => setField("godparentsText", v)}
-              multiline
-            />
-          </FieldGroup>
-        ) : null}
-
-        {active === "dress_code" ? (
-          <FieldGroup title="Dress code">
-            <TextField
-              label="Dress code"
-              value={content.dressCode}
-              onChange={(v) => setField("dressCode", v)}
-            />
-          </FieldGroup>
-        ) : null}
-
-        {active === "travel" ? (
-          <FieldGroup title="Transport & cazare">
-            <TextField
-              label="Transport"
-              value={content.travelInfo}
-              onChange={(v) => setField("travelInfo", v)}
-              multiline
-            />
-            <TextField
-              label="Cazare"
-              value={content.accommodationInfo}
-              onChange={(v) => setField("accommodationInfo", v)}
-              multiline
-            />
-          </FieldGroup>
-        ) : null}
-
-        {active === "rsvp" ? (
-          <FieldGroup title="RSVP">
-            <TextField
-              label="Mesaj RSVP"
-              value={content.rsvpMessage}
-              onChange={(v) => setField("rsvpMessage", v)}
-              multiline
-            />
-          </FieldGroup>
-        ) : null}
-
-        {active === "footer" ? (
-          <FieldGroup title="Footer & temă">
-            <TextField
-              label="Footer"
-              value={content.footerText}
-              onChange={(v) => setField("footerText", v)}
-            />
-            <div className="grid grid-cols-3 gap-2">
-              {(["background", "foreground", "accent"] as const).map((key) => (
-                <div key={key} className="space-y-1">
-                  <Label className="capitalize">{key}</Label>
-                  <Input
-                    type="color"
-                    value={theme[key]}
-                    onChange={(e) =>
-                      setTheme((prev) => ({ ...prev, [key]: e.target.value }))
-                    }
-                  />
-                </div>
-              ))}
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <Label>Font titlu</Label>
-                <select
-                  className="h-9 w-full rounded-lg border border-input bg-background px-2 text-sm"
-                  value={theme.headingFont}
-                  onChange={(e) =>
-                    setTheme((prev) => ({
-                      ...prev,
-                      headingFont: e.target.value,
-                    }))
-                  }
-                >
-                  {CONTROLLED_FONTS.map((f) => (
-                    <option key={f} value={f}>
-                      {f}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <Label>Font body</Label>
-                <select
-                  className="h-9 w-full rounded-lg border border-input bg-background px-2 text-sm"
-                  value={theme.bodyFont}
-                  onChange={(e) =>
-                    setTheme((prev) => ({
-                      ...prev,
-                      bodyFont: e.target.value,
-                    }))
-                  }
-                >
-                  {CONTROLLED_FONTS.map((f) => (
-                    <option key={f} value={f}>
-                      {f}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </FieldGroup>
-        ) : null}
-      </div>
-
-      <div className="border border-border bg-card p-2">
-        <InvitationCanvas
-          theme={theme}
-          content={content}
-          watermark={watermark}
-          className="max-h-[80vh] overflow-y-auto"
-        />
-      </div>
-    </div>
+      }
+    />
   );
 }
 
-function FieldGroup({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-3 border-t border-border pt-4">
-      <h2 className="font-heading text-2xl">{title}</h2>
-      {children}
-    </div>
-  );
+function themeToInvitationTheme(theme: ThemePresentation): InvitationThemeConfig {
+  return {
+    background: theme.background,
+    foreground: theme.foreground,
+    accent: theme.accent,
+    headingFont: theme.headingFont,
+    bodyFont: theme.bodyFont,
+    density: theme.density,
+    radius: theme.radius,
+    pageGradientFrom: theme.pageGradientFrom || undefined,
+    pageGradientTo: theme.pageGradientTo || undefined,
+    buttonBackground: theme.buttonBackground || undefined,
+    buttonForeground: theme.buttonForeground || undefined,
+  };
 }
 
-function TextField({
-  label,
-  value,
-  onChange,
-  multiline,
+function SaveStatusLabel({
+  state,
+  savedAt,
 }: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  multiline?: boolean;
+  state: SaveState;
+  savedAt: string | null;
 }) {
-  return (
-    <div className="space-y-1">
-      <Label>{label}</Label>
-      {multiline ? (
-        <textarea
-          className="min-h-24 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      ) : (
-        <Input value={value} onChange={(e) => onChange(e.target.value)} />
-      )}
-    </div>
-  );
+  if (state === "saving") {
+    return <p className="mt-2 text-xs text-muted-foreground">Se salvează…</p>;
+  }
+  if (state === "error") {
+    return <p className="mt-2 text-xs text-destructive">Eroare la salvare</p>;
+  }
+  if (state === "saved" && savedAt) {
+    return (
+      <p className="mt-2 text-xs text-muted-foreground">Salvat la {savedAt}</p>
+    );
+  }
+  return null;
 }

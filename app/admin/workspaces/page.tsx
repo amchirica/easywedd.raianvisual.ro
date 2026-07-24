@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
-import { AdminConfirmDelete } from "@/components/admin/admin-confirm-delete";
-import { adminSoftDeleteWorkspaceBound } from "@/lib/actions/admin-billing";
+import { AdminWorkspacesBulkTable } from "@/components/admin/admin-workspaces-bulk-table";
 import { createClient } from "@/lib/supabase/server";
 import type { WorkspaceStatus, WorkspaceType } from "@/types/database";
 
@@ -118,82 +116,25 @@ export default async function AdminWorkspacesPage({ searchParams }: PageProps) {
       {!workspaces?.length ? (
         <p className="text-sm text-muted-foreground">Niciun workspace.</p>
       ) : (
-        <div className="overflow-x-auto border border-border bg-card">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-border text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 font-medium">Nume</th>
-                <th className="px-4 py-3 font-medium">Owner</th>
-                <th className="px-4 py-3 font-medium">Tip</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Plan</th>
-                <th className="px-4 py-3 font-medium">Acțiuni</th>
-              </tr>
-            </thead>
-            <tbody>
-              {workspaces.map((workspace) => {
-                const owner = ownerById.get(workspace.owner_id);
-                const sub = subByWs.get(workspace.id);
-                const deleted = Boolean(workspace.soft_deleted_at);
-                const protectedWs = workspace.workspace_type === "admin";
-                return (
-                  <tr
-                    key={workspace.id}
-                    className="border-b border-border last:border-0"
-                  >
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/admin/workspaces/${workspace.id}`}
-                        className="underline-offset-4 hover:underline"
-                      >
-                        {workspace.name}
-                      </Link>
-                      <p className="text-xs text-muted-foreground">
-                        {workspace.slug}
-                      </p>
-                    </td>
-                    <td className="px-4 py-3">
-                      {owner ? (
-                        <Link
-                          href={`/admin/users?q=${encodeURIComponent(owner.email)}`}
-                          className="underline-offset-4 hover:underline"
-                        >
-                          {owner.email}
-                        </Link>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className="px-4 py-3">{workspace.workspace_type}</td>
-                    <td className="px-4 py-3">
-                      {deleted ? "Șters" : workspace.status}
-                    </td>
-                    <td className="px-4 py-3">
-                      {sub
-                        ? `${sub.plan_key ?? sub.plan} (${sub.status})`
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      {!deleted && !protectedWs ? (
-                        <AdminConfirmDelete
-                          workspaceId={workspace.id}
-                          id={workspace.id}
-                          label="Arhivează"
-                          confirmLabel="Confirmă arhivarea"
-                          action={adminSoftDeleteWorkspaceBound}
-                        />
-                      ) : protectedWs ? (
-                        <span className="text-xs text-muted-foreground">
-                          Protejat
-                        </span>
-                      ) : null}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <AdminWorkspacesBulkTable
+          rows={(workspaces ?? []).map((workspace) => {
+            const owner = ownerById.get(workspace.owner_id);
+            const sub = subByWs.get(workspace.id);
+            return {
+              id: workspace.id,
+              name: workspace.name,
+              slug: workspace.slug,
+              workspace_type: workspace.workspace_type,
+              status: workspace.status,
+              deleted: Boolean(workspace.soft_deleted_at),
+              protectedWs: workspace.workspace_type === "admin",
+              ownerEmail: owner?.email ?? null,
+              planLabel: sub
+                ? `${sub.plan_key ?? sub.plan} (${sub.status})`
+                : "—",
+            };
+          })}
+        />
       )}
     </div>
   );

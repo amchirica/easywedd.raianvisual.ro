@@ -332,23 +332,8 @@ export async function listSubscriptionsForWorkspace(
 async function fetchLastSignIns(
   userIds: string[],
 ): Promise<Map<string, string | null>> {
+  // Avoid N× Auth Admin HTTP calls on list pages (Cloudflare-sensitive).
   const map = new Map<string, string | null>();
-  if (!userIds.length) return map;
-
-  try {
-    const admin = createAdminClient();
-    await Promise.all(
-      userIds.map(async (id) => {
-        try {
-          const { data } = await admin.auth.admin.getUserById(id);
-          map.set(id, data.user?.last_sign_in_at ?? null);
-        } catch {
-          map.set(id, null);
-        }
-      }),
-    );
-  } catch {
-    for (const id of userIds) map.set(id, null);
-  }
+  for (const id of userIds) map.set(id, null);
   return map;
 }

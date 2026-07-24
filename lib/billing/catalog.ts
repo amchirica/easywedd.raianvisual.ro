@@ -1,3 +1,7 @@
+import {
+  isValidStripePriceId,
+  isValidStripeProductId,
+} from "@/lib/billing/stripe-ids";
 import type { BillingInterval, SubscriptionPlan } from "@/types/database";
 
 export type BillingProductKey =
@@ -17,7 +21,10 @@ export type BillingProduct = {
   mode: "subscription" | "payment" | "grant";
   monthlyPriceRon: number | null;
   oneTimePriceRon: number | null;
+  /** Env var name that must hold a Stripe Price ID (price_…). */
   envPriceId: string;
+  /** Optional env var name for Stripe Product ID (prod_…) — catalog only. */
+  envProductId: string;
 };
 
 export const BILLING_PRODUCTS: Record<BillingProductKey, BillingProduct> = {
@@ -31,6 +38,7 @@ export const BILLING_PRODUCTS: Record<BillingProductKey, BillingProduct> = {
     monthlyPriceRon: 49,
     oneTimePriceRon: null,
     envPriceId: "STRIPE_PRICE_STARTER_MONTHLY",
+    envProductId: "STRIPE_PRODUCT_STARTER_MONTHLY",
   },
   premium_pass_12: {
     key: "premium_pass_12",
@@ -42,6 +50,7 @@ export const BILLING_PRODUCTS: Record<BillingProductKey, BillingProduct> = {
     monthlyPriceRon: null,
     oneTimePriceRon: 1490,
     envPriceId: "STRIPE_PRICE_PREMIUM_PASS_12",
+    envProductId: "STRIPE_PRODUCT_PREMIUM_PASS_12",
   },
   premium_pass_18: {
     key: "premium_pass_18",
@@ -53,6 +62,7 @@ export const BILLING_PRODUCTS: Record<BillingProductKey, BillingProduct> = {
     monthlyPriceRon: null,
     oneTimePriceRon: 1990,
     envPriceId: "STRIPE_PRICE_PREMIUM_PASS_18",
+    envProductId: "STRIPE_PRODUCT_PREMIUM_PASS_18",
   },
   pro: {
     key: "pro",
@@ -64,6 +74,7 @@ export const BILLING_PRODUCTS: Record<BillingProductKey, BillingProduct> = {
     monthlyPriceRon: 299,
     oneTimePriceRon: null,
     envPriceId: "STRIPE_PRICE_PRO_MONTHLY",
+    envProductId: "STRIPE_PRODUCT_PRO_MONTHLY",
   },
   partner: {
     key: "partner",
@@ -75,6 +86,7 @@ export const BILLING_PRODUCTS: Record<BillingProductKey, BillingProduct> = {
     monthlyPriceRon: null,
     oneTimePriceRon: null,
     envPriceId: "",
+    envProductId: "",
   },
   white_label: {
     key: "white_label",
@@ -86,12 +98,25 @@ export const BILLING_PRODUCTS: Record<BillingProductKey, BillingProduct> = {
     monthlyPriceRon: null,
     oneTimePriceRon: null,
     envPriceId: "",
+    envProductId: "",
   },
 };
 
-export function getStripePriceId(product: BillingProduct) {
+/**
+ * Returns a Checkout-ready Price ID (price_…), or null if missing/invalid.
+ * Never returns Product IDs (prod_…).
+ */
+export function getStripePriceId(product: BillingProduct): string | null {
   if (!product.envPriceId) return null;
-  return process.env[product.envPriceId] || null;
+  const value = process.env[product.envPriceId]?.trim() || null;
+  return isValidStripePriceId(value) ? value : null;
+}
+
+/** Catalog reference only — never pass to Checkout. */
+export function getStripeProductId(product: BillingProduct): string | null {
+  if (!product.envProductId) return null;
+  const value = process.env[product.envProductId]?.trim() || null;
+  return isValidStripeProductId(value) ? value : null;
 }
 
 export function accessEndsAtFromInterval(

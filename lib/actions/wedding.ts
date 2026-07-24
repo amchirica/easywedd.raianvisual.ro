@@ -62,6 +62,5 @@ export async function updateWeddingDetailsAction(
   }
 
   revalidatePath("/dashboard/wedding");
-  revalidatePath("/dashboard");
   return { success: "Detaliile nunții au fost actualizate." };
 }

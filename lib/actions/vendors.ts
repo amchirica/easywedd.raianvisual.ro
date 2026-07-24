@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { trackProductEvent } from "@/lib/analytics/product";
+import { requireFeature } from "@/lib/entitlements/service";
 import { canManagePlanner } from "@/lib/planner/access";
 import { requireWeddingContext } from "@/lib/planner/context";
 import { vendorSchema } from "@/lib/validations/vendors";
@@ -15,6 +16,9 @@ export async function createVendorAction(formData: FormData): Promise<void> {
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) return;
   if (!canManagePlanner(ctx.context.role)) return;
+
+  const feature = await requireFeature(ctx.context.workspaceId, "vendors");
+  if (!feature.ok) return;
 
   const categoryRaw = String(formData.get("category") || "other");
   if (!isVendorCategorySlug(categoryRaw)) {
@@ -62,7 +66,6 @@ export async function createVendorAction(formData: FormData): Promise<void> {
     properties: { category: parsed.data.category },
   });
   revalidatePath("/dashboard/vendors");
-  revalidatePath("/dashboard");
   return;
 }
 
@@ -81,7 +84,6 @@ export async function updateVendorStatusAction(
     .eq("workspace_id", ctx.context.workspaceId);
 
   revalidatePath("/dashboard/vendors");
-  revalidatePath("/dashboard");
 }
 
 export async function deleteVendorAction(vendorId: string): Promise<void> {

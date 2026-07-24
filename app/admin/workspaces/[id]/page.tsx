@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { AdminTransferOwnershipForm } from "@/components/admin/admin-deletion-controls";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -135,6 +136,17 @@ export default async function AdminWorkspaceDetailPage({ params }: PageProps) {
           </div>
         </dl>
       )}
+
+      {!protectedWs ? (
+        <section className="max-w-xl space-y-2 border border-border p-4">
+          <h2 className="font-heading text-xl">Transfer ownership</h2>
+          <p className="text-xs text-muted-foreground">
+            Necesar înainte de ștergerea unui utilizator care deține acest
+            workspace.
+          </p>
+          <AdminTransferOwnershipForm workspaceId={id} />
+        </section>
+      ) : null}
     </div>
   );
 }

@@ -2,15 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AdminConfirmDelete } from "@/components/admin/admin-confirm-delete";
+import { AdminSubscriptionDeleteButton } from "@/components/admin/admin-deletion-controls";
+import { AdminSubscriptionDatesForm } from "@/components/admin/admin-subscription-dates-form";
 import { AdminSubscriptionForm } from "@/components/admin/admin-subscription-form";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   adminExtendAccessFormAction,
   adminReactivateAccessBound,
   adminRevokeAccessBound,
-  adminUpdateSubscriptionDatesFormAction,
 } from "@/lib/actions/admin-billing";
 import { listAdminUserOptions } from "@/lib/admin/admin-directory";
 import { ACCESS_SOURCE_LABELS } from "@/lib/billing/labels";
@@ -169,6 +168,10 @@ export default async function AdminSubscriptionsPage() {
                         action={adminRevokeAccessBound}
                       />
                     )}
+                    <AdminSubscriptionDeleteButton
+                      subscriptionId={sub.id}
+                      label={`${sub.plan_key ?? sub.plan} · ${sub.workspace_id.slice(0, 8)}`}
+                    />
                   </div>
                 </div>
 
@@ -241,38 +244,11 @@ export default async function AdminSubscriptionsPage() {
                     </Button>
                   </form>
 
-                  <form
-                    action={adminUpdateSubscriptionDatesFormAction}
-                    className="flex flex-wrap items-end gap-2"
-                  >
-                    <input
-                      type="hidden"
-                      name="workspace_id"
-                      value={sub.workspace_id}
-                    />
-                    <div className="space-y-1">
-                      <Label>Data expirării</Label>
-                      <Input
-                        type="date"
-                        name="access_ends_at"
-                        defaultValue={
-                          sub.access_ends_at
-                            ? sub.access_ends_at.slice(0, 10)
-                            : ""
-                        }
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label>Motiv administrativ</Label>
-                      <Input
-                        name="admin_notes"
-                        defaultValue={sub.admin_notes ?? ""}
-                      />
-                    </div>
-                    <Button type="submit" size="sm" variant="outline">
-                      Actualizează
-                    </Button>
-                  </form>
+                  <AdminSubscriptionDatesForm
+                    workspaceId={sub.workspace_id}
+                    accessEndsAt={sub.access_ends_at}
+                    adminNotes={sub.admin_notes}
+                  />
                 </div>
               </article>
             );

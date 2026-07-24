@@ -48,9 +48,9 @@ export default async function EditWebsitePage({ params }: PageProps) {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-heading text-4xl">Editor website</h1>
+        <h1 className="font-heading text-4xl">Website Builder</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          DnD pentru ordine · autosave · /w/{site.slug}
+          Conținut + prezentare · DnD · autosave · /w/{site.slug}
         </p>
       </header>
       <SiteSectionEditor

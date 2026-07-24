@@ -5,27 +5,54 @@ import { redirect } from "next/navigation";
 import {
   accessEndsAtFromInterval,
   BILLING_PRODUCTS,
-  getStripePriceId,
   type BillingProductKey,
 } from "@/lib/billing/catalog";
+import { getBillingPlan } from "@/lib/billing/plan-catalog";
+import {
+  INVALID_STRIPE_PRICE_MESSAGE,
+  resolveStripePriceId,
+} from "@/lib/billing/stripe-ids";
 import { trackProductEvent } from "@/lib/analytics/product";
 import { syncWorkspaceEntitlements } from "@/lib/entitlements/service";
 import { getStripe, isStripeConfigured } from "@/lib/stripe";
 import { requireWeddingContext } from "@/lib/planner/context";
 import { getSiteUrl } from "@/lib/url";
 
-export async function startCheckoutAction(productKey: BillingProductKey) {
+export async function startCheckoutAction(
+  productKey: BillingProductKey,
+): Promise<void> {
   const ctx = await requireWeddingContext();
-  if (ctx.error || !ctx.context) return;
+  if (ctx.error || !ctx.context) {
+    return;
+  }
 
-  if (!isStripeConfigured()) return;
+  if (!isStripeConfigured()) {
+    return;
+  }
 
   const product = BILLING_PRODUCTS[productKey];
-  if (!product || product.mode === "grant") return;
+  if (!product || product.mode === "grant") {
+    return;
+  }
 
-  const priceId = getStripePriceId(product);
+  const plan = await getBillingPlan(productKey);
+  const envPrice = product.envPriceId
+    ? process.env[product.envPriceId]
+    : undefined;
+  const resolved = resolveStripePriceId([plan?.stripe_price_id, envPrice]);
+  if ("error" in resolved) {
+    redirect(
+      `/dashboard/billing?checkout_error=${encodeURIComponent(
+        resolved.error || INVALID_STRIPE_PRICE_MESSAGE,
+      )}`,
+    );
+  }
+
+  const priceId = resolved.priceId;
   const stripe = getStripe();
-  if (!stripe || !priceId) return;
+  if (!stripe) {
+    return;
+  }
 
   const appUrl = getSiteUrl();
 
@@ -57,6 +84,7 @@ export async function startCheckoutAction(productKey: BillingProductKey) {
     metadata: {
       workspace_id: ctx.context.workspaceId,
       product_key: product.key,
+      plan_key: plan?.key ?? product.key,
       maps_to_plan: product.mapsToPlan,
       billing_interval: product.interval,
     },

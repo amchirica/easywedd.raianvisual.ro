@@ -3,7 +3,9 @@ import Link from "next/link";
 
 import { EmptyState } from "@/components/planner/empty-state";
 import { buttonVariants } from "@/components/ui/button";
+import { SiteDeleteControls } from "@/components/website/site-delete-controls";
 import { duplicateWeddingSiteAction } from "@/lib/actions/website";
+import { canManagePlanner } from "@/lib/planner/access";
 import { requireWeddingContext } from "@/lib/planner/context";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +31,11 @@ export default async function WebsiteOverviewPage({ params }: PageProps) {
     return <EmptyState title="Site negăsit" description="" />;
   }
 
+  const canWrite = canManagePlanner(ctx.context.role);
+  const isArchived =
+    site.status === "archived" ||
+    Boolean((site as { soft_deleted_at?: string | null }).soft_deleted_at);
+
   const links = [
     { href: `/dashboard/website/${id}/edit`, label: "Editor" },
     { href: `/dashboard/website/${id}/preview`, label: "Preview" },
@@ -46,11 +53,25 @@ export default async function WebsiteOverviewPage({ params }: PageProps) {
           </p>
           <h1 className="font-heading text-4xl">/w/{site.slug}</h1>
         </div>
-        <form action={duplicateWeddingSiteAction.bind(null, site.id)}>
-          <button type="submit" className={cn(buttonVariants({ variant: "outline" }))}>
-            Duplică
-          </button>
-        </form>
+        <div className="flex flex-wrap gap-2">
+          {canWrite ? (
+            <form action={duplicateWeddingSiteAction.bind(null, site.id)}>
+              <button
+                type="submit"
+                className={cn(buttonVariants({ variant: "outline" }))}
+              >
+                Duplică
+              </button>
+            </form>
+          ) : null}
+          {canWrite ? (
+            <SiteDeleteControls
+              siteId={site.id}
+              siteSlug={site.slug}
+              isArchived={isArchived}
+            />
+          ) : null}
+        </div>
       </header>
       <nav className="flex flex-wrap gap-4 text-sm">
         {links.map((link) => (

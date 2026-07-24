@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 
 import { WORKSPACE_COOKIE } from "@/lib/constants";
@@ -50,7 +51,10 @@ export async function getActiveWorkspaceId() {
   return cookieStore.get(WORKSPACE_COOKIE)?.value ?? null;
 }
 
-export async function getCurrentUserContext() {
+/**
+ * Deduped per request — layout + page + nested loaders share one context fetch.
+ */
+export const getCurrentUserContext = cache(async () => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -67,17 +71,16 @@ export async function getCurrentUserContext() {
     };
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const { data: memberships } = await supabase
-    .from("workspace_members")
-    .select("workspace_id")
-    .eq("user_id", user.id)
-    .eq("invitation_status", "accepted");
+  const [{ data: profile }, { data: memberships }, { data: isPlatformAdmin }] =
+    await Promise.all([
+      supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+      supabase
+        .from("workspace_members")
+        .select("workspace_id")
+        .eq("user_id", user.id)
+        .eq("invitation_status", "accepted"),
+      supabase.rpc("is_platform_admin"),
+    ]);
 
   const workspaceIds = (memberships ?? []).map((m) => m.workspace_id);
   let workspaces: Workspace[] = [];
@@ -107,8 +110,6 @@ export async function getCurrentUserContext() {
     wedding = data;
   }
 
-  const { data: isPlatformAdmin } = await supabase.rpc("is_platform_admin");
-
   return {
     user,
     profile: profile as Profile | null,
@@ -117,4 +118,14 @@ export async function getCurrentUserContext() {
     wedding,
     isPlatformAdmin: Boolean(isPlatformAdmin),
   };
-}
+});
+
+/** Shared entitlements fetch — layout + planner context share one query. */
+export const getWorkspaceEntitlementRows = cache(async (workspaceId: string) => {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("feature_entitlements")
+    .select("feature_key, enabled, usage_limit, usage_value")
+    .eq("workspace_id", workspaceId);
+  return data ?? [];
+});

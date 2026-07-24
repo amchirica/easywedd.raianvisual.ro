@@ -46,6 +46,7 @@ export function SiteHeader() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               className={cn(
                 "transition",
                 onHero

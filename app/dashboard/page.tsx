@@ -45,17 +45,31 @@ export default async function DashboardPage() {
 
   const [{ data: tasks }, { data: guests }, { data: vendors }, { data: budgetItems }] =
     await Promise.all([
-      supabase.from("wedding_tasks").select("*").eq("wedding_id", weddingId),
-      supabase.from("guests").select("*").eq("wedding_id", weddingId),
-      supabase.from("vendors").select("*").eq("wedding_id", weddingId),
-      supabase.from("budget_items").select("*").eq("wedding_id", weddingId),
+      supabase
+        .from("wedding_tasks")
+        .select("id, title, status, due_date")
+        .eq("wedding_id", weddingId),
+      supabase
+        .from("guests")
+        .select("id, rsvp_status, side")
+        .eq("wedding_id", weddingId),
+      supabase
+        .from("vendors")
+        .select("id, company_name, status")
+        .eq("wedding_id", weddingId),
+      supabase
+        .from("budget_items")
+        .select(
+          "id, name, currency, estimated_amount, contracted_amount, paid_amount, due_amount, payment_status",
+        )
+        .eq("wedding_id", weddingId),
     ]);
 
   const analytics = buildDashboardAnalytics({
-    tasks: tasks ?? [],
-    guests: guests ?? [],
-    vendors: vendors ?? [],
-    budgetItems: budgetItems ?? [],
+    tasks: (tasks ?? []) as never,
+    guests: (guests ?? []) as never,
+    vendors: (vendors ?? []) as never,
+    budgetItems: (budgetItems ?? []) as never,
   });
 
   const currency = wedding?.currency ?? "RON";

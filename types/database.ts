@@ -130,6 +130,10 @@ export interface Database {
           locale: string;
           timezone: string;
           onboarding_completed: boolean;
+          account_status?: "pending" | "limited" | "approved" | "suspended";
+          account_status_note?: string | null;
+          account_status_updated_at?: string | null;
+          account_status_updated_by?: string | null;
           suspended_at: string | null;
           soft_deleted_at: string | null;
           created_at: string;
@@ -144,6 +148,10 @@ export interface Database {
           locale?: string;
           timezone?: string;
           onboarding_completed?: boolean;
+          account_status?: "pending" | "limited" | "approved" | "suspended";
+          account_status_note?: string | null;
+          account_status_updated_at?: string | null;
+          account_status_updated_by?: string | null;
           suspended_at?: string | null;
           soft_deleted_at?: string | null;
           created_at?: string;
@@ -158,6 +166,10 @@ export interface Database {
           locale?: string;
           timezone?: string;
           onboarding_completed?: boolean;
+          account_status?: "pending" | "limited" | "approved" | "suspended";
+          account_status_note?: string | null;
+          account_status_updated_at?: string | null;
+          account_status_updated_by?: string | null;
           suspended_at?: string | null;
           soft_deleted_at?: string | null;
           created_at?: string;
@@ -472,6 +484,8 @@ export interface Database {
           workspace_limit: number;
           access_months: number | null;
           stripe_price_env: string | null;
+          stripe_product_id: string | null;
+          stripe_price_id: string | null;
           is_public: boolean;
           sort_order: number;
           created_at: string;
@@ -526,6 +540,57 @@ export interface Database {
         };
         Insert: Record<string, unknown>;
         Update: Record<string, unknown>;
+        Relationships: [];
+      };
+      access_grants: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          feature_key: string;
+          enabled: boolean;
+          usage_limit: number | null;
+          starts_at: string;
+          ends_at: string | null;
+          reason: string;
+          granted_by: string | null;
+          revoked_at: string | null;
+          revoked_by: string | null;
+          revoke_reason: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          feature_key: string;
+          enabled?: boolean;
+          usage_limit?: number | null;
+          starts_at?: string;
+          ends_at?: string | null;
+          reason?: string;
+          granted_by?: string | null;
+          revoked_at?: string | null;
+          revoked_by?: string | null;
+          revoke_reason?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          feature_key?: string;
+          enabled?: boolean;
+          usage_limit?: number | null;
+          starts_at?: string;
+          ends_at?: string | null;
+          reason?: string;
+          granted_by?: string | null;
+          revoked_at?: string | null;
+          revoked_by?: string | null;
+          revoke_reason?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
         Relationships: [];
       };
       feature_entitlements: {
@@ -1103,6 +1168,7 @@ export interface Database {
           published_at: string | null;
           created_at: string;
           updated_at: string;
+          soft_deleted_at: string | null;
         };
         Insert: {
           workspace_id: string;
@@ -1116,6 +1182,7 @@ export interface Database {
           preview_key?: string;
           rsvp_deadline?: string | null;
           published_at?: string | null;
+          soft_deleted_at?: string | null;
         };
         Update: Partial<{
           name: string;
@@ -1127,6 +1194,7 @@ export interface Database {
           preview_key: string;
           rsvp_deadline: string | null;
           published_at: string | null;
+          soft_deleted_at: string | null;
         }>;
         Relationships: [];
       };
@@ -1292,6 +1360,7 @@ export interface Database {
           access_password_hash: string | null;
           analytics_enabled: boolean;
           theme_config: Json;
+          soft_deleted_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1311,6 +1380,7 @@ export interface Database {
           access_password_hash?: string | null;
           analytics_enabled?: boolean;
           theme_config?: Json;
+          soft_deleted_at?: string | null;
         };
         Update: Partial<{
           slug: string;
@@ -1326,6 +1396,7 @@ export interface Database {
           access_password_hash: string | null;
           analytics_enabled: boolean;
           theme_config: Json;
+          soft_deleted_at: string | null;
         }>;
         Relationships: [];
       };

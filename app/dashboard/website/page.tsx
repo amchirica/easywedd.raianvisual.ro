@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { EmptyState } from "@/components/planner/empty-state";
 import { buttonVariants } from "@/components/ui/button";
+import { SiteDeleteControls } from "@/components/website/site-delete-controls";
 import { requireFeature } from "@/lib/entitlements/service";
 import { canManagePlanner } from "@/lib/planner/access";
 import { requireWeddingContext } from "@/lib/planner/context";
@@ -19,20 +20,20 @@ export default async function WebsitePage() {
   const feature = await requireFeature(ctx.context.workspaceId, "website");
   if (!feature.ok) {
     return (
-      <EmptyState
-        title="Website dezactivat"
-        description={feature.error}
-      />
+      <EmptyState title="Website dezactivat" description={feature.error} />
     );
   }
 
   const { data: sites } = await ctx.context.supabase
     .from("wedding_sites")
-    .select("id, slug, status, updated_at, published_at")
+    .select("id, slug, status, updated_at, published_at, soft_deleted_at")
     .eq("workspace_id", ctx.context.workspaceId)
     .order("updated_at", { ascending: false });
 
   const canWrite = canManagePlanner(ctx.context.role);
+  const visible = (sites ?? []).filter(
+    (s) => !s.soft_deleted_at || s.status === "archived",
+  );
 
   return (
     <div className="space-y-8">
@@ -50,32 +51,43 @@ export default async function WebsitePage() {
         ) : null}
       </header>
 
-      {(sites ?? []).length === 0 ? (
+      {visible.length === 0 ? (
         <EmptyState
           title="Niciun site încă"
           description="Alege un template și publică site-ul nunții."
         />
       ) : (
         <div className="divide-y divide-border border-y border-border">
-          {(sites ?? []).map((site) => (
-            <Link
+          {visible.map((site) => (
+            <div
               key={site.id}
-              href={`/dashboard/website/${site.id}`}
-              className="block py-4 hover:bg-secondary/40"
+              className="flex items-center justify-between gap-4 py-4"
             >
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="font-heading text-2xl">/w/{site.slug}</p>
-                  <p className="text-sm text-muted-foreground">
-                    actualizat{" "}
-                    {new Date(site.updated_at).toLocaleDateString("ro-RO")}
-                  </p>
-                </div>
+              <Link
+                href={`/dashboard/website/${site.id}`}
+                className="min-w-0 flex-1 hover:opacity-80"
+              >
+                <p className="font-heading text-2xl">/w/{site.slug}</p>
+                <p className="text-sm text-muted-foreground">
+                  actualizat{" "}
+                  {new Date(site.updated_at).toLocaleDateString("ro-RO")}
+                </p>
+              </Link>
+              <div className="flex shrink-0 flex-col items-end gap-2">
                 <span className="text-xs uppercase tracking-wide text-muted-foreground">
                   {site.status}
                 </span>
+                {canWrite ? (
+                  <SiteDeleteControls
+                    siteId={site.id}
+                    siteSlug={site.slug}
+                    isArchived={
+                      site.status === "archived" || Boolean(site.soft_deleted_at)
+                    }
+                  />
+                ) : null}
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       )}

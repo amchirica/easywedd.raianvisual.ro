@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache";
 
 import { trackProductEvent } from "@/lib/analytics/product";
+import {
+  assertWithinLimit,
+  requireFeature,
+} from "@/lib/entitlements/service";
 import { canManageGuests } from "@/lib/planner/access";
 import { logAudit, requireWeddingContext } from "@/lib/planner/context";
 import { parseGuestCsv, toCsv } from "@/lib/planner/exports";
@@ -21,6 +25,17 @@ export async function createGuestAction(formData: FormData): Promise<void> {
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) return;
   if (!canManageGuests(ctx.context.role)) return;
+
+  const feature = await requireFeature(ctx.context.workspaceId, "guests");
+  if (!feature.ok) return;
+
+  const { count } = await ctx.context.supabase
+    .from("guests")
+    .select("*", { count: "exact", head: true })
+    .eq("wedding_id", ctx.context.weddingId);
+  if (!assertWithinLimit(feature.snapshot.rows, "guest_limit", count ?? 0)) {
+    return;
+  }
 
   const parsed = guestSchema.safeParse({
     first_name: formData.get("first_name"),
@@ -75,7 +90,6 @@ export async function createGuestAction(formData: FormData): Promise<void> {
     properties: { side: parsed.data.side },
   });
   revalidatePath("/dashboard/guests");
-  revalidatePath("/dashboard");
   return;
 }
 
@@ -238,5 +252,4 @@ export async function deleteGuestAction(guestId: string): Promise<void> {
     .eq("workspace_id", ctx.context.workspaceId);
 
   revalidatePath("/dashboard/guests");
-  revalidatePath("/dashboard");
 }

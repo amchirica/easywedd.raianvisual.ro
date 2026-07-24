@@ -1,5 +1,6 @@
 import "server-only";
 
+import { resolveStripePriceId } from "@/lib/billing/stripe-ids";
 import { createClient } from "@/lib/supabase/server";
 import type { BillingInterval, SubscriptionPlan } from "@/types/database";
 
@@ -20,14 +21,52 @@ export type BillingPlanRow = {
   storage_mb: number;
   workspace_limit: number;
   access_months: number | null;
+  /** Env var name holding a Price ID — fallback when stripe_price_id is null. */
   stripe_price_env: string | null;
+  /** Stripe Product ID (prod_…) — catalog only, never Checkout. */
+  stripe_product_id: string | null;
+  /** Stripe Price ID (price_…) — required for Checkout. */
+  stripe_price_id: string | null;
   is_public: boolean;
   sort_order: number;
 };
 
+function withStripeIdDefaults(
+  plan: Omit<BillingPlanRow, "stripe_product_id" | "stripe_price_id"> &
+    Partial<Pick<BillingPlanRow, "stripe_product_id" | "stripe_price_id">>,
+): BillingPlanRow {
+  return {
+    ...plan,
+    stripe_product_id: plan.stripe_product_id ?? null,
+    stripe_price_id: plan.stripe_price_id ?? null,
+  };
+}
+
 /** Fallback when DB plans table not yet migrated. */
 export const FALLBACK_BILLING_PLANS: BillingPlanRow[] = [
-  {
+  withStripeIdDefaults({
+    key: "free",
+    name: "Gratuit",
+    description:
+      "Funcții de bază: planner, invitați, buget, 1 invitație, website draft.",
+    maps_to_subscription_plan: "trial",
+    billing_type: "grant",
+    interval: "grant",
+    guest_limit: 30,
+    website_publishing: false,
+    pdf_export: false,
+    invitations: true,
+    seating: false,
+    vendors: false,
+    analytics: false,
+    storage_mb: 200,
+    workspace_limit: 1,
+    access_months: null,
+    stripe_price_env: null,
+    is_public: true,
+    sort_order: 5,
+  }),
+  withStripeIdDefaults({
     key: "starter",
     name: "Starter",
     description: "Planificare de bază, abonament lunar.",
@@ -47,8 +86,8 @@ export const FALLBACK_BILLING_PLANS: BillingPlanRow[] = [
     stripe_price_env: "STRIPE_PRICE_STARTER_MONTHLY",
     is_public: true,
     sort_order: 10,
-  },
-  {
+  }),
+  withStripeIdDefaults({
     key: "essentials",
     name: "Essentials / Partner",
     description: "Planner + invitații + site.",
@@ -68,8 +107,8 @@ export const FALLBACK_BILLING_PLANS: BillingPlanRow[] = [
     stripe_price_env: null,
     is_public: true,
     sort_order: 20,
-  },
-  {
+  }),
+  withStripeIdDefaults({
     key: "premium_pass_12",
     name: "Premium Wedding Pass — 12 luni",
     description: "Acces Premium 12 luni (plată unică).",
@@ -89,8 +128,8 @@ export const FALLBACK_BILLING_PLANS: BillingPlanRow[] = [
     stripe_price_env: "STRIPE_PRICE_PREMIUM_PASS_12",
     is_public: true,
     sort_order: 30,
-  },
-  {
+  }),
+  withStripeIdDefaults({
     key: "premium_pass_18",
     name: "Premium Wedding Pass — 18 luni",
     description: "Acces Premium 18 luni (plată unică).",
@@ -110,8 +149,8 @@ export const FALLBACK_BILLING_PLANS: BillingPlanRow[] = [
     stripe_price_env: "STRIPE_PRICE_PREMIUM_PASS_18",
     is_public: true,
     sort_order: 40,
-  },
-  {
+  }),
+  withStripeIdDefaults({
     key: "pro",
     name: "Pro",
     description: "Pentru profesioniști — abonament.",
@@ -131,8 +170,18 @@ export const FALLBACK_BILLING_PLANS: BillingPlanRow[] = [
     stripe_price_env: "STRIPE_PRICE_PRO_MONTHLY",
     is_public: true,
     sort_order: 50,
-  },
+  }),
 ];
+
+function normalizePlanRow(row: Record<string, unknown>): BillingPlanRow {
+  return withStripeIdDefaults({
+    ...(row as unknown as BillingPlanRow),
+    stripe_product_id:
+      typeof row.stripe_product_id === "string" ? row.stripe_product_id : null,
+    stripe_price_id:
+      typeof row.stripe_price_id === "string" ? row.stripe_price_id : null,
+  });
+}
 
 export async function listPublicBillingPlans(): Promise<BillingPlanRow[]> {
   try {
@@ -143,7 +192,21 @@ export async function listPublicBillingPlans(): Promise<BillingPlanRow[]> {
       .eq("is_public", true)
       .order("sort_order");
     if (error || !data?.length) return FALLBACK_BILLING_PLANS;
-    return data as BillingPlanRow[];
+    return data.map((row) => normalizePlanRow(row as Record<string, unknown>));
+  } catch {
+    return FALLBACK_BILLING_PLANS;
+  }
+}
+
+export async function listAllBillingPlans(): Promise<BillingPlanRow[]> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("billing_plans")
+      .select("*")
+      .order("sort_order");
+    if (error || !data?.length) return FALLBACK_BILLING_PLANS;
+    return data.map((row) => normalizePlanRow(row as Record<string, unknown>));
   } catch {
     return FALLBACK_BILLING_PLANS;
   }
@@ -159,16 +222,33 @@ export async function getBillingPlan(
       .select("*")
       .eq("key", key)
       .maybeSingle();
-    if (data) return data as BillingPlanRow;
+    if (data) return normalizePlanRow(data as Record<string, unknown>);
   } catch {
     /* fallback */
   }
   return FALLBACK_BILLING_PLANS.find((p) => p.key === key) ?? null;
 }
 
+/**
+ * Checkout-ready Price ID. Prefers DB stripe_price_id, then env via stripe_price_env.
+ * Never returns Product IDs.
+ */
 export function getStripePriceIdForPlan(plan: BillingPlanRow): string | null {
-  if (!plan.stripe_price_env) return null;
-  return process.env[plan.stripe_price_env] || null;
+  const envValue = plan.stripe_price_env
+    ? process.env[plan.stripe_price_env]
+    : null;
+  const resolved = resolveStripePriceId([plan.stripe_price_id, envValue]);
+  return "priceId" in resolved ? resolved.priceId : null;
+}
+
+/**
+ * Detailed resolve for checkout actions (friendly error messages).
+ */
+export function resolveCheckoutPriceForPlan(plan: BillingPlanRow) {
+  const envValue = plan.stripe_price_env
+    ? process.env[plan.stripe_price_env]
+    : null;
+  return resolveStripePriceId([plan.stripe_price_id, envValue]);
 }
 
 export {

@@ -9,6 +9,7 @@ export type SearchableOption = {
   label: string;
   description?: string;
   keywords?: string;
+  disabled?: boolean;
 };
 
 type Props = {
@@ -117,11 +118,14 @@ export function AdminSearchableSelect({
                 <li key={opt.value}>
                   <button
                     type="button"
+                    disabled={opt.disabled}
                     className={cn(
                       "flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm hover:bg-muted",
                       opt.value === value && "bg-muted",
+                      opt.disabled && "cursor-not-allowed opacity-50 hover:bg-transparent",
                     )}
                     onClick={() => {
+                      if (opt.disabled) return;
                       onChange(opt.value);
                       setQuery("");
                       setOpen(false);

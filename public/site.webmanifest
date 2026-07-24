@@ -1,0 +1,28 @@
+{
+  "name": "EasyWedd",
+  "short_name": "EasyWedd",
+  "description": "Planner, invitații și website de nuntă",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F7F4EF",
+  "theme_color": "#2A2420",
+  "lang": "ro",
+  "icons": [
+    {
+      "src": "/brand/raian-mark-32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/brand/raian-mark-64.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -11,6 +11,8 @@ const adminNav = [
   { href: "/admin/users", label: "Utilizatori" },
   { href: "/admin/workspaces", label: "Workspace-uri" },
   { href: "/admin/subscriptions", label: "Abonamente" },
+  { href: "/admin/plans", label: "Planuri" },
+  { href: "/admin/access", label: "Acces & aprobări" },
   { href: "/admin/contracts", label: "Contracte" },
   { href: "/admin/templates", label: "Templates" },
   { href: "/admin/analytics", label: "Analytics" },
@@ -68,6 +70,7 @@ export default async function AdminLayout({
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               className="whitespace-nowrap text-muted-foreground hover:text-foreground"
             >
               {item.label}

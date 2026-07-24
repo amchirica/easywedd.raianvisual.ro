@@ -77,7 +77,7 @@ export async function adminGrantAccessAction(
 
   if (!workspace) return { error: "Workspace inexistent" };
   if (isProtectedSystemWorkspace(workspace)) {
-    return { error: "Nu poți modifica workspace-uri de sistem." };
+    return { error: "Nu poți modifica workspace-uri de sistem (tip admin). Alege un workspace couple." };
   }
 
   const { data: plan } = await admin
@@ -623,4 +623,72 @@ export async function adminSoftDeleteContractBound(
 ): Promise<void> {
   void workspaceId;
   await adminSoftDeleteContractAction(contractId);
+}
+
+export async function adminUpdateBillingPlanStripeIdsAction(
+  _prev: AdminBillingResult,
+  formData: FormData,
+): Promise<AdminBillingResult> {
+  const auth = await assertAdmin();
+  if (!auth.ok || !auth.user) return { error: auth.error };
+
+  const {
+    isValidStripePriceId,
+    isValidStripeProductId,
+  } = await import("@/lib/billing/stripe-ids");
+
+  const key = String(formData.get("key") || "").trim();
+  if (!key) return { error: "Plan key lipsește." };
+
+  const productRaw = String(formData.get("stripe_product_id") || "").trim();
+  const priceRaw = String(formData.get("stripe_price_id") || "").trim();
+
+  if (productRaw && !isValidStripeProductId(productRaw)) {
+    return {
+      error:
+        "Product ID invalid. Trebuie să înceapă cu prod_ (ex: prod_xxx).",
+    };
+  }
+  if (priceRaw && !isValidStripePriceId(priceRaw)) {
+    return {
+      error:
+        "Price ID invalid. Trebuie să înceapă cu price_ (ex: price_xxx). Nu folosi Product ID (prod_).",
+    };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("billing_plans")
+    .update({
+      stripe_product_id: productRaw || null,
+      stripe_price_id: priceRaw || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("key", key);
+
+  if (error) {
+    return {
+      error:
+        error.message.includes("billing_plans_stripe_price_id_format") ||
+        error.message.includes("check constraint")
+          ? "Price ID invalid (trebuie price_…). Rulează migrația billing Stripe IDs dacă lipsește."
+          : "Nu am putut salva planul. Asigură-te că migrația stripe_product_id / stripe_price_id este aplicată.",
+    };
+  }
+
+  await logAudit(null, auth.user.id, "admin.billing_plan.update_stripe", "billing_plan", key, {
+    stripe_product_id: productRaw || null,
+    stripe_price_id: priceRaw || null,
+  });
+
+  revalidatePath("/admin/plans");
+  revalidatePath("/dashboard/billing");
+  revalidatePath("/pricing");
+  return { success: `Plan ${key} actualizat.` };
+}
+
+export async function adminUpdateBillingPlanStripeIdsFormAction(
+  formData: FormData,
+): Promise<void> {
+  await adminUpdateBillingPlanStripeIdsAction({}, formData);
 }

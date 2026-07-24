@@ -4,13 +4,15 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { trackProductEvent } from "@/lib/analytics/product";
+import {
+  assertWithinLimit,
+  invitationLimitsFromEntitlements,
+  requireFeature,
+} from "@/lib/entitlements/service";
 import { logAudit, requireWeddingContext } from "@/lib/planner/context";
 import { canManagePlanner } from "@/lib/planner/access";
 import { computeInvitationAnalytics } from "@/lib/invitations/analytics";
-import {
-  canCreateProject,
-  getInvitationLimits,
-} from "@/lib/invitations/plan-limits";
+import { canCreateProject, getInvitationLimits } from "@/lib/invitations/plan-limits";
 import {
   mergeTemplateDefaults,
   sanitizeContent,
@@ -48,6 +50,9 @@ export async function createInvitationProjectAction(formData: FormData): Promise
   if (ctx.error || !ctx.context) return;
   if (!canManagePlanner(ctx.context.role)) return;
 
+  const feature = await requireFeature(ctx.context.workspaceId, "invitations");
+  if (!feature.ok) return;
+
   const parsed = createProjectSchema.safeParse({
     name: formData.get("name"),
     template_id: formData.get("template_id"),
@@ -55,7 +60,7 @@ export async function createInvitationProjectAction(formData: FormData): Promise
   if (!parsed.success) return;
 
   const plan = await getPlan(ctx.context.supabase, ctx.context.workspaceId);
-  const limits = getInvitationLimits(plan);
+  const limits = invitationLimitsFromEntitlements(plan, feature.snapshot.rows);
 
   const { count } = await ctx.context.supabase
     .from("invitation_projects")
@@ -63,7 +68,12 @@ export async function createInvitationProjectAction(formData: FormData): Promise
     .eq("workspace_id", ctx.context.workspaceId)
     .neq("status", "archived");
 
-  if (!canCreateProject(count ?? 0, plan)) return;
+  if (
+    !canCreateProject(count ?? 0, plan) ||
+    !assertWithinLimit(feature.snapshot.rows, "invitation_projects", count ?? 0)
+  ) {
+    return;
+  }
 
   const { data: template } = await ctx.context.supabase
     .from("invitation_templates")
@@ -86,6 +96,7 @@ export async function createInvitationProjectAction(formData: FormData): Promise
     schema.theme,
     schema.sections,
     ctx.context.wedding,
+    template.template_schema,
   );
 
   const { data: project, error } = await ctx.context.supabase
@@ -108,17 +119,6 @@ export async function createInvitationProjectAction(formData: FormData): Promise
     .from("invitation_templates")
     .update({ usage_count: (template.usage_count ?? 0) + 1 })
     .eq("id", template.id);
-
-  await ctx.context.supabase.from("feature_entitlements").upsert(
-    {
-      workspace_id: ctx.context.workspaceId,
-      feature_key: "invitations",
-      enabled: true,
-      usage_limit: limits.maxProjects,
-      usage_value: (count ?? 0) + 1,
-    },
-    { onConflict: "workspace_id,feature_key" },
-  );
 
   await trackProductEvent("invitation_created", {
     workspaceId: ctx.context.workspaceId,
@@ -178,9 +178,7 @@ export async function saveInvitationProjectAction(formData: FormData): Promise<v
     .eq("id", parsed.data.project_id)
     .eq("workspace_id", ctx.context.workspaceId);
 
-  revalidatePath(`/dashboard/invitations/${parsed.data.project_id}`);
-  revalidatePath(`/dashboard/invitations/${parsed.data.project_id}/edit`);
-  revalidatePath(`/dashboard/invitations/${parsed.data.project_id}/preview`);
+  // Autosave: editor keeps optimistic local state — avoid 3× RSC refreshes.
 }
 
 export async function publishInvitationProjectAction(projectId: string): Promise<void> {

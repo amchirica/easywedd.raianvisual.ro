@@ -30,8 +30,8 @@ describe("canManageGuests", () => {
 });
 
 describe("canAccessFeature", () => {
-  it("default true dacă lipsește entitlement", () => {
-    expect(canAccessFeature([], "planner")).toBe(true);
+  it("default false dacă lipsește entitlement (fail-closed)", () => {
+    expect(canAccessFeature([], "planner")).toBe(false);
   });
 
   it("respectă enabled=false", () => {

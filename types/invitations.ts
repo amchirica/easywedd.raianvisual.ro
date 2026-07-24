@@ -1,3 +1,9 @@
+import type {
+  CanonicalSectionKey,
+  InvitationContentConfigV2,
+} from "@/lib/invitations/sections/types";
+import { CANONICAL_SECTION_KEYS, SECTION_LABELS_RO } from "@/lib/invitations/sections/types";
+
 export type InvitationProjectStatus = "draft" | "published" | "archived";
 
 export type InvitationTemplateCategory =
@@ -11,16 +17,12 @@ export type InvitationTemplateCategory =
   | "traditional_romanian"
   | "destination_wedding";
 
+/** @deprecated Prefer CanonicalSectionKey — kept for legacy template strings */
 export type InvitationSectionKey =
-  | "hero"
-  | "couple"
-  | "when_where"
+  | CanonicalSectionKey
   | "schedule"
   | "party"
-  | "dress_code"
-  | "travel"
-  | "rsvp"
-  | "footer";
+  | "travel";
 
 export type InvitationThemeConfig = {
   background: string;
@@ -28,28 +30,15 @@ export type InvitationThemeConfig = {
   accent: string;
   headingFont: string;
   bodyFont: string;
+  density?: "compact" | "comfortable" | "spacious";
+  radius?: "none" | "sm" | "md" | "lg";
+  pageGradientFrom?: string;
+  pageGradientTo?: string;
+  buttonBackground?: string;
+  buttonForeground?: string;
 };
 
-export type InvitationContentConfig = {
-  coupleName1: string;
-  coupleName2: string;
-  weddingDate: string;
-  weddingTime: string;
-  ceremonyLocation: string;
-  receptionLocation: string;
-  scheduleText: string;
-  parentsText: string;
-  godparentsText: string;
-  dressCode: string;
-  travelInfo: string;
-  accommodationInfo: string;
-  mapUrl: string;
-  heroImageUrl: string;
-  introText: string;
-  rsvpMessage: string;
-  footerText: string;
-  enabledSections: InvitationSectionKey[];
-};
+export type InvitationContentConfig = InvitationContentConfigV2;
 
 export type InvitationTemplate = {
   id: string;
@@ -58,7 +47,7 @@ export type InvitationTemplate = {
   category: InvitationTemplateCategory;
   thumbnail_url: string | null;
   template_schema: {
-    sections?: InvitationSectionKey[];
+    sections?: string[];
     theme?: Partial<InvitationThemeConfig>;
   };
   is_premium: boolean;
@@ -100,14 +89,9 @@ export const TEMPLATE_CATEGORIES: {
   { value: "destination_wedding", label: "Destination wedding" },
 ];
 
-export const ALL_SECTIONS: { key: InvitationSectionKey; label: string }[] = [
-  { key: "hero", label: "Hero" },
-  { key: "couple", label: "Cuplu" },
-  { key: "when_where", label: "Când & unde" },
-  { key: "schedule", label: "Program" },
-  { key: "party", label: "Părinți & nași" },
-  { key: "dress_code", label: "Dress code" },
-  { key: "travel", label: "Transport & cazare" },
-  { key: "rsvp", label: "RSVP" },
-  { key: "footer", label: "Footer" },
-];
+/** Sidebar labels — use template order from content.sectionOrder in the editor */
+export const ALL_SECTIONS: { key: CanonicalSectionKey; label: string }[] =
+  CANONICAL_SECTION_KEYS.map((key) => ({
+    key,
+    label: SECTION_LABELS_RO[key],
+  }));

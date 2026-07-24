@@ -29,13 +29,6 @@ export type AdminDirectoryResult<T> = {
   data?: T;
 };
 
-export type {
-  AdminContractOption,
-  AdminSubscriptionOption,
-  AdminUserOption,
-  AdminWorkspaceOption,
-};
-
 async function assertAdmin() {
   const auth = await requirePlatformAdmin();
   if (!auth.ok || !auth.user) {

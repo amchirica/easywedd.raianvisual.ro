@@ -5,6 +5,7 @@ export const ENTITLEMENT_KEYS = [
   "guests",
   "budget",
   "vendors",
+  "seating",
   "guest_limit",
   "invitation_projects",
   "remove_branding",
