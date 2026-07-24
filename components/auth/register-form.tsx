@@ -175,11 +175,6 @@ export function RegisterForm({ nextPath, claimToken }: RegisterFormProps) {
           role="alert"
         >
           {state.message}
-          {"code" in state && state.code ? (
-            <span className="mt-1 block text-xs opacity-80">
-              Cod: {state.code}
-            </span>
-          ) : null}
         </p>
       ) : null}
 

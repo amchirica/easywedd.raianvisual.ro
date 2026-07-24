@@ -82,12 +82,22 @@ describe("mapSupabaseAuthError", () => {
     expect(r.code).toBe("weird_supabase_thing");
   });
 
-  it("maps redirect URL not allowed", () => {
+  it("maps database error saving new user (HTTP 500)", () => {
     const r = mapSupabaseAuthError(
-      { message: "Redirect URL not allowed on whitelist" },
+      {
+        status: 500,
+        message: "Database error saving new user",
+      },
       "signup",
     );
-    expect(r.code).toBe("redirect_url_not_allowed");
+    expect(r.code).toBe("database_error");
+    expect(r.message).toContain("baza de date");
+  });
+
+  it("maps bare HTTP 500 with actionable Romanian copy", () => {
+    const r = mapSupabaseAuthError({ status: 500, message: "" }, "signup");
+    expect(r.code).toBe("http_500");
+    expect(r.message).toContain("SMTP");
   });
 });
 

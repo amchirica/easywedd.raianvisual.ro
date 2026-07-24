@@ -172,7 +172,26 @@ export function mapSupabaseAuthError(
     };
   }
 
-  // SMTP / email provider failures (common when custom SMTP is misconfigured)
+  if (
+    message.includes("database error saving new user") ||
+    message.includes("database error creating new user") ||
+    message.includes("handle_new_user")
+  ) {
+    return {
+      code: "database_error",
+      message:
+        "Contul nu a putut fi salvat în baza de date (eroare la crearea profilului). Aplică migrația handle_new_user în Supabase SQL Editor și reîncearcă.",
+    };
+  }
+
+  if (status === 500) {
+    return {
+      code: "http_500",
+      message:
+        "Supabase a returnat eroare 500 la signup. Cauze frecvente: (1) trigger-ul handle_new_user pe profiles eșuează — aplică migrația 20260719000019; (2) SMTP custom invalid — vezi Authentication → Logs. Detaliu în terminal: [auth:signup:error].",
+    };
+  }
+
   if (
     code === "unexpected_failure" ||
     message.includes("error sending confirmation email") ||
@@ -220,23 +239,29 @@ export function mapSupabaseAuthError(
     error.code?.replace(/[^a-zA-Z0-9_.-]/g, "").slice(0, 64) ||
     (status ? `http_${status}` : "unknown");
 
+  // In development, surface a sanitized Supabase message so debugging is possible.
+  const detail =
+    process.env.NODE_ENV !== "production" && error.message
+      ? ` (${sanitizeMessage(error.message)})`
+      : "";
+
   if (flow === "signup") {
     return {
       code: safeCode,
-      message: `Contul nu a putut fi creat. Cod eroare: ${safeCode}`,
+      message: `Contul nu a putut fi creat. Cod eroare: ${safeCode}${detail}`,
     };
   }
 
   if (flow === "login") {
     return {
       code: safeCode,
-      message: `Autentificarea a eșuat. Cod eroare: ${safeCode}`,
+      message: `Autentificarea a eșuat. Cod eroare: ${safeCode}${detail}`,
     };
   }
 
   return {
     code: safeCode,
-    message: `Operațiunea a eșuat. Cod eroare: ${safeCode}`,
+    message: `Operațiunea a eșuat. Cod eroare: ${safeCode}${detail}`,
   };
 }
 
