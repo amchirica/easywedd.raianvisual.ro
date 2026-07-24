@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,8 @@ import {
   registerAction,
   type SignupResult,
 } from "@/lib/actions/auth";
+import { passwordStrengthChecks } from "@/lib/validations/auth";
+import { cn } from "@/lib/utils";
 
 type RegisterFormProps = {
   nextPath?: string;
@@ -24,10 +26,15 @@ const initialState: SignupResult = {
 
 export function RegisterForm({ nextPath, claimToken }: RegisterFormProps) {
   const router = useRouter();
+  const [password, setPassword] = useState("");
   const [state, formAction, pending] = useActionState(
     registerAction,
     initialState,
   );
+
+  const checks = useMemo(() => passwordStrengthChecks(password), [password]);
+  const allStrong =
+    checks.minLength && checks.uppercase && checks.lowercase && checks.number;
 
   useEffect(() => {
     if (!state.success) return;
@@ -58,6 +65,7 @@ export function RegisterForm({ nextPath, claimToken }: RegisterFormProps) {
           autoComplete="name"
           required
           placeholder="Ana Popescu"
+          disabled={pending}
         />
       </div>
 
@@ -70,6 +78,7 @@ export function RegisterForm({ nextPath, claimToken }: RegisterFormProps) {
           autoComplete="email"
           required
           placeholder="tu@email.com"
+          disabled={pending}
         />
       </div>
 
@@ -82,8 +91,29 @@ export function RegisterForm({ nextPath, claimToken }: RegisterFormProps) {
           autoComplete="new-password"
           required
           minLength={8}
-          placeholder="Minimum 8 caractere"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Minim 8 caractere, literă mare + cifră"
+          disabled={pending}
+          aria-describedby="register-password-rules"
         />
+        <ul
+          id="register-password-rules"
+          className="space-y-1 text-xs text-muted-foreground"
+        >
+          <li className={cn(checks.minLength && "text-foreground")}>
+            {checks.minLength ? "✓" : "○"} Minim 8 caractere
+          </li>
+          <li className={cn(checks.uppercase && "text-foreground")}>
+            {checks.uppercase ? "✓" : "○"} Cel puțin o literă mare
+          </li>
+          <li className={cn(checks.lowercase && "text-foreground")}>
+            {checks.lowercase ? "✓" : "○"} Cel puțin o literă mică
+          </li>
+          <li className={cn(checks.number && "text-foreground")}>
+            {checks.number ? "✓" : "○"} Cel puțin o cifră
+          </li>
+        </ul>
       </div>
 
       <div className="space-y-3 rounded-lg border border-border bg-card/60 p-4">
@@ -92,6 +122,7 @@ export function RegisterForm({ nextPath, claimToken }: RegisterFormProps) {
             type="checkbox"
             name="accept_terms"
             required
+            disabled={pending}
             className="mt-1 size-4 accent-[var(--champagne)]"
           />
           <span>
@@ -106,6 +137,7 @@ export function RegisterForm({ nextPath, claimToken }: RegisterFormProps) {
             type="checkbox"
             name="accept_privacy"
             required
+            disabled={pending}
             className="mt-1 size-4 accent-[var(--champagne)]"
           />
           <span>
@@ -119,6 +151,7 @@ export function RegisterForm({ nextPath, claimToken }: RegisterFormProps) {
           <input
             type="checkbox"
             name="marketing"
+            disabled={pending}
             className="mt-1 size-4 accent-[var(--champagne)]"
           />
           <span>Vreau să primesc noutăți și oferte (opțional)</span>
@@ -127,6 +160,7 @@ export function RegisterForm({ nextPath, claimToken }: RegisterFormProps) {
           <input
             type="checkbox"
             name="analytics"
+            disabled={pending}
             className="mt-1 size-4 accent-[var(--champagne)]"
           />
           <span>
@@ -136,19 +170,33 @@ export function RegisterForm({ nextPath, claimToken }: RegisterFormProps) {
       </div>
 
       {!state.success && state.message ? (
-        <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+        <p
+          className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+          role="alert"
+        >
           {state.message}
+          {"code" in state && state.code ? (
+            <span className="mt-1 block text-xs opacity-80">
+              Cod: {state.code}
+            </span>
+          ) : null}
         </p>
       ) : null}
 
-      <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Se procesează..." : "Creează cont"}
+      <Button
+        type="submit"
+        className="w-full"
+        disabled={pending || !allStrong}
+      >
+        {pending ? "Se creează contul…" : "Creează cont"}
       </Button>
 
       <p className="text-center text-sm text-muted-foreground">
         Ai deja cont?{" "}
         <Link
-          href={nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : "/login"}
+          href={
+            nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : "/login"
+          }
           className="text-foreground underline underline-offset-4"
         >
           Autentifică-te

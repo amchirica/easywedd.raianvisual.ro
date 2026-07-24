@@ -14,13 +14,19 @@ type PageProps = {
 };
 
 function messageForReason(reason?: string) {
-  if (reason === "invalid_or_expired_link" || reason === "link_expired") {
-    return "Linkul de resetare este invalid sau a expirat.";
+  switch (reason) {
+    case "invalid_or_expired_link":
+    case "link_expired":
+      return "Linkul de confirmare sau resetare este invalid sau a expirat. Solicită un mesaj nou.";
+    case "missing_code":
+      return "Linkul este incomplet. Solicită un mesaj nou din email.";
+    case "email_not_confirmed":
+      return "Confirmă adresa de email înainte de autentificare.";
+    case "account_suspended":
+      return "Contul este suspendat. Contactează suportul.";
+    default:
+      return "Nu am putut finaliza autentificarea. Încearcă din nou sau solicită un link nou.";
   }
-  if (reason === "missing_code") {
-    return "Linkul este incomplet. Solicită un mesaj nou.";
-  }
-  return "Nu am putut finaliza autentificarea. Încearcă din nou.";
 }
 
 export default async function AuthErrorPage({ searchParams }: PageProps) {
@@ -32,6 +38,9 @@ export default async function AuthErrorPage({ searchParams }: PageProps) {
       <p className="text-sm text-muted-foreground" role="alert">
         {messageForReason(reason)}
       </p>
+      {reason ? (
+        <p className="text-xs text-muted-foreground">Motiv: {reason}</p>
+      ) : null}
       <div className="flex flex-wrap gap-3">
         <Link
           href={FORGOT_PASSWORD_PATH}
@@ -44,6 +53,12 @@ export default async function AuthErrorPage({ searchParams }: PageProps) {
           className={cn(buttonVariants({ variant: "outline" }), "inline-flex")}
         >
           Autentificare
+        </Link>
+        <Link
+          href="/register"
+          className={cn(buttonVariants({ variant: "outline" }), "inline-flex")}
+        >
+          Creează cont
         </Link>
       </div>
     </div>

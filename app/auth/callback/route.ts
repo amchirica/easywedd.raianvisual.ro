@@ -102,6 +102,15 @@ export async function GET(request: Request) {
       message: exchangeError.message,
       ok: false,
     });
+    console.error("[auth:callback:exchange]", {
+      requestId,
+      environment: process.env.NODE_ENV,
+      siteUrl,
+      next,
+      code: exchangeError.code ?? null,
+      message: exchangeError.message,
+      name: (exchangeError as { name?: string }).name ?? null,
+    });
     return errorRedirect(siteUrl, "invalid_or_expired_link");
   }
 

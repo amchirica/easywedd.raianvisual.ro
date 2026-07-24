@@ -5,9 +5,15 @@ import { redirect } from "next/navigation";
 
 import { fulfillPendingCheckoutsForUser } from "@/lib/billing/claim-checkout";
 import { upsertConsents } from "@/lib/consents";
+import { reportAuthError } from "@/lib/auth/map-auth-error";
 import { logAuthEvent } from "@/lib/logging/auth-events";
 import { createClient } from "@/lib/supabase/server";
-import { getAuthCallbackUrl, getPasswordResetCallbackUrl, getSafeNextPath, getSiteUrl } from "@/lib/url";
+import {
+  getAuthCallbackUrl,
+  getPasswordResetCallbackUrl,
+  getSafeNextPath,
+  getSiteUrl,
+} from "@/lib/url";
 import {
   forgotPasswordSchema,
   loginSchema,
@@ -21,6 +27,7 @@ export type ActionResult = {
   error?: string;
   success?: string;
   redirectTo?: string;
+  code?: string;
 };
 
 export type SignupResult =
@@ -59,37 +66,11 @@ async function recordConsents(
   await upsertConsents(supabase, userId, consents, source, null);
 }
 
-function mapAuthError(error: { message: string; code?: string; status?: number }) {
-  const msg = error.message.toLowerCase();
-  if (msg.includes("already registered") || msg.includes("user already")) {
-    return {
-      message:
-        "Există deja un cont cu acest email. Autentifică-te sau resetează parola.",
-      code: "email_taken",
-    };
-  }
-  if (msg.includes("password") && (msg.includes("weak") || msg.includes("least"))) {
-    return { message: "Parola este prea slabă. Folosește cel puțin 8 caractere.", code: "weak_password" };
-  }
-  if (msg.includes("rate") || error.status === 429) {
-    return {
-      message: "Prea multe încercări. Așteaptă puțin și încearcă din nou.",
-      code: "rate_limit",
-    };
-  }
-  if (msg.includes("invalid") && msg.includes("email")) {
-    return { message: "Adresa de email nu este validă.", code: "invalid_email" };
-  }
-  return {
-    message: "Nu am putut crea contul. Verifică datele și încearcă din nou.",
-    code: error.code ?? "signup_failed",
-  };
-}
-
 export async function loginAction(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const requestId = crypto.randomUUID();
   const parsed = loginSchema.safeParse({
     email: String(formData.get("email") ?? "")
       .trim()
@@ -102,17 +83,18 @@ export async function loginAction(
   }
 
   const supabase = await createClient();
-  const { data: signInData, error } = await supabase.auth.signInWithPassword(
-    parsed.data,
-  );
+  const { data: signInData, error } = await supabase.auth.signInWithPassword({
+    email: parsed.data.email,
+    password: parsed.data.password,
+  });
 
   if (error) {
-    return {
-      error:
-        error.message.toLowerCase().includes("invalid")
-          ? "Email sau parolă incorrectă."
-          : "Nu am putut autentifica. Încearcă din nou.",
-    };
+    const mapped = reportAuthError({
+      flow: "login",
+      requestId,
+      error,
+    });
+    return { error: mapped.message, code: mapped.code };
   }
 
   const user = signInData.user;
@@ -188,6 +170,15 @@ export async function registerAction(
     emailRedirectTo += `&claim=${encodeURIComponent(claim)}`;
   }
 
+  const siteUrl = getSiteUrl();
+  console.info("[auth:signup:attempt]", {
+    requestId,
+    environment: process.env.NODE_ENV,
+    siteUrl,
+    emailRedirectTo,
+    // Never log email/password
+  });
+
   const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
@@ -204,7 +195,12 @@ export async function registerAction(
   });
 
   if (error) {
-    const mapped = mapAuthError(error);
+    const mapped = reportAuthError({
+      flow: "signup",
+      requestId,
+      error,
+      redirectUrl: emailRedirectTo,
+    });
     logAuthEvent("AUTH_SIGNUP_ERROR", {
       requestId,
       code: mapped.code,
@@ -224,14 +220,13 @@ export async function registerAction(
   if (data.user && Array.isArray(identities) && identities.length === 0) {
     logAuthEvent("AUTH_SIGNUP_ERROR", {
       requestId,
-      code: "email_taken",
+      code: "user_already_exists",
       ok: false,
     });
     return {
       success: false,
-      message:
-        "Există deja un cont cu acest email. Autentifică-te sau resetează parola.",
-      code: "email_taken",
+      message: "Există deja un cont asociat acestei adrese de email.",
+      code: "user_already_exists",
     };
   }
 
@@ -281,7 +276,7 @@ export async function registerAction(
   cookieStore.set(PENDING_EMAIL_COOKIE, parsed.data.email, {
     httpOnly: true,
     sameSite: "lax",
-    secure: getSiteUrl().startsWith("https"),
+    secure: siteUrl.startsWith("https"),
     path: "/",
     maxAge: 60 * 60,
   });
@@ -302,6 +297,7 @@ export async function registerAction(
 export async function resendConfirmationAction(
   emailInput?: string,
 ): Promise<ResendConfirmationResult> {
+  const requestId = crypto.randomUUID();
   const cookieStore = await cookies();
   const last = cookieStore.get(RESEND_COOLDOWN_COOKIE)?.value;
   if (last) {
@@ -329,29 +325,22 @@ export async function resendConfirmationAction(
     };
   }
 
+  const emailRedirectTo = getAuthCallbackUrl("/dashboard/onboarding");
   const supabase = await createClient();
-  logAuthEvent("AUTH_RESEND_CONFIRMATION", { ok: true });
+  logAuthEvent("AUTH_RESEND_CONFIRMATION", { requestId, ok: true });
 
   const { error } = await supabase.auth.resend({
     type: "signup",
     email: parsed.data.email,
-    options: {
-      emailRedirectTo: getAuthCallbackUrl("/dashboard/onboarding"),
-    },
+    options: { emailRedirectTo },
   });
 
   if (error) {
-    console.error("[auth:resend]", {
-      ok: false,
-      code: error.code ?? null,
-      message: error.message,
-      status: error.status ?? null,
-      emailRedirectTo: getAuthCallbackUrl("/dashboard/onboarding"),
-    });
-  } else {
-    console.info("[auth:resend]", {
-      ok: true,
-      emailRedirectTo: getAuthCallbackUrl("/dashboard/onboarding"),
+    reportAuthError({
+      flow: "resend_confirmation",
+      requestId,
+      error,
+      redirectUrl: emailRedirectTo,
     });
   }
 
@@ -363,7 +352,6 @@ export async function resendConfirmationAction(
     maxAge: 120,
   });
 
-  // Neutral message — avoid account enumeration
   return {
     ok: true,
     message:
@@ -380,6 +368,7 @@ export async function forgotPasswordAction(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const requestId = crypto.randomUUID();
   const parsed = forgotPasswordSchema.safeParse({
     email: String(formData.get("email") ?? "")
       .trim()
@@ -394,33 +383,30 @@ export async function forgotPasswordAction(
   const redirectTo = getPasswordResetCallbackUrl();
   const supabase = await createClient();
 
-  const { data, error } = await supabase.auth.resetPasswordForEmail(
+  const { error } = await supabase.auth.resetPasswordForEmail(
     parsed.data.email,
     { redirectTo },
   );
 
   if (error) {
-    console.error("[auth:forgot]", {
-      ok: false,
-      siteUrl,
-      redirectTo,
-      code: error.code ?? null,
-      message: error.message,
-      status: error.status ?? null,
-      name: error.name ?? null,
-      // Do not log email, tokens, or secrets.
+    const mapped = reportAuthError({
+      flow: "forgot_password",
+      requestId,
+      error,
+      redirectUrl: redirectTo,
     });
+    if (mapped.code === "over_email_send_rate_limit") {
+      return { error: mapped.message, code: mapped.code };
+    }
   } else {
     console.info("[auth:forgot]", {
+      requestId,
       ok: true,
       siteUrl,
       redirectTo,
-      // data is typically empty; do not claim provider delivery here.
-      hasData: data != null,
     });
   }
 
-  // Neutral public message — does not assert that an email was delivered.
   return {
     success:
       "Dacă există un cont asociat acestei adrese, vei primi în câteva minute un link pentru resetarea parolei.",
@@ -431,6 +417,7 @@ export async function resetPasswordAction(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
+  const requestId = crypto.randomUUID();
   const parsed = resetPasswordSchema.safeParse({
     password: formData.get("password"),
     confirm_password: formData.get("confirm_password"),
@@ -448,6 +435,7 @@ export async function resetPasswordAction(
   if (!user) {
     return {
       error: "Linkul de resetare este invalid sau a expirat.",
+      code: "recovery_link_invalid",
     };
   }
 
@@ -456,11 +444,12 @@ export async function resetPasswordAction(
   });
 
   if (error) {
-    console.error("[auth:reset-password]", { code: error.code });
-    return {
-      error:
-        "Nu am putut actualiza parola. Solicită un link nou dacă problema persistă.",
-    };
+    const mapped = reportAuthError({
+      flow: "reset_password",
+      requestId,
+      error,
+    });
+    return { error: mapped.message, code: mapped.code };
   }
 
   await supabase.auth.signOut();

@@ -1,14 +1,28 @@
 import { z } from "zod";
 
+const emailSchema = z.email("Introdu un email valid");
+
+/** Shared password policy for register + reset. */
+export const strongPassword = z
+  .string()
+  .trim()
+  .min(8, "Parola trebuie să aibă cel puțin 8 caractere")
+  .regex(/[A-Z]/, "Parola trebuie să conțină cel puțin o literă mare")
+  .regex(/[a-z]/, "Parola trebuie să conțină cel puțin o literă mică")
+  .regex(/[0-9]/, "Parola trebuie să conțină cel puțin o cifră");
+
 export const loginSchema = z.object({
-  email: z.email("Introdu un email valid"),
-  password: z.string().min(8, "Parola trebuie să aibă cel puțin 8 caractere"),
+  email: emailSchema,
+  password: z.string().min(1, "Introdu parola"),
 });
 
 export const registerSchema = z.object({
-  full_name: z.string().min(2, "Numele trebuie să aibă cel puțin 2 caractere"),
-  email: z.email("Introdu un email valid"),
-  password: z.string().min(8, "Parola trebuie să aibă cel puțin 8 caractere"),
+  full_name: z
+    .string()
+    .trim()
+    .min(2, "Numele trebuie să aibă cel puțin 2 caractere"),
+  email: emailSchema,
+  password: strongPassword,
   accept_terms: z.literal(true, {
     error: "Trebuie să accepți Termenii și condițiile",
   }),
@@ -20,20 +34,12 @@ export const registerSchema = z.object({
 });
 
 export const forgotPasswordSchema = z.object({
-  email: z.email("Introdu un email valid"),
+  email: emailSchema,
 });
 
 export const resendConfirmationSchema = z.object({
-  email: z.email("Introdu un email valid"),
+  email: emailSchema,
 });
-
-const strongPassword = z
-  .string()
-  .trim()
-  .min(8, "Parola trebuie să aibă cel puțin 8 caractere")
-  .regex(/[A-Z]/, "Parola trebuie să conțină cel puțin o literă mare")
-  .regex(/[a-z]/, "Parola trebuie să conțină cel puțin o literă mică")
-  .regex(/[0-9]/, "Parola trebuie să conțină cel puțin o cifră");
 
 export const resetPasswordSchema = z
   .object({
