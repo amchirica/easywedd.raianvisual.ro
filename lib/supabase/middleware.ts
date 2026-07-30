@@ -59,18 +59,41 @@ function needsSessionWork(pathname: string, request: NextRequest) {
 export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Safety net: Supabase sometimes lands ?code= on Site URL (/) when
-  // redirect allow-list is incomplete. Forward to the auth callback.
-  if (pathname === "/" && request.nextUrl.searchParams.has("code")) {
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/auth/callback";
-    if (
-      !redirectUrl.searchParams.get("next") &&
-      redirectUrl.searchParams.get("type") === "recovery"
-    ) {
-      redirectUrl.searchParams.set("next", PASSWORD_RESET_PATH);
+  // Safety net: Supabase sometimes lands auth params on Site URL (/)
+  // when the redirect allow-list is incomplete.
+  if (pathname === "/") {
+    const params = request.nextUrl.searchParams;
+    if (params.has("token_hash") && params.has("type")) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/auth/confirm";
+      if (!redirectUrl.searchParams.get("next")) {
+        redirectUrl.searchParams.set(
+          "next",
+          params.get("type") === "recovery"
+            ? PASSWORD_RESET_PATH
+            : "/dashboard",
+        );
+      }
+      return NextResponse.redirect(redirectUrl);
     }
-    return NextResponse.redirect(redirectUrl);
+    if (params.has("code")) {
+      const redirectUrl = request.nextUrl.clone();
+      // Prefer confirm (handles code + token_hash); keep query intact.
+      redirectUrl.pathname = "/auth/confirm";
+      if (
+        !redirectUrl.searchParams.get("next") &&
+        redirectUrl.searchParams.get("type") === "recovery"
+      ) {
+        redirectUrl.searchParams.set("next", PASSWORD_RESET_PATH);
+      }
+      return NextResponse.redirect(redirectUrl);
+    }
+  }
+
+  // Never run auth-gate logic on the confirm route before verifyOtp.
+  // Keep it public and skip redirect loops for recovery sessions.
+  if (pathname === "/auth/confirm" || pathname.startsWith("/auth/confirm/")) {
+    return NextResponse.next({ request });
   }
 
   let supabaseResponse = NextResponse.next({ request });

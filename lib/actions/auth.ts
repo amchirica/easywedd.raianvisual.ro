@@ -9,7 +9,7 @@ import { reportAuthError } from "@/lib/auth/map-auth-error";
 import { logAuthEvent } from "@/lib/logging/auth-events";
 import { createClient } from "@/lib/supabase/server";
 import {
-  getAuthCallbackUrl,
+  getAuthConfirmUrl,
   getPasswordResetCallbackUrl,
   getSafeNextPath,
   getSiteUrl,
@@ -165,7 +165,8 @@ export async function registerAction(
 
   const claim = String(formData.get("claim") || "").trim() || null;
   const supabase = await createClient();
-  let emailRedirectTo = getAuthCallbackUrl(nextPath);
+  // Confirm-email link must land on /auth/confirm (token_hash + verifyOtp).
+  let emailRedirectTo = getAuthConfirmUrl("/dashboard");
   if (claim) {
     emailRedirectTo += `&claim=${encodeURIComponent(claim)}`;
   }
@@ -325,7 +326,7 @@ export async function resendConfirmationAction(
     };
   }
 
-  const emailRedirectTo = getAuthCallbackUrl("/dashboard/onboarding");
+  const emailRedirectTo = getAuthConfirmUrl("/dashboard");
   const supabase = await createClient();
   logAuthEvent("AUTH_RESEND_CONFIRMATION", { requestId, ok: true });
 

@@ -5,15 +5,17 @@
 ```text
 signup
 → (opțional) check-email + confirmare Supabase Auth
-→ /auth/callback (exchangeCodeForSession)
+→ /auth/confirm (verifyOtp cu token_hash)
 → ensure_own_profile
-→ /dashboard/onboarding (sau /invite/<token>)
+→ /dashboard (sau onboarding via middleware)
 → create_onboarding_workspace (RPC)
 → workspace + owner membership + wedding + consent
 → workspace_invitations + email_outbox (dacă există partner_email)
 → procesare outbox prin Resend
 → acceptare invitație (/invite/<token>)
 ```
+
+Configurare detaliată Supabase Dashboard: vezi [SUPABASE_AUTH_SETUP.md](./SUPABASE_AUTH_SETUP.md).
 
 ## Separarea emailurilor
 
@@ -32,19 +34,19 @@ signup
 | `RESEND_FROM_EMAIL` | Expeditor (ex. `notifications@easywedd.raianvisual.ro`) |
 | `RESEND_FROM_NAME` | Opțional (ex. `EasyWedd`) |
 
-Helper central: `lib/url.ts` → `getSiteUrl()`, `getSafeNextPath()`, `getAuthCallbackUrl()`, `getPasswordResetCallbackUrl()`.
+Helper central: `lib/url.ts` → `getSiteUrl()`, `getSafeNextPath()`, `getAuthConfirmUrl()`, `getPasswordResetCallbackUrl()`.
 
 Redirect-uri auth:
-- Signup confirm: `/auth/callback?next=/dashboard/onboarding`
-- Reset parolă: `/auth/callback?next=/auth/reset-password` → pagina `/auth/reset-password`
+- Signup confirm: `/auth/confirm?next=/dashboard`
+- Reset parolă: `/auth/confirm?next=/auth/reset-password` → pagina `/auth/reset-password`
 
 ## Flux resetare parolă
 
 ```text
 /auth/forgot-password
-→ resetPasswordForEmail(redirectTo = /auth/callback?next=/auth/reset-password)
-→ email Supabase (ConfirmationURL)
-→ /auth/callback (exchangeCodeForSession)
+→ resetPasswordForEmail(redirectTo = /auth/confirm?next=/auth/reset-password)
+→ email Supabase (token_hash + type=recovery)
+→ /auth/confirm (verifyOtp)
 → /auth/reset-password (sesiune recovery)
 → updateUser({ password })
 → signOut
@@ -61,12 +63,16 @@ Subject:
 Resetează parola contului EasyWedd
 ```
 
-Body (HTML), păstrează `{{ .ConfirmationURL }}` generat de Supabase:
+Body (HTML), preferă `token_hash`:
 
 ```html
 <h2>Resetare parolă EasyWedd</h2>
 <p>Am primit o cerere de resetare a parolei pentru contul tău.</p>
-<p><a href="{{ .ConfirmationURL }}">Resetează parola</a></p>
+<p>
+  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/auth/reset-password">
+    Resetează parola
+  </a>
+</p>
 <p>Linkul expiră în scurt timp. Dacă nu ai solicitat tu resetarea, ignoră acest email.</p>
 ```
 
@@ -91,12 +97,13 @@ http://localhost:3000
 Allowed redirects:
 
 ```text
-https://easywedd.raianvisual.ro/auth/callback
-http://localhost:3000/auth/callback
+https://easywedd.raianvisual.ro/**
+https://easywedd.raianvisual.ro/auth/confirm
+https://easywedd.raianvisual.ro/auth/reset-password
+http://localhost:3000/**
+http://localhost:3000/auth/confirm
+http://localhost:3000/auth/reset-password
 ```
-
-Adaugă wildcard (`/**`) doar dacă o altă rută reală o cere.
-Nu este necesar un entry separat pentru `?next=/auth/reset-password` — baza rămâne `/auth/callback`.
 
 Site URL:
 
@@ -115,10 +122,13 @@ Nu seta `APP_URL=http://localhost:3000` pe Cloudflare.
 
 ### Email Templates → Confirm signup
 
-Folosește linkul furnizat de Supabase (nu inventa unul):
+Preferă template-ul cu `token_hash` (vezi [SUPABASE_AUTH_SETUP.md](./SUPABASE_AUTH_SETUP.md)):
 
-- Proiecte cu PKCE / code flow: `{{ .ConfirmationURL }}`
-- Verifică în dashboard template-ul activ și că redirect-ul duce la `/auth/callback`
+```html
+<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/dashboard">
+  Confirmă contul
+</a>
+```
 
 ### SMTP custom (opțional)
 

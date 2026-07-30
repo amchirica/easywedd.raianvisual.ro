@@ -87,14 +87,27 @@ export function getSiteUrl(): string {
   return "http://localhost:3000";
 }
 
-export function getAuthCallbackUrl(next = "/dashboard/onboarding"): string {
-  const safeNext = getSafeNextPath(next, "/dashboard/onboarding");
-  return `${getSiteUrl()}/auth/callback?next=${encodeURIComponent(safeNext)}`;
+/**
+ * Email confirm / recovery landing (token_hash → verifyOtp).
+ * Prefer this for signUp emailRedirectTo and resetPasswordForEmail redirectTo.
+ */
+export function getAuthConfirmUrl(next = "/dashboard"): string {
+  const safeNext = getSafeNextPath(next, "/dashboard");
+  return `${getSiteUrl()}/auth/confirm?next=${encodeURIComponent(safeNext)}`;
+}
+
+/**
+ * Alias kept for callers that still name the helper "callback".
+ * Email flows use /auth/confirm (token_hash). PKCE ?code= is still handled
+ * by /auth/callback and as a fallback on /auth/confirm.
+ */
+export function getAuthCallbackUrl(next = "/dashboard"): string {
+  return getAuthConfirmUrl(next);
 }
 
 /** Explicit redirect for Supabase resetPasswordForEmail */
 export function getPasswordResetCallbackUrl(): string {
-  return getAuthCallbackUrl(PASSWORD_RESET_PATH);
+  return getAuthConfirmUrl(PASSWORD_RESET_PATH);
 }
 
 export function getForgotPasswordUrl(): string {

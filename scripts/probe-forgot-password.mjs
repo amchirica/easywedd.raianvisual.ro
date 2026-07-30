@@ -41,7 +41,7 @@ function resolveSiteUrl(mode) {
 }
 
 function resetCallback(siteUrl) {
-  return `${siteUrl}/auth/callback?next=${encodeURIComponent("/auth/reset-password")}`;
+  return `${siteUrl}/auth/confirm?next=${encodeURIComponent("/auth/reset-password")}`;
 }
 
 async function probe(mode, email) {

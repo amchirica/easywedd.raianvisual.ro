@@ -173,15 +173,20 @@ describe("passwordStrengthChecks", () => {
 });
 
 describe("password reset redirect URL helper", () => {
-  it("builds callback URL with reset-password next via getAuthCallbackUrl shape", async () => {
+  it("builds confirm URL with reset-password next via getPasswordResetCallbackUrl", async () => {
     const prevSite = process.env.NEXT_PUBLIC_SITE_URL;
     const prevApp = process.env.NEXT_PUBLIC_APP_URL;
     process.env.NEXT_PUBLIC_SITE_URL = "https://easywedd.raianvisual.ro";
     process.env.NEXT_PUBLIC_APP_URL = "https://easywedd.raianvisual.ro";
-    const { getPasswordResetCallbackUrl } = await import("@/lib/url");
+    const { getPasswordResetCallbackUrl, getAuthConfirmUrl } = await import(
+      "@/lib/url"
+    );
     const url = getPasswordResetCallbackUrl();
     expect(url).toBe(
-      "https://easywedd.raianvisual.ro/auth/callback?next=%2Fauth%2Freset-password",
+      "https://easywedd.raianvisual.ro/auth/confirm?next=%2Fauth%2Freset-password",
+    );
+    expect(getAuthConfirmUrl("/dashboard")).toBe(
+      "https://easywedd.raianvisual.ro/auth/confirm?next=%2Fdashboard",
     );
     if (prevSite === undefined) delete process.env.NEXT_PUBLIC_SITE_URL;
     else process.env.NEXT_PUBLIC_SITE_URL = prevSite;

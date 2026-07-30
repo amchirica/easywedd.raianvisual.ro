@@ -17,13 +17,16 @@ function messageForReason(reason?: string) {
   switch (reason) {
     case "invalid_or_expired_link":
     case "link_expired":
-      return "Linkul de confirmare sau resetare este invalid sau a expirat. Solicită un mesaj nou.";
+      return "Linkul este invalid, a expirat sau a fost deja utilizat.";
     case "missing_code":
+    case "missing_token":
       return "Linkul este incomplet. Solicită un mesaj nou din email.";
     case "email_not_confirmed":
-      return "Confirmă adresa de email înainte de autentificare.";
+      return "Confirmă adresa de email folosind linkul primit, apoi autentifică-te.";
     case "account_suspended":
       return "Contul este suspendat. Contactează suportul.";
+    case "recovery_session_missing":
+      return "Sesiunea de resetare lipsește sau a expirat. Solicită un link nou.";
     default:
       return "Nu am putut finaliza autentificarea. Încearcă din nou sau solicită un link nou.";
   }
