@@ -54,7 +54,7 @@ describe("mapSupabaseAuthError", () => {
       "signup",
     );
     expect(r.code).toBe("smtp_error");
-    expect(r.message).toContain("emailul de confirmare");
+    expect(r.message.toLowerCase()).toContain("emailul de confirmare");
   });
 
   it("maps signup_disabled", () => {
@@ -107,9 +107,22 @@ describe("mapSupabaseAuthError", () => {
     expect(r.message).toContain("SMTP");
   });
 
-  it("maps bare HTTP 500 with actionable Romanian copy", () => {
+  it("maps bare signup HTTP 500 to smtp_error (Confirm email + SMTP)", () => {
     const r = mapSupabaseAuthError({ status: 500, message: "" }, "signup");
-    expect(r.code).toBe("http_500");
+    expect(r.code).toBe("smtp_error");
+    expect(r.message).toContain("SMTP");
+  });
+
+  it("accepts GoTrue msg + error_code fields", () => {
+    const r = mapSupabaseAuthError(
+      {
+        status: 500,
+        msg: "Error sending confirmation email",
+        error_code: "unexpected_failure",
+      },
+      "signup",
+    );
+    expect(r.code).toBe("smtp_error");
   });
 });
 
