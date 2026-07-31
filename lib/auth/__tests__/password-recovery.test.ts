@@ -173,19 +173,17 @@ describe("passwordStrengthChecks", () => {
 });
 
 describe("password reset redirect URL helper", () => {
-  it("builds confirm URL with reset-password next via getPasswordResetCallbackUrl", async () => {
+  it("builds reset-password destination via /auth/confirm", async () => {
     const prevSite = process.env.NEXT_PUBLIC_SITE_URL;
     const prevApp = process.env.NEXT_PUBLIC_APP_URL;
     process.env.NEXT_PUBLIC_SITE_URL = "https://easywedd.raianvisual.ro";
     process.env.NEXT_PUBLIC_APP_URL = "https://easywedd.raianvisual.ro";
-    const { getPasswordResetCallbackUrl, getAuthConfirmUrl } = await import(
-      "@/lib/url"
-    );
-    const url = getPasswordResetCallbackUrl();
-    expect(url).toBe(
+    const { getPasswordResetRedirectTo, getSignupEmailRedirectTo } =
+      await import("@/lib/url");
+    expect(getPasswordResetRedirectTo()).toBe(
       "https://easywedd.raianvisual.ro/auth/confirm?next=%2Fauth%2Freset-password",
     );
-    expect(getAuthConfirmUrl("/dashboard")).toBe(
+    expect(getSignupEmailRedirectTo()).toBe(
       "https://easywedd.raianvisual.ro/auth/confirm?next=%2Fdashboard",
     );
     if (prevSite === undefined) delete process.env.NEXT_PUBLIC_SITE_URL;
@@ -194,11 +192,11 @@ describe("password reset redirect URL helper", () => {
     else process.env.NEXT_PUBLIC_APP_URL = prevApp;
   });
 
-  it("ignores localhost APP_URL when a production SITE_URL is set", async () => {
+  it("ignores localhost SITE_URL when a production APP_URL is set", async () => {
     const prevSite = process.env.NEXT_PUBLIC_SITE_URL;
     const prevApp = process.env.NEXT_PUBLIC_APP_URL;
-    process.env.NEXT_PUBLIC_SITE_URL = "https://easywedd.raianvisual.ro";
-    process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
+    process.env.NEXT_PUBLIC_APP_URL = "https://easywedd.raianvisual.ro";
+    process.env.NEXT_PUBLIC_SITE_URL = "http://localhost:3000";
     const { getSiteUrl } = await import("@/lib/url");
     expect(getSiteUrl()).toBe("https://easywedd.raianvisual.ro");
     if (prevSite === undefined) delete process.env.NEXT_PUBLIC_SITE_URL;

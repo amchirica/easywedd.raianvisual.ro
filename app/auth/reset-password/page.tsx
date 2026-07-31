@@ -20,10 +20,9 @@ export default async function AuthResetPasswordPage() {
   if (!user) {
     return (
       <div className="space-y-6">
-        <h1 className="font-heading text-3xl">Link invalid sau expirat</h1>
+        <h1 className="font-heading text-3xl">Sesiune lipsă</h1>
         <p className="text-sm text-muted-foreground" role="alert">
-          Linkul de resetare este invalid, a expirat sau a fost deja utilizat.
-          Solicită un link nou pentru a seta o parolă.
+          Sesiunea de resetare lipsește sau a expirat.
         </p>
         <div className="flex flex-wrap gap-3">
           <Link
@@ -47,8 +46,8 @@ export default async function AuthResetPasswordPage() {
     <div>
       <h1 className="font-heading text-3xl">Setează o parolă nouă</h1>
       <p className="mt-2 mb-6 text-sm text-muted-foreground">
-        Introdu parola nouă (minim 8 caractere) și confirm-o. După salvare vei
-        putea să te autentifici.
+        Introdu parola nouă (minim 8 caractere) și confirm-o. După salvare te
+        poți autentifica.
       </p>
       <ResetPasswordForm />
     </div>

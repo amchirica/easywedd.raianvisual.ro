@@ -1,6 +1,6 @@
 /**
- * Central site URL + safe internal redirect helpers.
- * Prefer NEXT_PUBLIC_SITE_URL; NEXT_PUBLIC_APP_URL is a compatibility alias.
+ * Central site URL + auth redirect helpers.
+ * Prefer NEXT_PUBLIC_APP_URL; NEXT_PUBLIC_SITE_URL is an alias.
  */
 
 import {
@@ -19,7 +19,7 @@ export {
   hasRecoveryAmr,
 } from "@/lib/auth/callback-destination";
 
-/** Known production origin — used only as last-resort guard against localhost in prod. */
+/** Known production origin — last-resort guard against localhost in prod. */
 export const PRODUCTION_SITE_URL = "https://easywedd.raianvisual.ro";
 
 function stripTrailingSlash(url: string): string {
@@ -50,15 +50,13 @@ function isProductionRuntime(): boolean {
 }
 
 /**
- * Canonical public origin for auth redirects and absolute links.
- * Production: requires a non-localhost SITE_URL/APP_URL (or falls back to
- * PRODUCTION_SITE_URL so auth emails are never blocked by localhost redirects).
- * Local only: falls back to http://localhost:3000 when unset.
+ * Canonical public origin for auth redirects.
+ * Prefer NEXT_PUBLIC_APP_URL (then SITE_URL). Never localhost in production.
  */
 export function getSiteUrl(): string {
   const candidates = [
-    process.env.NEXT_PUBLIC_SITE_URL,
     process.env.NEXT_PUBLIC_APP_URL,
+    process.env.NEXT_PUBLIC_SITE_URL,
   ];
 
   const resolved: string[] = [];
@@ -72,10 +70,8 @@ export function getSiteUrl(): string {
   if (nonLocal) return nonLocal;
 
   if (isProductionRuntime()) {
-    // Never send Supabase auth emails with redirectTo=localhost in production —
-    // Supabase rejects the request and no email is delivered.
     console.error(
-      "[url:getSiteUrl] Producție cu SITE_URL/APP_URL localhost sau lipsă — folosesc",
+      "[url:getSiteUrl] Producție cu APP_URL/SITE_URL localhost sau lipsă — folosesc",
       PRODUCTION_SITE_URL,
     );
     return PRODUCTION_SITE_URL;
@@ -88,26 +84,36 @@ export function getSiteUrl(): string {
 }
 
 /**
- * Email confirm / recovery landing (token_hash → verifyOtp).
- * Prefer this for signUp emailRedirectTo and resetPasswordForEmail redirectTo.
+ * Where Supabase ConfirmationURL should land for signup emails.
+ * Default Free templates append ?code=… to this URL.
  */
+export function getSignupEmailRedirectTo(): string {
+  return `${getSiteUrl()}/auth/confirm?next=${encodeURIComponent("/dashboard")}`;
+}
+
+/**
+ * Where Supabase ConfirmationURL should land for reset-password emails.
+ * Default Free templates append ?code=… to this URL.
+ */
+export function getPasswordResetRedirectTo(): string {
+  return `${getSiteUrl()}/auth/confirm?next=${encodeURIComponent(PASSWORD_RESET_PATH)}`;
+}
+
+
+/** @deprecated Use getSignupEmailRedirectTo / getPasswordResetRedirectTo */
 export function getAuthConfirmUrl(next = "/dashboard"): string {
   const safeNext = getSafeNextPath(next, "/dashboard");
   return `${getSiteUrl()}/auth/confirm?next=${encodeURIComponent(safeNext)}`;
 }
 
-/**
- * Alias kept for callers that still name the helper "callback".
- * Email flows use /auth/confirm (token_hash). PKCE ?code= is still handled
- * by /auth/callback and as a fallback on /auth/confirm.
- */
+/** @deprecated OAuth-only callback; email flows use templates → /auth/confirm */
 export function getAuthCallbackUrl(next = "/dashboard"): string {
   return getAuthConfirmUrl(next);
 }
 
-/** Explicit redirect for Supabase resetPasswordForEmail */
+/** @deprecated Use getPasswordResetRedirectTo */
 export function getPasswordResetCallbackUrl(): string {
-  return getAuthConfirmUrl(PASSWORD_RESET_PATH);
+  return getPasswordResetRedirectTo();
 }
 
 export function getForgotPasswordUrl(): string {

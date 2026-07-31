@@ -4,7 +4,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { PASSWORD_RESET_PATH } from "@/lib/auth/callback-destination";
 import type { Database } from "@/types/database";
 
-const AUTH_ROUTES = [
+/** Routes where an already-signed-in user is sent to dashboard (not recovery). */
+const AUTH_ENTRY_ROUTES = [
   "/login",
   "/register",
   "/forgot-password",
@@ -12,6 +13,20 @@ const AUTH_ROUTES = [
   "/auth/login",
   "/check-email",
 ];
+
+/** Must stay public; never consume tokens or call verifyOtp here. */
+const AUTH_PASS_THROUGH = [
+  "/auth/confirm",
+  "/auth/error",
+  "/auth/forgot-password",
+  "/auth/reset-password",
+  "/auth/callback",
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/check-email",
+];
+
 const PUBLIC_PREFIXES = [
   "/",
   "/features",
@@ -27,10 +42,20 @@ const PUBLIC_PREFIXES = [
   "/auth",
   "/check-email",
   "/update-password",
+  "/login",
+  "/register",
+  "/forgot-password",
 ];
 
+function isPassThroughAuthPath(pathname: string) {
+  return AUTH_PASS_THROUGH.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
+}
+
 function isPublicPath(pathname: string) {
-  if (AUTH_ROUTES.includes(pathname)) return true;
+  if (AUTH_ENTRY_ROUTES.includes(pathname)) return true;
+  if (isPassThroughAuthPath(pathname)) return true;
   return PUBLIC_PREFIXES.some((prefix) => {
     if (prefix === "/") return pathname === "/";
     return pathname === prefix || pathname.startsWith(`${prefix}/`);
@@ -51,49 +76,69 @@ function needsSessionWork(pathname: string, request: NextRequest) {
   if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")) {
     return true;
   }
-  if (AUTH_ROUTES.includes(pathname)) return true;
-  // Refresh session only when an auth cookie exists on public pages.
+  if (AUTH_ENTRY_ROUTES.includes(pathname)) return true;
+  // Refresh session on reset-password when cookies exist (recovery session).
+  if (pathname === PASSWORD_RESET_PATH || pathname.startsWith(`${PASSWORD_RESET_PATH}/`)) {
+    return hasSupabaseAuthCookie(request);
+  }
   return hasSupabaseAuthCookie(request);
 }
 
 export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Safety net: Supabase sometimes lands auth params on Site URL (/)
-  // when the redirect allow-list is incomplete.
+  // Safety net: auth params landed on Site URL (/).
+  // Both email ConfirmationURL (?code=) and TokenHash go to /auth/confirm.
   if (pathname === "/") {
     const params = request.nextUrl.searchParams;
-    if (params.has("token_hash") && params.has("type")) {
+    if (params.has("token_hash") || params.has("code")) {
       const redirectUrl = request.nextUrl.clone();
       redirectUrl.pathname = "/auth/confirm";
       if (!redirectUrl.searchParams.get("next")) {
+        const isRecovery = params.get("type") === "recovery";
         redirectUrl.searchParams.set(
           "next",
-          params.get("type") === "recovery"
-            ? PASSWORD_RESET_PATH
-            : "/dashboard",
+          isRecovery ? PASSWORD_RESET_PATH : "/dashboard",
         );
-      }
-      return NextResponse.redirect(redirectUrl);
-    }
-    if (params.has("code")) {
-      const redirectUrl = request.nextUrl.clone();
-      // Prefer confirm (handles code + token_hash); keep query intact.
-      redirectUrl.pathname = "/auth/confirm";
-      if (
-        !redirectUrl.searchParams.get("next") &&
-        redirectUrl.searchParams.get("type") === "recovery"
-      ) {
-        redirectUrl.searchParams.set("next", PASSWORD_RESET_PATH);
       }
       return NextResponse.redirect(redirectUrl);
     }
   }
 
-  // Never run auth-gate logic on the confirm route before verifyOtp.
-  // Keep it public and skip redirect loops for recovery sessions.
+  // Do not gate /auth/confirm before verifyOtp runs in the route handler.
   if (pathname === "/auth/confirm" || pathname.startsWith("/auth/confirm/")) {
     return NextResponse.next({ request });
+  }
+
+  // Recovery users must reach reset-password; never bounce them to dashboard.
+  if (
+    pathname === PASSWORD_RESET_PATH ||
+    pathname.startsWith(`${PASSWORD_RESET_PATH}/`)
+  ) {
+    let supabaseResponse = NextResponse.next({ request });
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url || !anonKey || !hasSupabaseAuthCookie(request)) {
+      return supabaseResponse;
+    }
+    const supabase = createServerClient<Database>(url, anonKey, {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => {
+            request.cookies.set(name, value);
+          });
+          supabaseResponse = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) => {
+            supabaseResponse.cookies.set(name, value, options);
+          });
+        },
+      },
+    });
+    await supabase.auth.getUser();
+    return supabaseResponse;
   }
 
   let supabaseResponse = NextResponse.next({ request });
@@ -105,7 +150,6 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
-  // Cloudflare-friendly: skip Supabase auth round-trip for anonymous public traffic.
   if (!needsSessionWork(pathname, request) && isPublicPath(pathname)) {
     return supabaseResponse;
   }
@@ -138,7 +182,8 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (user && AUTH_ROUTES.includes(pathname)) {
+  // Signed-in users on login/register → dashboard (never from reset-password).
+  if (user && AUTH_ENTRY_ROUTES.includes(pathname)) {
     const nextParam = request.nextUrl.searchParams.get("next");
     const redirectUrl = request.nextUrl.clone();
     if (nextParam?.startsWith("/invite/")) {
@@ -198,10 +243,6 @@ export async function updateSession(request: NextRequest) {
       redirectUrl.pathname = "/dashboard";
       return NextResponse.redirect(redirectUrl);
     }
-  }
-
-  if (!user && !isPublicPath(pathname)) {
-    return supabaseResponse;
   }
 
   return supabaseResponse;

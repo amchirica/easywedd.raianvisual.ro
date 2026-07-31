@@ -34,23 +34,23 @@ Configurare detaliată Supabase Dashboard: vezi [SUPABASE_AUTH_SETUP.md](./SUPAB
 | `RESEND_FROM_EMAIL` | Expeditor (ex. `notifications@easywedd.raianvisual.ro`) |
 | `RESEND_FROM_NAME` | Opțional (ex. `EasyWedd`) |
 
-Helper central: `lib/url.ts` → `getSiteUrl()`, `getSafeNextPath()`, `getAuthConfirmUrl()`, `getPasswordResetCallbackUrl()`.
+Helper central: `lib/url.ts` → `getSiteUrl()`, `getSignupEmailRedirectTo()`, `getPasswordResetRedirectTo()`.
 
-Redirect-uri auth:
-- Signup confirm: `/auth/confirm?next=/dashboard`
-- Reset parolă: `/auth/confirm?next=/auth/reset-password` → pagina `/auth/reset-password`
+Redirect-uri auth (destinații logice; template-ul trimite la `/auth/confirm`):
+- Signup: `emailRedirectTo` → `/dashboard`
+- Reset: `redirectTo` → `/auth/reset-password`
 
 ## Flux resetare parolă
 
 ```text
 /auth/forgot-password
-→ resetPasswordForEmail(redirectTo = /auth/confirm?next=/auth/reset-password)
-→ email Supabase (token_hash + type=recovery)
+→ resetPasswordForEmail(redirectTo = /auth/reset-password)
+→ email Supabase (token_hash + type=recovery → /auth/confirm)
 → /auth/confirm (verifyOtp)
 → /auth/reset-password (sesiune recovery)
 → updateUser({ password })
 → signOut
-→ /login?reset=success
+→ /login?password_updated=1
 ```
 
 Nu rulează onboarding, nu creează workspace, nu acordă entitlements.

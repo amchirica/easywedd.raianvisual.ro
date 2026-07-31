@@ -15,12 +15,21 @@ type PageProps = {
 
 function messageForReason(reason?: string) {
   switch (reason) {
-    case "invalid_or_expired_link":
-    case "link_expired":
-      return "Linkul este invalid, a expirat sau a fost deja utilizat.";
+    case "missing_auth_parameters":
     case "missing_code":
     case "missing_token":
       return "Linkul este incomplet. Solicită un mesaj nou din email.";
+    case "otp_expired":
+      return "Codul din email a expirat. Solicită un link nou.";
+    case "token_not_found":
+      return "Tokenul din link nu a fost găsit. Solicită un mesaj nou.";
+    case "access_denied":
+      return "Acces refuzat pentru acest link. Solicită un mesaj nou.";
+    case "invalid_or_expired_link":
+    case "link_expired":
+      return "Linkul este invalid, a expirat sau a fost deja utilizat.";
+    case "auth_confirmation_failed":
+      return "Confirmarea autentificării a eșuat. Încearcă din nou.";
     case "email_not_confirmed":
       return "Confirmă adresa de email folosind linkul primit, apoi autentifică-te.";
     case "account_suspended":

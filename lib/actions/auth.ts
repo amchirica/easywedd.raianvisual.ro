@@ -9,9 +9,9 @@ import { reportAuthError } from "@/lib/auth/map-auth-error";
 import { logAuthEvent } from "@/lib/logging/auth-events";
 import { createClient } from "@/lib/supabase/server";
 import {
-  getAuthConfirmUrl,
-  getPasswordResetCallbackUrl,
+  getPasswordResetRedirectTo,
   getSafeNextPath,
+  getSignupEmailRedirectTo,
   getSiteUrl,
 } from "@/lib/url";
 import {
@@ -165,11 +165,8 @@ export async function registerAction(
 
   const claim = String(formData.get("claim") || "").trim() || null;
   const supabase = await createClient();
-  // Confirm-email link must land on /auth/confirm (token_hash + verifyOtp).
-  let emailRedirectTo = getAuthConfirmUrl("/dashboard");
-  if (claim) {
-    emailRedirectTo += `&claim=${encodeURIComponent(claim)}`;
-  }
+  // Logical destination after confirm — template sends users to /auth/confirm.
+  const emailRedirectTo = getSignupEmailRedirectTo();
 
   const siteUrl = getSiteUrl();
   console.info("[auth:signup:attempt]", {
@@ -326,7 +323,7 @@ export async function resendConfirmationAction(
     };
   }
 
-  const emailRedirectTo = getAuthConfirmUrl("/dashboard");
+  const emailRedirectTo = getSignupEmailRedirectTo();
   const supabase = await createClient();
   logAuthEvent("AUTH_RESEND_CONFIRMATION", { requestId, ok: true });
 
@@ -381,7 +378,8 @@ export async function forgotPasswordAction(
   }
 
   const siteUrl = getSiteUrl();
-  const redirectTo = getPasswordResetCallbackUrl();
+  // Final destination after confirm — template points to /auth/confirm.
+  const redirectTo = getPasswordResetRedirectTo();
   const supabase = await createClient();
 
   const { error } = await supabase.auth.resetPasswordForEmail(
@@ -457,7 +455,7 @@ export async function resetPasswordAction(
 
   return {
     success: "Parola a fost actualizată cu succes.",
-    redirectTo: "/login?reset=success",
+    redirectTo: "/login?password_updated=1",
   };
 }
 

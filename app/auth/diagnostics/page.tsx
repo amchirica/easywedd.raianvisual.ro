@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 
 import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
-import { getAuthConfirmUrl, getSiteUrl } from "@/lib/url";
+import { getPasswordResetRedirectTo, getSignupEmailRedirectTo, getSiteUrl } from "@/lib/url";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -22,8 +22,8 @@ export default async function AuthDiagnosticsPage() {
   }
 
   const siteUrl = getSiteUrl();
-  const callbackUrl = getAuthConfirmUrl("/dashboard");
-  const resetCallback = getAuthConfirmUrl("/auth/reset-password");
+  const callbackUrl = getSignupEmailRedirectTo();
+  const resetCallback = getPasswordResetRedirectTo();
 
   const supabaseUrl = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL);
   const anonKey = Boolean(
@@ -67,8 +67,8 @@ export default async function AuthDiagnosticsPage() {
       value: anonKey ? "yes" : "no",
     },
     { label: "Resolved Site URL", value: siteUrl },
-    { label: "Auth confirm URL (signup)", value: callbackUrl },
-    { label: "Auth confirm URL (reset)", value: resetCallback },
+    { label: "Signup emailRedirectTo", value: callbackUrl },
+    { label: "Reset password redirectTo", value: resetCallback },
     { label: "Session state", value: sessionState },
     { label: "Current user", value: userState },
     {

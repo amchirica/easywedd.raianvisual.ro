@@ -1,13 +1,8 @@
 import { NextResponse } from "next/server";
-import type { EmailOtpType } from "@supabase/supabase-js";
 
 import {
   authCallbackErrorPath,
   getSafeNextPath,
-  hasRecoveryAmr,
-  isPasswordRecoveryNext,
-  PASSWORD_RESET_PATH,
-  resolveAuthCallbackDestination,
 } from "@/lib/auth/callback-destination";
 import { fulfillPendingCheckoutsForUser } from "@/lib/billing/claim-checkout";
 import { upsertConsents } from "@/lib/consents";
@@ -15,6 +10,12 @@ import { logAuthEvent } from "@/lib/logging/auth-events";
 import { createClient } from "@/lib/supabase/server";
 import { getSiteUrl } from "@/lib/url";
 import type { ConsentType } from "@/types/database";
+
+/**
+ * OAuth / PKCE only (`?code=`).
+ * Email confirm + password recovery use `/auth/confirm` (token_hash + verifyOtp).
+ * This route must NOT call verifyOtp or accept token_hash.
+ */
 
 async function recordPendingConsentsFromMetadata(
   userId: string,
@@ -40,78 +41,51 @@ function errorRedirect(siteUrl: string, reason: string) {
   return NextResponse.redirect(`${siteUrl}${authCallbackErrorPath(reason)}`);
 }
 
-/** Read AMR from JWT payload (post-exchange). Do not log the token. */
-function readAmrFromAccessToken(accessToken: string | undefined): unknown {
-  if (!accessToken) return undefined;
-  try {
-    const parts = accessToken.split(".");
-    if (parts.length < 2 || !parts[1]) return undefined;
-    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-    const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
-    const json = JSON.parse(
-      typeof atob === "function"
-        ? atob(padded)
-        : Buffer.from(padded, "base64").toString("utf8"),
-    ) as { amr?: unknown };
-    return json.amr;
-  } catch {
-    return undefined;
-  }
-}
-
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
-  const tokenHash = searchParams.get("token_hash");
-  const type = searchParams.get("type");
   const siteUrl = getSiteUrl();
+  const next = getSafeNextPath(searchParams.get("next"), "/dashboard");
 
-  const requestedNext = searchParams.get("next");
-  const defaultNext =
-    type === "recovery" ? PASSWORD_RESET_PATH : "/dashboard/onboarding";
-  const next = getSafeNextPath(requestedNext, defaultNext);
-
-  logAuthEvent("AUTH_CALLBACK_START", { requestId });
-
-  const supabase = await createClient();
-  let exchangeError: { code?: string; message: string } | null = null;
-
-  if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) exchangeError = error;
-  } else if (tokenHash && type) {
-    const { error } = await supabase.auth.verifyOtp({
-      token_hash: tokenHash,
-      type: type as EmailOtpType,
-    });
-    if (error) exchangeError = error;
-  } else {
+  // Reject email OTP params — wrong endpoint.
+  if (searchParams.get("token_hash")) {
     logAuthEvent("AUTH_CALLBACK_EXCHANGE_ERROR", {
       requestId,
-      message: "missing_code_or_token",
+      message: "token_hash_must_use_auth_confirm",
       ok: false,
     });
-    return errorRedirect(siteUrl, "invalid_or_expired_link");
+    return errorRedirect(siteUrl, "missing_auth_parameters");
   }
 
-  if (exchangeError) {
+  logAuthEvent("AUTH_CALLBACK_START", { requestId, message: "oauth_pkce" });
+
+  if (!code) {
     logAuthEvent("AUTH_CALLBACK_EXCHANGE_ERROR", {
       requestId,
-      code: exchangeError.code,
-      message: exchangeError.message,
+      message: "missing_code",
+      ok: false,
+    });
+    return errorRedirect(siteUrl, "missing_auth_parameters");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+  if (error) {
+    logAuthEvent("AUTH_CALLBACK_EXCHANGE_ERROR", {
+      requestId,
+      code: error.code,
+      message: error.message,
       ok: false,
     });
     console.error("[auth:callback:exchange]", {
       requestId,
-      environment: process.env.NODE_ENV,
-      siteUrl,
-      next,
-      code: exchangeError.code ?? null,
-      message: exchangeError.message,
-      name: (exchangeError as { name?: string }).name ?? null,
+      code: error.code ?? null,
+      message: error.message,
     });
-    return errorRedirect(siteUrl, "invalid_or_expired_link");
+    const reason = error.code || "auth_confirmation_failed";
+    return errorRedirect(siteUrl, reason);
   }
 
   logAuthEvent("AUTH_CALLBACK_EXCHANGE_SUCCESS", { requestId, ok: true });
@@ -121,33 +95,7 @@ export async function GET(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    logAuthEvent("AUTH_CALLBACK_EXCHANGE_ERROR", {
-      requestId,
-      message: "no_user_after_exchange",
-      ok: false,
-    });
-    return errorRedirect(siteUrl, "invalid_or_expired_link");
-  }
-
-  const { data: sessionData } = await supabase.auth.getSession();
-  const accessToken = sessionData.session?.access_token;
-  const sessionAmr =
-    (sessionData.session &&
-    typeof sessionData.session === "object" &&
-    "amr" in sessionData.session
-      ? (sessionData.session as { amr?: unknown }).amr
-      : undefined) ?? readAmrFromAccessToken(accessToken);
-
-  const isRecoverySession =
-    type === "recovery" ||
-    isPasswordRecoveryNext(next) ||
-    hasRecoveryAmr(sessionAmr);
-
-  // Password recovery: skip profile ensure side-effects that aren't needed,
-  // never run consents/claim/onboarding routing.
-  if (isRecoverySession) {
-    logAuthEvent("AUTH_CALLBACK_RECOVERY", { requestId, userId: user.id, ok: true });
-    return NextResponse.redirect(new URL(PASSWORD_RESET_PATH, siteUrl));
+    return errorRedirect(siteUrl, "auth_confirmation_failed");
   }
 
   const { error: profileError } = await supabase.rpc("ensure_own_profile");
@@ -184,7 +132,7 @@ export async function GET(request: Request) {
             : null),
       });
     } catch {
-      /* claim is best-effort; onboarding will retry */
+      /* best-effort */
     }
   }
 
@@ -196,17 +144,17 @@ export async function GET(request: Request) {
 
   if (profile?.suspended_at) {
     await supabase.auth.signOut();
-    return NextResponse.redirect(
-      `${siteUrl}/login?error=account_suspended`,
-    );
+    return NextResponse.redirect(`${siteUrl}/login?error=account_suspended`);
   }
 
-  const destination = resolveAuthCallbackDestination({
-    next,
-    onboardingCompleted: profile?.onboarding_completed,
-    authType: type,
-    isRecoverySession: false,
-  });
+  const destination =
+    next.startsWith("/invite/")
+      ? next
+      : profile?.onboarding_completed
+        ? next === "/dashboard/onboarding"
+          ? "/dashboard"
+          : next
+        : "/dashboard/onboarding";
 
   return NextResponse.redirect(new URL(destination, siteUrl));
 }

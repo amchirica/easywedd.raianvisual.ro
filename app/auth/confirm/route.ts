@@ -1,241 +1,128 @@
+import { createServerClient } from "@supabase/ssr";
+import { type EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
-import type { EmailOtpType } from "@supabase/supabase-js";
 
 import {
-  authCallbackErrorPath,
-  getSafeNextPath,
-  hasRecoveryAmr,
-  isPasswordRecoveryNext,
-  PASSWORD_RESET_PATH,
-  resolveAuthCallbackDestination,
-} from "@/lib/auth/callback-destination";
-import { fulfillPendingCheckoutsForUser } from "@/lib/billing/claim-checkout";
-import { upsertConsents } from "@/lib/consents";
-import { logAuthEvent } from "@/lib/logging/auth-events";
-import { createClient } from "@/lib/supabase/server";
+  mapConfirmOtpErrorCode,
+  safeAuthNext,
+} from "@/lib/auth/confirm-helpers";
 import { getSiteUrl } from "@/lib/url";
-import type { ConsentType } from "@/types/database";
+import type { Database } from "@/types/database";
 
 /**
- * Email confirmation / recovery landing (token_hash + verifyOtp).
- * Uses the shared SSR Supabase client so session cookies are set correctly.
+ * Email confirm + password recovery landing.
+ *
+ * Free plan (default templates use {{ .ConfirmationURL }}):
+ *   → arrives with ?code=…  → exchangeCodeForSession
+ *
+ * Custom templates (TokenHash), if available:
+ *   → arrives with ?token_hash=…&type=… → verifyOtp
+ *
+ * One link uses one method — never both at once.
  */
 
-function errorRedirect(siteUrl: string, reason: string) {
-  return NextResponse.redirect(`${siteUrl}${authCallbackErrorPath(reason)}`);
-}
-
-/** Read AMR from JWT payload (post-verify). Do not log the token. */
-function readAmrFromAccessToken(accessToken: string | undefined): unknown {
-  if (!accessToken) return undefined;
-  try {
-    const parts = accessToken.split(".");
-    if (parts.length < 2 || !parts[1]) return undefined;
-    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-    const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
-    const json = JSON.parse(
-      typeof atob === "function"
-        ? atob(padded)
-        : Buffer.from(padded, "base64").toString("utf8"),
-    ) as { amr?: unknown };
-    return json.amr;
-  } catch {
-    return undefined;
-  }
-}
-
-async function recordPendingConsentsFromMetadata(
-  userId: string,
-  metadata: Record<string, unknown> | undefined,
-) {
-  if (!metadata) return;
-
-  const supabase = await createClient();
-  const marketing = Boolean(metadata.pending_marketing);
-  const analytics = Boolean(metadata.pending_analytics);
-
-  const consents: { type: ConsentType; granted: boolean }[] = [
-    { type: "terms", granted: true },
-    { type: "privacy", granted: true },
-    { type: "marketing", granted: marketing },
-    { type: "analytics", granted: analytics },
-  ];
-
-  await upsertConsents(supabase, userId, consents, "auth_confirm", null);
+function errorRedirect(reason: string) {
+  return NextResponse.redirect(
+    new URL(`/auth/error?reason=${encodeURIComponent(reason)}`, getSiteUrl()),
+  );
 }
 
 export async function GET(request: NextRequest) {
-  const requestId = crypto.randomUUID();
-  const { searchParams } = new URL(request.url);
-  const tokenHash = searchParams.get("token_hash");
-  const type = searchParams.get("type");
-  const code = searchParams.get("code");
-  const siteUrl = getSiteUrl();
+  const url = new URL(request.url);
+  const tokenHash = url.searchParams.get("token_hash");
+  const type = url.searchParams.get("type") as EmailOtpType | null;
+  const code = url.searchParams.get("code");
 
-  const requestedNext = searchParams.get("next");
-  const defaultNext =
-    type === "recovery" ? PASSWORD_RESET_PATH : "/dashboard";
-  const next = getSafeNextPath(requestedNext, defaultNext);
+  const fallback =
+    type === "recovery" ||
+    url.searchParams.get("next")?.includes("reset-password")
+      ? "/auth/reset-password"
+      : "/dashboard";
+  const next = safeAuthNext(url.searchParams.get("next"), fallback);
+  const origin = getSiteUrl();
 
-  // Never log token_hash or code values.
-  logAuthEvent("AUTH_CONFIRM_START", {
-    requestId,
-    message: type
-      ? `type=${type};has_token_hash=${Boolean(tokenHash)}`
-      : code
-        ? "type=pkce_code"
-        : "type=missing",
+  // Never log token_hash or code.
+  console.info("[AUTH CONFIRM] start", {
+    type: type ?? null,
+    next,
+    hasTokenHash: Boolean(tokenHash),
+    hasCode: Boolean(code),
   });
 
-  if (!tokenHash && !code) {
-    logAuthEvent("AUTH_CONFIRM_ERROR", {
-      requestId,
-      message: "missing_token_hash_or_code",
-      ok: false,
-    });
-    return errorRedirect(siteUrl, "invalid_or_expired_link");
+  if ((!tokenHash || !type) && !code) {
+    return errorRedirect("missing_auth_parameters");
   }
 
-  if (tokenHash && !type) {
-    logAuthEvent("AUTH_CONFIRM_ERROR", {
-      requestId,
-      message: "missing_type",
-      ok: false,
-    });
-    return errorRedirect(siteUrl, "invalid_or_expired_link");
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !anonKey) {
+    console.error("[AUTH CONFIRM] missing supabase env");
+    return errorRedirect("auth_confirmation_failed");
   }
 
-  const supabase = await createClient();
-  let verifyError: { code?: string; message: string; name?: string } | null =
-    null;
+  let redirectResponse = NextResponse.redirect(new URL(next, origin));
+
+  const supabase = createServerClient<Database>(supabaseUrl, anonKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value }) => {
+          request.cookies.set(name, value);
+        });
+        const location = redirectResponse.headers.get("location") ?? next;
+        const rebuilt = NextResponse.redirect(new URL(location, origin));
+        cookiesToSet.forEach(({ name, value, options }) => {
+          rebuilt.cookies.set(name, value, options);
+        });
+        redirectResponse = rebuilt;
+      },
+    },
+  });
+
+  let verifyError: { code?: string; message?: string } | null = null;
+  let hasSession = false;
 
   if (tokenHash && type) {
-    const { error } = await supabase.auth.verifyOtp({
+    const { data, error } = await supabase.auth.verifyOtp({
       token_hash: tokenHash,
-      type: type as EmailOtpType,
+      type,
     });
-    if (error) verifyError = error;
+    verifyError = error;
+    hasSession = Boolean(data.session);
   } else if (code) {
-    // Fallback when Supabase appends PKCE ?code= to emailRedirectTo.
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) verifyError = error;
+    // Default Supabase email templates (ConfirmationURL) on Free plan.
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    verifyError = error;
+    hasSession = Boolean(data.session);
   }
 
-  if (verifyError) {
-    logAuthEvent("AUTH_CONFIRM_ERROR", {
-      requestId,
-      code: verifyError.code,
-      message: verifyError.message,
-      ok: false,
-    });
-    console.error("[auth:confirm:verify]", {
-      requestId,
-      environment: process.env.NODE_ENV,
-      siteUrl,
-      next,
-      hasTokenHash: Boolean(tokenHash),
-      hasCode: Boolean(code),
+  if (verifyError || !hasSession) {
+    const reason = mapConfirmOtpErrorCode(verifyError?.code);
+
+    console.error("[AUTH CONFIRM]", {
       type: type ?? null,
-      code: verifyError.code ?? null,
-      message: verifyError.message,
-      name: verifyError.name ?? null,
+      errorCode: verifyError?.code ?? null,
+      errorMessage: verifyError?.message ?? null,
+      hasSession,
+      method: tokenHash ? "verifyOtp" : "exchangeCode",
     });
-    return errorRedirect(siteUrl, "invalid_or_expired_link");
+
+    return errorRedirect(reason);
   }
 
-  logAuthEvent("AUTH_CONFIRM_SUCCESS", { requestId, ok: true });
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    logAuthEvent("AUTH_CONFIRM_ERROR", {
-      requestId,
-      message: "no_user_after_verify",
-      ok: false,
+  // Recovery links must land on reset-password even if next was wrong.
+  if (type === "recovery" || next.includes("reset-password")) {
+    const recoveryUrl = new URL("/auth/reset-password", origin);
+    const recoveryResponse = NextResponse.redirect(recoveryUrl);
+    redirectResponse.cookies.getAll().forEach((c) => {
+      recoveryResponse.cookies.set(c.name, c.value);
     });
-    return errorRedirect(siteUrl, "invalid_or_expired_link");
+    console.info("[AUTH CONFIRM] ok recovery", { next: "/auth/reset-password" });
+    return recoveryResponse;
   }
 
-  const { data: sessionData } = await supabase.auth.getSession();
-  const accessToken = sessionData.session?.access_token;
-  const sessionAmr =
-    (sessionData.session &&
-    typeof sessionData.session === "object" &&
-    "amr" in sessionData.session
-      ? (sessionData.session as { amr?: unknown }).amr
-      : undefined) ?? readAmrFromAccessToken(accessToken);
-
-  const isRecoverySession =
-    type === "recovery" ||
-    isPasswordRecoveryNext(next) ||
-    hasRecoveryAmr(sessionAmr);
-
-  if (isRecoverySession) {
-    logAuthEvent("AUTH_CONFIRM_RECOVERY", {
-      requestId,
-      userId: user.id,
-      ok: true,
-    });
-    return NextResponse.redirect(new URL(PASSWORD_RESET_PATH, siteUrl));
-  }
-
-  const { error: profileError } = await supabase.rpc("ensure_own_profile");
-  if (profileError) {
-    logAuthEvent("PROFILE_ENSURE_ERROR", {
-      requestId,
-      userId: user.id,
-      code: profileError.code,
-      message: profileError.message,
-      ok: false,
-    });
-  } else {
-    logAuthEvent("PROFILE_ENSURE_SUCCESS", {
-      requestId,
-      userId: user.id,
-      ok: true,
-    });
-  }
-
-  await recordPendingConsentsFromMetadata(
-    user.id,
-    user.user_metadata as Record<string, unknown> | undefined,
-  );
-
-  if (user.email) {
-    try {
-      await fulfillPendingCheckoutsForUser({
-        userId: user.id,
-        email: user.email,
-        claimToken:
-          searchParams.get("claim") ||
-          (typeof user.user_metadata?.pending_claim_token === "string"
-            ? user.user_metadata.pending_claim_token
-            : null),
-      });
-    } catch {
-      /* claim is best-effort */
-    }
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("onboarding_completed, suspended_at")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (profile?.suspended_at) {
-    await supabase.auth.signOut();
-    return NextResponse.redirect(`${siteUrl}/login?error=account_suspended`);
-  }
-
-  const destination = resolveAuthCallbackDestination({
-    next,
-    onboardingCompleted: profile?.onboarding_completed,
-    authType: type,
-    isRecoverySession: false,
-  });
-
-  return NextResponse.redirect(new URL(destination, siteUrl));
+  console.info("[AUTH CONFIRM] ok", { type: type ?? "pkce", next });
+  return redirectResponse;
 }
