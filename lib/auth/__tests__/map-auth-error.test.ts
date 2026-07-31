@@ -94,10 +94,22 @@ describe("mapSupabaseAuthError", () => {
     expect(r.message).toContain("baza de date");
   });
 
+  it("maps confirmation email SMTP failure even when status is 500", () => {
+    const r = mapSupabaseAuthError(
+      {
+        status: 500,
+        code: "unexpected_failure",
+        message: "Error sending confirmation email",
+      },
+      "signup",
+    );
+    expect(r.code).toBe("smtp_error");
+    expect(r.message).toContain("SMTP");
+  });
+
   it("maps bare HTTP 500 with actionable Romanian copy", () => {
     const r = mapSupabaseAuthError({ status: 500, message: "" }, "signup");
     expect(r.code).toBe("http_500");
-    expect(r.message).toContain("SMTP");
   });
 });
 
