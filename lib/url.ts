@@ -84,16 +84,17 @@ export function getSiteUrl(): string {
 }
 
 /**
- * Where Supabase ConfirmationURL should land for signup emails.
- * Default Free templates append ?code=… to this URL.
+ * Allow-listed landing for emailRedirectTo / redirectTo.
+ * Real email links must come from TokenHash templates → /auth/confirm?token_hash=…
+ * (ConfirmationURL + ?code= is rejected — causes pkce_code_verifier_not_found.)
  */
 export function getSignupEmailRedirectTo(): string {
   return `${getSiteUrl()}/auth/confirm?next=${encodeURIComponent("/dashboard")}`;
 }
 
 /**
- * Where Supabase ConfirmationURL should land for reset-password emails.
- * Default Free templates append ?code=… to this URL.
+ * Allow-listed landing for resetPasswordForEmail redirectTo.
+ * Template must use TokenHash → /auth/confirm?token_hash=…&type=recovery&next=…
  */
 export function getPasswordResetRedirectTo(): string {
   return `${getSiteUrl()}/auth/confirm?next=${encodeURIComponent(PASSWORD_RESET_PATH)}`;

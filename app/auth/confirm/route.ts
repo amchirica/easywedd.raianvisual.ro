@@ -10,15 +10,10 @@ import { getSiteUrl } from "@/lib/url";
 import type { Database } from "@/types/database";
 
 /**
- * Email confirm + password recovery landing.
- *
- * Free plan (default templates use {{ .ConfirmationURL }}):
- *   → arrives with ?code=…  → exchangeCodeForSession
- *
- * Custom templates (TokenHash), if available:
- *   → arrives with ?token_hash=…&type=… → verifyOtp
- *
- * One link uses one method — never both at once.
+ * Email confirm / recovery / invite / magiclink.
+ * EXCLUSIVELY token_hash + verifyOtp — works across Gmail/Safari/in-app browsers.
+ * Never call exchangeCodeForSession here (PKCE verifier is browser-bound).
+ * OAuth PKCE uses /auth/callback only.
  */
 
 function errorRedirect(reason: string) {
@@ -27,30 +22,47 @@ function errorRedirect(reason: string) {
   );
 }
 
+function tokenFingerprint(tokenHash: string): string {
+  if (tokenHash.length <= 8) return "[short]";
+  return `${tokenHash.slice(0, 4)}…${tokenHash.slice(-4)}`;
+}
+
 export async function GET(request: NextRequest) {
-  const url = new URL(request.url);
-  const tokenHash = url.searchParams.get("token_hash");
-  const type = url.searchParams.get("type") as EmailOtpType | null;
-  const code = url.searchParams.get("code");
+  const { searchParams } = new URL(request.url);
+  const tokenHash = searchParams.get("token_hash");
+  const type = searchParams.get("type") as EmailOtpType | null;
+  const code = searchParams.get("code");
+  const origin = getSiteUrl();
 
   const fallback =
     type === "recovery" ||
-    url.searchParams.get("next")?.includes("reset-password")
+    (searchParams.get("next") ?? "").includes("reset-password")
       ? "/auth/reset-password"
       : "/dashboard";
-  const next = safeAuthNext(url.searchParams.get("next"), fallback);
-  const origin = getSiteUrl();
+  const next = safeAuthNext(searchParams.get("next"), fallback);
 
-  // Never log token_hash or code.
   console.info("[AUTH CONFIRM] start", {
     type: type ?? null,
     next,
     hasTokenHash: Boolean(tokenHash),
+    tokenFingerprint: tokenHash ? tokenFingerprint(tokenHash) : null,
     hasCode: Boolean(code),
   });
 
-  if ((!tokenHash || !type) && !code) {
-    return errorRedirect("missing_auth_parameters");
+  // Legacy ConfirmationURL (?code=) cannot work cross-browser — do not exchange.
+  if (code && !tokenHash) {
+    console.error("[AUTH CONFIRM] rejected PKCE code — update email templates to TokenHash", {
+      type: type ?? null,
+    });
+    return errorRedirect("pkce_code_verifier_not_found");
+  }
+
+  if (!tokenHash || !type) {
+    console.error("[AUTH CONFIRM] missing token_hash or type", {
+      hasTokenHash: Boolean(tokenHash),
+      type: type ?? null,
+    });
+    return errorRedirect("missing_token");
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -60,8 +72,12 @@ export async function GET(request: NextRequest) {
     return errorRedirect("auth_confirmation_failed");
   }
 
-  let redirectResponse = NextResponse.redirect(new URL(next, origin));
+  const destination =
+    type === "recovery" ? "/auth/reset-password" : next.startsWith("/") ? next : "/dashboard";
 
+  let redirectResponse = NextResponse.redirect(new URL(destination, origin));
+
+  // Bind cookies to the redirect response (required on OpenNext / Cloudflare).
   const supabase = createServerClient<Database>(supabaseUrl, anonKey, {
     cookies: {
       getAll() {
@@ -71,7 +87,8 @@ export async function GET(request: NextRequest) {
         cookiesToSet.forEach(({ name, value }) => {
           request.cookies.set(name, value);
         });
-        const location = redirectResponse.headers.get("location") ?? next;
+        const location =
+          redirectResponse.headers.get("location") ?? destination;
         const rebuilt = NextResponse.redirect(new URL(location, origin));
         cookiesToSet.forEach(({ name, value, options }) => {
           rebuilt.cookies.set(name, value, options);
@@ -81,48 +98,27 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  let verifyError: { code?: string; message?: string } | null = null;
-  let hasSession = false;
+  const { data, error } = await supabase.auth.verifyOtp({
+    token_hash: tokenHash,
+    type,
+  });
 
-  if (tokenHash && type) {
-    const { data, error } = await supabase.auth.verifyOtp({
-      token_hash: tokenHash,
+  if (error || !data.session) {
+    const reason = mapConfirmOtpErrorCode(error?.code);
+    console.error("[AUTH CONFIRM] verifyOtp error", {
       type,
+      errorCode: error?.code ?? null,
+      errorMessage: error?.message ?? null,
+      hasSession: Boolean(data.session),
     });
-    verifyError = error;
-    hasSession = Boolean(data.session);
-  } else if (code) {
-    // Default Supabase email templates (ConfirmationURL) on Free plan.
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-    verifyError = error;
-    hasSession = Boolean(data.session);
-  }
-
-  if (verifyError || !hasSession) {
-    const reason = mapConfirmOtpErrorCode(verifyError?.code);
-
-    console.error("[AUTH CONFIRM]", {
-      type: type ?? null,
-      errorCode: verifyError?.code ?? null,
-      errorMessage: verifyError?.message ?? null,
-      hasSession,
-      method: tokenHash ? "verifyOtp" : "exchangeCode",
-    });
-
     return errorRedirect(reason);
   }
 
-  // Recovery links must land on reset-password even if next was wrong.
-  if (type === "recovery" || next.includes("reset-password")) {
-    const recoveryUrl = new URL("/auth/reset-password", origin);
-    const recoveryResponse = NextResponse.redirect(recoveryUrl);
-    redirectResponse.cookies.getAll().forEach((c) => {
-      recoveryResponse.cookies.set(c.name, c.value);
-    });
-    console.info("[AUTH CONFIRM] ok recovery", { next: "/auth/reset-password" });
-    return recoveryResponse;
-  }
+  console.info("[AUTH CONFIRM] verifyOtp success", {
+    type,
+    destination,
+    userId: data.user?.id ?? data.session.user.id,
+  });
 
-  console.info("[AUTH CONFIRM] ok", { type: type ?? "pkce", next });
   return redirectResponse;
 }

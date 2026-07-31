@@ -18,7 +18,9 @@ function messageForReason(reason?: string) {
     case "missing_auth_parameters":
     case "missing_code":
     case "missing_token":
-      return "Linkul este incomplet. Solicită un mesaj nou din email.";
+      return "Linkul este incomplet. Actualizează template-urile Supabase să folosească token_hash, apoi solicită un mesaj nou.";
+    case "pkce_code_verifier_not_found":
+      return "Linkul vechi (PKCE) nu funcționează din Gmail/Safari. În Supabase → Emails → Templates înlocuiește ConfirmationURL cu linkul token_hash, apoi solicită un email nou.";
     case "otp_expired":
       return "Codul din email a expirat. Solicită un link nou.";
     case "token_not_found":

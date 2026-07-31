@@ -24,5 +24,8 @@ export function mapConfirmOtpErrorCode(code: string | undefined): string {
   if (code === "otp_expired") return "otp_expired";
   if (code === "token_not_found") return "token_not_found";
   if (code === "access_denied") return "access_denied";
+  if (code === "pkce_code_verifier_not_found") {
+    return "pkce_code_verifier_not_found";
+  }
   return code || "invalid_or_expired_link";
 }

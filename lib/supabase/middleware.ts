@@ -87,20 +87,27 @@ function needsSessionWork(pathname: string, request: NextRequest) {
 export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Safety net: auth params landed on Site URL (/).
-  // Both email ConfirmationURL (?code=) and TokenHash go to /auth/confirm.
+  // Safety net on Site URL (/):
+  // - token_hash → email confirm (verifyOtp)
+  // - code alone → OAuth callback only (never email PKCE on /auth/confirm)
   if (pathname === "/") {
     const params = request.nextUrl.searchParams;
-    if (params.has("token_hash") || params.has("code")) {
+    if (params.has("token_hash") && params.has("type")) {
       const redirectUrl = request.nextUrl.clone();
       redirectUrl.pathname = "/auth/confirm";
       if (!redirectUrl.searchParams.get("next")) {
-        const isRecovery = params.get("type") === "recovery";
         redirectUrl.searchParams.set(
           "next",
-          isRecovery ? PASSWORD_RESET_PATH : "/dashboard",
+          params.get("type") === "recovery"
+            ? PASSWORD_RESET_PATH
+            : "/dashboard",
         );
       }
+      return NextResponse.redirect(redirectUrl);
+    }
+    if (params.has("code") && !params.has("token_hash")) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/auth/callback";
       return NextResponse.redirect(redirectUrl);
     }
   }

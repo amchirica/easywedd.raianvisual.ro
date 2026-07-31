@@ -42,6 +42,9 @@ describe("mapConfirmOtpErrorCode", () => {
     expect(mapConfirmOtpErrorCode("otp_expired")).toBe("otp_expired");
     expect(mapConfirmOtpErrorCode("token_not_found")).toBe("token_not_found");
     expect(mapConfirmOtpErrorCode("access_denied")).toBe("access_denied");
+    expect(mapConfirmOtpErrorCode("pkce_code_verifier_not_found")).toBe(
+      "pkce_code_verifier_not_found",
+    );
     expect(mapConfirmOtpErrorCode(undefined)).toBe("invalid_or_expired_link");
   });
 });

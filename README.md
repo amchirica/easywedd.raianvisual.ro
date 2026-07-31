@@ -81,7 +81,7 @@ Deploy Cloudflare: vezi [`docs/CLOUDFLARE.md`](docs/CLOUDFLARE.md). Build comman
 ## Auth & onboarding
 
 1. `/register` — cont + consimțăminte terms/privacy
-2. Verificare email (dacă e activată în Supabase) via `/auth/callback`
+2. Verificare email (Confirm email ON) via `/auth/confirm?token_hash=…` (`verifyOtp`)
 3. `/dashboard/onboarding` — tip workspace, detalii nuntă, invitație partener
 4. `/dashboard` — analytics reale (task-uri, RSVP, buget, furnizori)
 5. RSVP public: `/rsvp/[token]` (token hashed, one-shot)
