@@ -3,11 +3,39 @@
 ## De ce apare `pkce_code_verifier_not_found`
 
 Template-ul implicit `{{ .ConfirmationURL }}` trimite `?code=` (PKCE).  
-Verifier-ul e salvat în browserul unde ai făcut signup.  
-Din Gmail / Safari / in-app browser **nu există** → eroare.
+Verifier-ul e doar în browserul unde ai făcut signup.  
+Din Gmail / Safari → **pkce_code_verifier_not_found**.
 
-**Soluție obligatorie:** template-uri cu `token_hash` + `verifyOtp` pe `/auth/confirm`.  
-Asta funcționează în orice browser.
+Pe proiectele Free noi, Supabase **nu lasă editarea template-urilor** până activezi **Custom SMTP**:
+
+> Set up custom SMTP to edit templates
+
+---
+
+## Pasul 0 — Activează Custom SMTP cu Resend (obligatoriu)
+
+Ai deja Resend în Cloudflare (`RESEND_API_KEY`, `RESEND_FROM_EMAIL`).
+
+**Authentication → Emails → SMTP Settings**
+
+| Câmp | Valoare |
+|------|---------|
+| Enable custom SMTP | **ON** |
+| Sender email | `notifications@easywedd.raianvisual.ro` |
+| Sender name | `EasyWedd` |
+| Host | `smtp.resend.com` |
+| Port | `465` |
+| Username | `resend` |
+| Password | API key-ul din Resend (același ca `RESEND_API_KEY`) |
+| Minimum interval | `60` |
+
+Salvează.
+
+**Condiții Resend:**
+- domeniul `easywedd.raianvisual.ro` (sau domeniul din FROM) trebuie verificat în Resend
+- nu folosi Yahoo ca SMTP host
+
+După SMTP activ, tab-ul **Templates** se deblochează.
 
 ---
 
@@ -30,10 +58,9 @@ http://localhost:3000/auth/reset-password
 
 ---
 
-## 2. Email Templates (OBLIGATORIU — fără ConfirmationURL)
+## 2. Email Templates (după SMTP)
 
-Mergi la: **Authentication → Emails → Templates**  
-(nu SMTP Settings). Pe plan Free template-urile se pot edita.
+**Authentication → Emails → Templates**
 
 ### Confirm signup
 
@@ -73,11 +100,11 @@ Mergi la: **Authentication → Emails → Templates**
 </a>
 ```
 
-### Elimină din toate template-urile
+### Șterge din template-uri
 
 - `{{ .ConfirmationURL }}`
-- `code=`
-- linkuri către `/auth/callback`
+- orice `code=`
+- linkuri `/auth/callback`
 - `localhost`
 
 ---
@@ -88,7 +115,7 @@ Confirm email: **ON**
 
 ---
 
-## 4. Variabile Cloudflare
+## 4. Cloudflare
 
 ```text
 NEXT_PUBLIC_APP_URL=https://easywedd.raianvisual.ro
@@ -97,34 +124,23 @@ NEXT_PUBLIC_SITE_URL=https://easywedd.raianvisual.ro
 
 ---
 
-## 5. Flux în aplicație
+## 5. Flux app
 
 ```text
 Email (token_hash)
-  → GET /auth/confirm
-  → verifyOtp({ token_hash, type })
-  → cookies sesiune
-  → /dashboard  SAU  /auth/reset-password
+  → /auth/confirm
+  → verifyOtp
+  → /dashboard sau /auth/reset-password
 ```
 
-`/auth/callback` + `exchangeCodeForSession` = **doar OAuth** (dacă există).
+`/auth/callback` = doar OAuth.
 
 ---
 
-## 6. Dacă Dashboard-ul Templates crapă
+## 6. Checklist
 
-1. Alt browser / Incognito  
-2. Authentication → Emails → **Templates** (nu SMTP)  
-3. Salvează câte un template pe rând  
-
-Linkul din emailul nou trebuie să conțină `token_hash=` și **nu** `code=`.
-
----
-
-## 7. Checklist
-
-1. `npm run deploy`  
-2. Template-uri TokenHash salvate  
+1. SMTP Resend ON + Save  
+2. Templates TokenHash salvate  
 3. Redirect URLs ok  
-4. Confirm email ON  
-5. Test cu **email nou** (linkurile vechi cu `code=` vor eșua intenționat)
+4. `npm run deploy`  
+5. Test cu **email nou** — linkul trebuie să aibă `token_hash=` și **nu** `code=`

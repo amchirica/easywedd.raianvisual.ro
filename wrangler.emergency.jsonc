@@ -1,0 +1,26 @@
+/**
+ * Emergency deploy config — NO WORKER_SELF_REFERENCE.
+ *
+ * Use when Cloudflare API returns 520 / "malformed response" on:
+ *   GET /accounts/.../workers/services/easywedd-raianvisual
+ *
+ * App still serves requests; ISR/cache revalidation via self-fetch is disabled
+ * until a normal deploy with wrangler.jsonc succeeds again.
+ *
+ * Invoked automatically by scripts/cf-deploy.mjs on primary deploy failure.
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "easywedd-raianvisual",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-07-30",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "minify": true,
+  "observability": {
+    "enabled": true
+  }
+}

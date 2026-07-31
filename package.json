@@ -13,9 +13,11 @@
     "seed:dev": "echo Apply supabase/seed.dev.sql manually in Supabase SQL Editor (DEV ONLY)",
     "cf:build": "opennextjs-cloudflare build",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "cf:size": "npx wrangler deploy --dry-run --outdir=.wrangler-size",
+    "deploy": "node scripts/cf-deploy.mjs",
+    "cf:deploy": "node scripts/cf-deploy.mjs",
+    "cf:deploy:primary": "opennextjs-cloudflare build && wrangler deploy --config wrangler.jsonc",
+    "cf:deploy:emergency": "opennextjs-cloudflare build && wrangler deploy --config wrangler.emergency.jsonc",
+    "cf:size": "npx wrangler deploy --dry-run --outdir=.wrangler-size --config wrangler.jsonc",
     "brand:assets": "node scripts/generate-brand-assets.mjs",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
@@ -25,7 +27,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.4.0",
-    "@opennextjs/cloudflare": "^1.20.1",
+    "@opennextjs/cloudflare": "^1.20.2",
     "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.110.7",
     "class-variance-authority": "^0.7.1",
@@ -34,7 +36,7 @@
     "html-to-image": "^1.11.13",
     "jspdf": "^4.2.1",
     "lucide-react": "^1.25.0",
-    "next": "16.2.10",
+    "next": "16.2.12",
     "next-themes": "^0.4.6",
     "qrcode": "^1.5.4",
     "react": "19.2.4",
@@ -54,13 +56,13 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.10",
+    "eslint-config-next": "16.2.12",
     "png-to-ico": "^3.0.2",
     "shadcn": "^4.13.1",
     "sharp": "^0.35.3",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.10",
-    "wrangler": "^4.112.0"
+    "wrangler": "^4.117.0"
   }
 }

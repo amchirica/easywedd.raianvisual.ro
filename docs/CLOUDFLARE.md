@@ -1,107 +1,86 @@
 # Deploy Cloudflare Workers (OpenNext)
 
-## Setări Build (obligatoriu)
+Worker name (peste tot): **`easywedd-raianvisual`**
 
-În Cloudflare Dashboard → Worker `easywedd-raianvisual` → Settings → Builds:
+## Cauza erorii 520 / "malformed response"
 
 ```text
-Build command:
-npm run cf:build
-
-Deploy command:
-npx wrangler deploy
+GET /accounts/.../workers/services/easywedd-raianvisual → 520
+Received a malformed response from the API
 ```
 
-În `wrangler.jsonc` este setat `minify: true` (necesar pe plan Free — limita gzip Worker = 3 MiB).
+Wrangler validează binding-ul `WORKER_SELF_REFERENCE` prin API-ul **Workers Services**.  
+Când acel endpoint returnează 520 (HTML / empty), deploy-ul pică **după** build OpenNext reușit.
 
-### Eroare 10027 — Worker > 3 MiB
+**Nu e o problemă de build Next.js.** E API Cloudflare sau token expirat.
 
-Log tipic:
+### Workaround în proiect
 
-```text
-Your Worker exceeded the size limit of 3 MiB. Please upgrade to a paid plan
-[code: 10027]
-Total Upload: … / gzip: ~3198 KiB
+`npm run cf:deploy` (= `scripts/cf-deploy.mjs`):
+
+1. Încearcă `wrangler.jsonc` (cu `WORKER_SELF_REFERENCE`)
+2. Dacă pică → `wrangler.emergency.jsonc` (fără self-service) ca să ajungă auth-ul în producție
+
+Restaurare binding după ce API-ul e sănătos:
+
+```bash
+npx wrangler deploy --config wrangler.jsonc
 ```
 
-- Contul Cloudflare e pe **Workers Free** (max **3 MiB** gzip). Paid = până la **10 MiB**.
-- Upload-ul anterior era ~126 KiB peste limită; minify + bundle mai mic ar trebui să treacă.
-- Verificare locală după build: `npm run cf:size` (dry-run; uită-te la linia `gzip:`).
-- Dacă tot ești peste 3 MiB: [Workers Paid](https://dash.cloudflare.com/?to=/:account/workers/plans).
+---
 
-### De ce eșuează `npm run build` + `npx wrangler deploy`
+## Deploy local (interactiv)
 
-Log tipic:
-
-```text
-Executing user build command: npm run build   → doar next build
-Executing user deploy command: npx wrangler deploy
-OpenNext project detected, calling opennextjs-cloudflare deploy
-ERROR Could not find compiled Open Next config, did you run the build command?
+```bash
+npx wrangler login
+npm install
+npm run cf:deploy
 ```
 
-- `npm run build` = `next build` → produce `.next/`, **nu** `.open-next/`
-- `npx wrangler deploy` detectează OpenNext și cere output-ul din `opennextjs-cloudflare build` (`.open-next/`)
-
-Folosește întotdeauna `npm run cf:build` ca Build command.
-
-### Alternativă (un singur pas pe deploy)
+## Setări Build Dashboard
 
 ```text
-Build command:
-true
-
-Deploy command:
-npm run deploy
+Build command:  npm run cf:build
+Deploy command: npx wrangler deploy --config wrangler.jsonc
 ```
 
-(`npm run deploy` = `opennextjs-cloudflare build && opennextjs-cloudflare deploy`)
-
-## Cauza erorii 10143 (Worker name)
-
-Autoconfigurarea a generat `easyweddraianvisualro` din `package.json` name.
-Worker-ul real: `easywedd-raianvisual` — vezi `wrangler.jsonc`.
-
-## Configurație versionată
-
-- `wrangler.jsonc` — `"name": "easywedd-raianvisual"`
-- `WORKER_SELF_REFERENCE.service` — același nume
-- `open-next.config.ts`
-- Nu rula migrate/autoconfig pe CI; fișierele sunt deja în repo
-
-## `middleware.ts` vs `proxy.ts` (Next 16)
-
-Next 16 afișează:
+Sau un singur pas:
 
 ```text
-⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.
+Build command:  true
+Deploy command: npm run cf:deploy
 ```
 
-**Nu migra la `proxy.ts` încă.** Cu `@opennextjs/cloudflare@1.20.1`, `proxy.ts`
-este tratat ca Node middleware și build-ul eșuează cu:
+În `wrangler.jsonc`: `minify: true` (Workers Free ≤ 3 MiB gzip).
+
+## Nume Worker
+
+| Loc | Valoare |
+|-----|---------|
+| `wrangler.jsonc` `name` | `easywedd-raianvisual` |
+| `WORKER_SELF_REFERENCE.service` | `easywedd-raianvisual` |
+| Dashboard Worker | `easywedd-raianvisual` |
+
+Nu redenumi fără update Dashboard + domenii.
+
+## `middleware.ts` vs `proxy.ts`
+
+**Păstrează `middleware.ts`.** OpenNext 1.20 + `proxy.ts` →  
+`ERROR Node.js middleware is not currently supported.`
+
+## Versiuni țintă
+
+- `@opennextjs/cloudflare` ^1.20.2
+- `wrangler` ^4.117.0
+- `next` 16.2.12
+
+## Secrets producție
 
 ```text
-ERROR Node.js middleware is not currently supported.
-```
-
-Păstrează `middleware.ts` (Edge) până când OpenNext suportă oficial `proxy`.
-
-## Secrets / Variables producție
-
-Nu folosi `.dev.vars` în producție.
-
-```text
-Workers & Pages → easywedd-raianvisual → Settings → Variables and Secrets
-```
-
-Obligatoriu:
-
-```text
+Workers → easywedd-raianvisual → Settings → Variables and Secrets
 NEXT_PUBLIC_SITE_URL=https://easywedd.raianvisual.ro
 NEXT_PUBLIC_APP_URL=https://easywedd.raianvisual.ro
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-SUPABASE_SERVICE_ROLE_KEY=...   (tip Secret)
+SUPABASE_SERVICE_ROLE_KEY=...   (Secret)
 ```
-
-`.dev.vars` este gitignored; local: `.dev.vars.example`. Detalii: `docs/ENV.md`.
