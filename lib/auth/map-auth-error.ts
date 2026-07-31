@@ -13,7 +13,11 @@ export type AuthFlow =
 
 export type AuthErrorLike = {
   message?: string;
+  /** GoTrue sometimes returns `msg` instead of `message`. */
+  msg?: string;
   code?: string;
+  /** GoTrue `error_code` (e.g. unexpected_failure). */
+  error_code?: string;
   status?: number;
   name?: string;
 };
@@ -51,8 +55,8 @@ export function logSupabaseAuthError(options: {
     flow,
     environment: envLabel(),
     supabase: {
-      message: sanitizeMessage(error.message),
-      code: error.code ?? null,
+      message: sanitizeMessage(error.message ?? error.msg),
+      code: error.code ?? error.error_code ?? null,
       status: error.status ?? null,
       name: error.name ?? null,
     },
@@ -70,8 +74,8 @@ export function logSupabaseAuthError(options: {
 
 function normalize(error: AuthErrorLike) {
   return {
-    message: (error.message ?? "").toLowerCase(),
-    code: (error.code ?? "").toLowerCase(),
+    message: (error.message ?? error.msg ?? "").toLowerCase(),
+    code: (error.code ?? error.error_code ?? "").toLowerCase(),
     status: error.status,
   };
 }
@@ -202,11 +206,26 @@ export function mapSupabaseAuthError(
     };
   }
 
+  // Signup / email flows: bare HTTP 500 is almost always SMTP when Confirm email is ON.
+  // (Audit log_entries never records these failures — check Auth API logs instead.)
+  if (
+    status === 500 &&
+    (flow === "signup" ||
+      flow === "resend_confirmation" ||
+      flow === "forgot_password")
+  ) {
+    return {
+      code: "smtp_error",
+      message:
+        "Emailul de confirmare nu a putut fi trimis (SMTP invalid sau neconfigurat în Supabase). Mergi la Authentication → Emails → SMTP Settings, repară SMTP sau dezactivează „Confirm email” temporar pentru test.",
+    };
+  }
+
   if (status === 500) {
     return {
       code: "http_500",
       message:
-        "Supabase a returnat eroare 500 la signup. Verifică Authentication → Logs (SMTP sau trigger profiles).",
+        "Supabase a returnat eroare 500. Verifică Authentication → Logs (nu audit_log_entries).",
     };
   }
 
