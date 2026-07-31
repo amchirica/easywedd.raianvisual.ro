@@ -184,14 +184,7 @@ export function mapSupabaseAuthError(
     };
   }
 
-  if (status === 500) {
-    return {
-      code: "http_500",
-      message:
-        "Supabase a returnat eroare 500 la signup. Cauze frecvente: (1) trigger-ul handle_new_user pe profiles eșuează — aplică migrația 20260719000019; (2) SMTP custom invalid — vezi Authentication → Logs. Detaliu în terminal: [auth:signup:error].",
-    };
-  }
-
+  // Must run BEFORE bare status===500 — Supabase returns HTTP 500 for SMTP failures.
   if (
     code === "unexpected_failure" ||
     message.includes("error sending confirmation email") ||
@@ -205,7 +198,15 @@ export function mapSupabaseAuthError(
     return {
       code: "smtp_error",
       message:
-        "Contul nu a putut trimite emailul de confirmare. Contactează administratorul.",
+        "Emailul de confirmare nu a putut fi trimis (SMTP invalid sau neconfigurat în Supabase). Mergi la Authentication → Emails → SMTP Settings, repară SMTP sau dezactivează „Confirm email” temporar pentru test.",
+    };
+  }
+
+  if (status === 500) {
+    return {
+      code: "http_500",
+      message:
+        "Supabase a returnat eroare 500 la signup. Verifică Authentication → Logs (SMTP sau trigger profiles).",
     };
   }
 
