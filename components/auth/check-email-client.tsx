@@ -65,28 +65,27 @@ export function CheckEmailClient({ initialEmail }: CheckEmailClientProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-heading text-3xl">Verifică emailul</h1>
+        <h1 className="font-heading text-3xl">Verifică-ți emailul</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Contul a fost creat. Verifică emailul pentru a continua.
+          Ți-am trimis un link de confirmare. Deschide emailul pentru a-ți
+          activa contul.
         </p>
       </div>
 
-      <div className="rounded-lg border border-border bg-card/60 p-4 text-sm">
-        {email ? (
-          <p>
-            Am trimis un mesaj de confirmare la{" "}
-            <span className="font-medium text-foreground">{email}</span>.
-          </p>
-        ) : (
-          <p>
-            Am trimis un mesaj de confirmare la adresa folosită la înregistrare.
-          </p>
-        )}
-        <p className="mt-3 text-muted-foreground">
-          Dacă nu îl vezi, verifică folderele Spam, Promotions și Updates.
-          Linkul din email finalizează autentificarea și te duce la onboarding.
-        </p>
+      <div
+        className="rounded-lg border border-champagne/50 bg-secondary/80 px-4 py-3 text-sm text-foreground"
+        role="status"
+      >
+        Verifică și folderele Spam, Junk sau Promotions. Uneori mesajul poate
+        ajunge acolo.
       </div>
+
+      {email ? (
+        <p className="text-sm text-muted-foreground">
+          Mesajul a fost trimis către{" "}
+          <span className="font-medium text-foreground">{email}</span>.
+        </p>
+      ) : null}
 
       {message ? (
         <p className="rounded-md border border-champagne/40 bg-secondary px-3 py-2 text-sm">

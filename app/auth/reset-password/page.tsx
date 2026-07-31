@@ -20,20 +20,33 @@ export default async function AuthResetPasswordPage() {
   if (!user) {
     return (
       <div className="space-y-6">
-        <h1 className="font-heading text-3xl">Sesiune lipsă</h1>
-        <p className="text-sm text-muted-foreground" role="alert">
-          Sesiunea de resetare lipsește sau a expirat.
-        </p>
-        <div className="flex flex-wrap gap-3">
+        <div>
+          <h1 className="font-heading text-3xl">Linkul a expirat</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Acest link nu mai este valabil sau a fost deja utilizat. Solicită un
+            link nou și folosește doar cel mai recent email primit.
+          </p>
+        </div>
+        <div
+          className="rounded-lg border border-champagne/50 bg-secondary/80 px-4 py-3 text-sm"
+          role="status"
+        >
+          Verifică și folderele Spam, Junk sau Promotions. Uneori mesajul poate
+          ajunge acolo.
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <Link
             href={FORGOT_PASSWORD_PATH}
-            className={cn(buttonVariants(), "inline-flex")}
+            className={cn(buttonVariants(), "inline-flex w-full sm:w-auto")}
           >
             Solicită un link nou
           </Link>
           <Link
             href="/login"
-            className={cn(buttonVariants({ variant: "outline" }), "inline-flex")}
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+              "inline-flex w-full sm:w-auto",
+            )}
           >
             Autentificare
           </Link>

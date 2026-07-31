@@ -72,8 +72,14 @@ export async function GET(request: NextRequest) {
     return errorRedirect("auth_confirmation_failed");
   }
 
+  // Recovery keeps going straight to the password form.
+  // Email confirm shows a success page first (UI only), then continues to `next`.
   const destination =
-    type === "recovery" ? "/auth/reset-password" : next.startsWith("/") ? next : "/dashboard";
+    type === "recovery"
+      ? "/auth/reset-password"
+      : `/auth/confirmed?next=${encodeURIComponent(
+          next.startsWith("/") ? next : "/dashboard/onboarding",
+        )}`;
 
   let redirectResponse = NextResponse.redirect(new URL(destination, origin));
 

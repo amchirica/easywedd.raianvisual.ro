@@ -455,7 +455,7 @@ export async function resetPasswordAction(
 
   return {
     success: "Parola a fost actualizată cu succes.",
-    redirectTo: "/login?password_updated=1",
+    redirectTo: "/auth/password-updated",
   };
 }
 

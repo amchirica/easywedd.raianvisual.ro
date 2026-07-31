@@ -186,6 +186,11 @@ export function RegisterForm({ nextPath, claimToken }: RegisterFormProps) {
         {pending ? "Se creează contul…" : "Creează cont"}
       </Button>
 
+      <p className="text-center text-xs text-muted-foreground">
+        După înregistrare vei primi un email de confirmare. Verifică și folderul
+        Spam dacă nu apare în Inbox.
+      </p>
+
       <p className="text-center text-sm text-muted-foreground">
         Ai deja cont?{" "}
         <Link

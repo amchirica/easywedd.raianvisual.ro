@@ -31,10 +31,9 @@ export function ResetPasswordForm() {
 
   useEffect(() => {
     if (!state.success || !state.redirectTo) return;
-    const timer = window.setTimeout(() => {
-      router.push(state.redirectTo!);
-    }, 1600);
-    return () => window.clearTimeout(timer);
+    // Leave this page immediately so a post-signOut re-render cannot show
+    // "Sesiune lipsă" after a successful password update.
+    router.replace(state.redirectTo);
   }, [state.success, state.redirectTo, router]);
 
   return (

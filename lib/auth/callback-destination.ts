@@ -16,6 +16,8 @@ const SAFE_NEXT_PREFIXES = [
   "/auth/forgot-password",
   "/auth/login",
   "/auth/error",
+  "/auth/confirmed",
+  "/auth/password-updated",
   "/update-password",
   "/login",
   "/register",

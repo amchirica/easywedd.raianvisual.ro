@@ -4,7 +4,7 @@ import { CheckEmailClient } from "@/components/auth/check-email-client";
 import { getPendingSignupEmail } from "@/lib/actions/auth";
 
 export const metadata: Metadata = {
-  title: "Verifică emailul",
+  title: "Verifică-ți emailul",
 };
 
 export default async function CheckEmailPage() {
