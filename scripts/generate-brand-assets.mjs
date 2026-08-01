@@ -1,5 +1,5 @@
 /**
- * Generate brand assets from the uploaded Raian Visual mark (JPEG → transparent PNG + ICO).
+ * Generate brand assets from the uploaded Raian Fine Arts mark (JPEG → transparent PNG + ICO).
  * Run: node scripts/generate-brand-assets.mjs
  */
 import fs from "node:fs";

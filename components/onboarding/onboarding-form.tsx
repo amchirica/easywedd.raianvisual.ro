@@ -12,7 +12,7 @@ import {
 
 const WORKSPACE_TYPES = [
   { value: "couple", label: "Cuplu" },
-  { value: "raian_client", label: "Client Raian Visual" },
+  { value: "raian_client", label: "Client Raian Fine Arts" },
   { value: "professional", label: "Profesionist" },
   { value: "agency", label: "Agenție" },
 ] as const;

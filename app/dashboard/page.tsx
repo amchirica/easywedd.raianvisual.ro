@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 
 import { StatCard } from "@/components/dashboard/stat-card";
+import { RaianVisualPromo } from "@/components/marketing/raian-visual-promo";
 import { buttonVariants } from "@/components/ui/button";
 import { buildDashboardAnalytics } from "@/lib/planner/analytics";
 import { formatMoney } from "@/lib/planner/budget-math";
@@ -122,6 +123,13 @@ export default async function DashboardPage() {
           hint={`${analytics.rsvp.pending} în așteptare · ${analytics.rsvp.declined} refuzați`}
         />
       </section>
+
+      <RaianVisualPromo
+        variant="card"
+        source="dashboard"
+        workspaceId={activeWorkspace?.id}
+        weddingDate={wedding?.wedding_date}
+      />
 
       <section className="grid gap-4 lg:grid-cols-2">
         <article className="border border-border bg-card p-6">

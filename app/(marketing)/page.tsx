@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { RaianVisualPromo } from "@/components/marketing/raian-visual-promo";
 import { buttonVariants } from "@/components/ui/button";
 import { APP_NAME } from "@/lib/constants";
 import {
@@ -41,7 +42,7 @@ const FAQS = [
     a: "Nu. Publicarea, domeniul personalizat și șabloanele premium necesită un plan plătit sau un grant de la administrator.",
   },
   {
-    q: "Cum primesc acces ca client Raian Visual?",
+    q: "Cum primesc acces ca client Raian Fine Arts?",
     a: "Administratorul poate aproba contul și acorda acces manual, inclusiv temporar, fără plată Stripe.",
   },
 ];
@@ -64,7 +65,7 @@ export default function HomePage() {
               Nunta ta, organizată elegant — de la listă la invitație și website.
             </h1>
             <p className="mt-4 max-w-lg text-base leading-relaxed text-primary-foreground/80 sm:text-lg">
-              Platformă pentru cupluri și clienții Raian Visual: planner, invitații
+              Platformă pentru cupluri și clienții Raian Fine Arts: planner, invitații
               digitale și site de nuntă, cu plan Gratuit clar și upgrade când ai nevoie.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
@@ -255,6 +256,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <RaianVisualPromo variant="full-section" source="landing" />
 
       {/* FAQ */}
       <section className="mx-auto max-w-6xl px-6 py-20">

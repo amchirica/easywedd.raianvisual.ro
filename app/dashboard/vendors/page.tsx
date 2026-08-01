@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { RaianVisualRecommendedVendor } from "@/components/marketing/raian-visual-promo";
 import { ConfirmDeleteButton } from "@/components/planner/confirm-delete-button";
 import { EmptyState } from "@/components/planner/empty-state";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,11 @@ export default async function VendorsPage() {
           Pipeline: ofertat → contactat → shortlist → contractat / refuzat.
         </p>
       </header>
+
+      <RaianVisualRecommendedVendor
+        workspaceId={ctx.context.workspaceId}
+        weddingDate={ctx.context.wedding?.wedding_date}
+      />
 
       {canWrite ? (
         <form

@@ -79,7 +79,7 @@ export const BILLING_PRODUCTS: Record<BillingProductKey, BillingProduct> = {
   partner: {
     key: "partner",
     name: "Partner",
-    description: "Acordat de Raian Visual / contract.",
+    description: "Acordat de Raian Fine Arts / contract.",
     mapsToPlan: "essentials",
     interval: "grant",
     mode: "grant",

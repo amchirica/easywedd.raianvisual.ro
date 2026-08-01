@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { RaianVisualPromo } from "@/components/marketing/raian-visual-promo";
 import { EmptyState } from "@/components/planner/empty-state";
 import { TaskBoard } from "@/components/planner/task-board";
 import { Button } from "@/components/ui/button";
@@ -94,6 +95,13 @@ export default async function PlannerPage({ searchParams }: PlannerPageProps) {
           ) : null}
         </div>
       </header>
+
+      <RaianVisualPromo
+        variant="compact"
+        source="planner"
+        workspaceId={ctx.context.workspaceId}
+        weddingDate={ctx.context.wedding?.wedding_date}
+      />
 
       {overdue.length > 0 ? (
         <div className="border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm">

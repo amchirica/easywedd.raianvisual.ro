@@ -1,6 +1,6 @@
 # EasyWedd
 
-Platformă SaaS pentru organizarea nunții — oferită inițial clienților Raian Visual, apoi ca produs independent.
+Platformă SaaS pentru organizarea nunții — oferită inițial clienților Raian Fine Arts, apoi ca produs independent.
 
 **Domeniu:** [easywedd.raianvisual.ro](https://easywedd.raianvisual.ro)
 

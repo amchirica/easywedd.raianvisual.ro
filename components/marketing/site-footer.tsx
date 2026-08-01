@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { RaianVisualFooterPromo } from "@/components/marketing/raian-visual-promo";
 
 export function SiteFooter() {
   return (
@@ -25,6 +26,11 @@ export function SiteFooter() {
           <Link href="/terms" className="hover:text-foreground">
             Termeni
           </Link>
+        </div>
+      </div>
+      <div className="border-t border-border/70">
+        <div className="mx-auto max-w-6xl px-6 py-4">
+          <RaianVisualFooterPromo />
         </div>
       </div>
     </footer>

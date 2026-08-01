@@ -309,5 +309,5 @@ export async function completeOnboardingAction(
     });
   }
 
-  redirect("/dashboard");
+  redirect("/dashboard/onboarding/success");
 }

@@ -128,7 +128,7 @@ export default async function AdminContractsPage({ searchParams }: PageProps) {
         <header>
           <h2 className="font-heading text-2xl">Linkuri partener (legacy)</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Creare workspace + invitație client Raian Visual.
+            Creare workspace + invitație client Raian Fine Arts.
           </p>
         </header>
 

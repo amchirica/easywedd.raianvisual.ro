@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { RaianVisualPromo } from "@/components/marketing/raian-visual-promo";
 import { WeddingDetailsForm } from "@/components/planner/wedding-details-form";
 import { getWeddingTitle } from "@/lib/dashboard-metrics";
 import { canManagePlanner } from "@/lib/planner/access";
@@ -32,6 +33,13 @@ export default async function WeddingPage() {
           Detaliile nunții pentru {activeWorkspace.name}
         </p>
       </header>
+
+      <RaianVisualPromo
+        variant="compact"
+        source="wedding"
+        workspaceId={ctx.context.workspaceId}
+        weddingDate={wedding?.wedding_date}
+      />
 
       {!wedding ? (
         <p className="text-sm text-muted-foreground">

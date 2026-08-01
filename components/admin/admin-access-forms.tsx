@@ -185,7 +185,7 @@ export function AdminAccessForms({ users, featureOptions, grants }: Props) {
           </div>
           <div className="space-y-1">
             <Label>Motiv (obligatoriu)</Label>
-            <Input name="reason" required placeholder="Ex: client Raian Visual — acces temporar" />
+            <Input name="reason" required placeholder="Ex: client Raian Fine Arts — acces temporar" />
           </div>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="enabled" defaultChecked />

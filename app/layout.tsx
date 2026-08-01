@@ -42,7 +42,7 @@ export const metadata: Metadata = {
     template: `%s · ${APP_NAME}`,
   },
   description:
-    "EasyWedd este platforma pentru cupluri care își organizează nunta: planner, invitații și website — oferită inițial clienților Raian Visual.",
+    "EasyWedd este platforma pentru cupluri care își organizează nunta: planner, invitații și website — oferită inițial clienților Raian Fine Arts.",
   applicationName: APP_NAME,
   icons: {
     icon: [
