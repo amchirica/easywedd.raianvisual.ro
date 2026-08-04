@@ -30,16 +30,18 @@ function formatDate(iso: string | null | undefined) {
 export default async function AdminUsersPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const page = Math.max(1, Number(params.page || 1) || 1);
-  const plans = await listPublicBillingPlans();
-
-  const { users, total, pageSize } = await listAdminUsersDirectory({
-    q: params.q,
-    status: (params.status as "all" | "active" | "suspended") || "all",
-    plan: params.plan,
-    workspaceType: params.workspace_type,
-    page,
-    pageSize: 25,
-  });
+  const [plans, directory] = await Promise.all([
+    listPublicBillingPlans(),
+    listAdminUsersDirectory({
+      q: params.q,
+      status: (params.status as "all" | "active" | "suspended") || "all",
+      plan: params.plan,
+      workspaceType: params.workspace_type,
+      page,
+      pageSize: 25,
+    }),
+  ]);
+  const { users, total, pageSize } = directory;
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 

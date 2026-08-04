@@ -37,16 +37,19 @@ export default async function VendorsPage() {
   }
 
   const canWrite = canManagePlanner(ctx.context.role);
-  const { data: vendors } = await ctx.context.supabase
-    .from("vendors")
-    .select("*")
-    .eq("wedding_id", ctx.context.weddingId)
-    .order("created_at", { ascending: false });
-
-  const { data: documents } = await ctx.context.supabase
-    .from("vendor_documents")
-    .select("*")
-    .eq("workspace_id", ctx.context.workspaceId);
+  const [{ data: vendors }, { data: documents }] = await Promise.all([
+    ctx.context.supabase
+      .from("vendors")
+      .select(
+        "id, company_name, category, status, contact_name, phone, email, notes, due_date, quoted_price, wedding_id, workspace_id, created_at",
+      )
+      .eq("wedding_id", ctx.context.weddingId)
+      .order("created_at", { ascending: false }),
+    ctx.context.supabase
+      .from("vendor_documents")
+      .select("id, vendor_id, title, document_url, document_type, workspace_id")
+      .eq("workspace_id", ctx.context.workspaceId),
+  ]);
 
   return (
     <div className="space-y-8">

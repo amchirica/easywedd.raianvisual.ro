@@ -14,7 +14,8 @@ const sourceSans = Source_Sans_3({
 const cormorant = Cormorant_Garamond({
   variable: "--font-heading",
   subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "600", "700"],
+  // Used weights: normal (400), medium (500), semibold (600)
+  weight: ["400", "500", "600"],
 });
 
 function resolveSiteUrl() {

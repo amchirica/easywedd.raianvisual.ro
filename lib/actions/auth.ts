@@ -169,13 +169,15 @@ export async function registerAction(
   const emailRedirectTo = getSignupEmailRedirectTo();
 
   const siteUrl = getSiteUrl();
-  console.info("[auth:signup:attempt]", {
-    requestId,
-    environment: process.env.NODE_ENV,
-    siteUrl,
-    emailRedirectTo,
-    // Never log email/password
-  });
+  if (process.env.NODE_ENV !== "production") {
+    console.info("[auth:signup:attempt]", {
+      requestId,
+      environment: process.env.NODE_ENV,
+      siteUrl,
+      emailRedirectTo,
+      // Never log email/password
+    });
+  }
 
   const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,
@@ -397,7 +399,7 @@ export async function forgotPasswordAction(
     if (mapped.code === "over_email_send_rate_limit") {
       return { error: mapped.message, code: mapped.code };
     }
-  } else {
+  } else if (process.env.NODE_ENV !== "production") {
     console.info("[auth:forgot]", {
       requestId,
       ok: true,

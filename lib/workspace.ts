@@ -71,15 +71,22 @@ export const getCurrentUserContext = cache(async () => {
     };
   }
 
-  const [{ data: profile }, { data: memberships }, { data: isPlatformAdmin }] =
+  const [{ data: profile }, { data: memberships }, { data: isPlatformAdmin }, cookieWorkspaceId] =
     await Promise.all([
-      supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+      supabase
+        .from("profiles")
+        .select(
+          "id, email, full_name, phone, avatar_url, locale, timezone, onboarding_completed, account_status, account_status_note, account_status_updated_at, account_status_updated_by, suspended_at, soft_deleted_at, created_at, updated_at",
+        )
+        .eq("id", user.id)
+        .maybeSingle(),
       supabase
         .from("workspace_members")
         .select("workspace_id")
         .eq("user_id", user.id)
         .eq("invitation_status", "accepted"),
       supabase.rpc("is_platform_admin"),
+      getActiveWorkspaceId(),
     ]);
 
   const workspaceIds = (memberships ?? []).map((m) => m.workspace_id);
@@ -88,13 +95,14 @@ export const getCurrentUserContext = cache(async () => {
   if (workspaceIds.length > 0) {
     const { data } = await supabase
       .from("workspaces")
-      .select("*")
+      .select(
+        "id, name, slug, workspace_type, owner_id, status, soft_deleted_at, created_at, updated_at",
+      )
       .in("id", workspaceIds)
       .order("created_at", { ascending: true });
-    workspaces = data ?? [];
+    workspaces = (data ?? []) as Workspace[];
   }
 
-  const cookieWorkspaceId = await getActiveWorkspaceId();
   const activeWorkspace =
     workspaces.find((w) => w.id === cookieWorkspaceId) ??
     workspaces[0] ??
@@ -104,10 +112,12 @@ export const getCurrentUserContext = cache(async () => {
   if (activeWorkspace) {
     const { data } = await supabase
       .from("weddings")
-      .select("*")
+      .select(
+        "id, workspace_id, couple_name_1, couple_name_2, wedding_date, civil_ceremony_date, religious_ceremony_date, city, venue_name, estimated_guest_count, currency, wedding_status, created_at, updated_at",
+      )
       .eq("workspace_id", activeWorkspace.id)
       .maybeSingle();
-    wedding = data;
+    wedding = data as Wedding | null;
   }
 
   return {

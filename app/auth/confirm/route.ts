@@ -41,13 +41,15 @@ export async function GET(request: NextRequest) {
       : "/dashboard";
   const next = safeAuthNext(searchParams.get("next"), fallback);
 
-  console.info("[AUTH CONFIRM] start", {
-    type: type ?? null,
-    next,
-    hasTokenHash: Boolean(tokenHash),
-    tokenFingerprint: tokenHash ? tokenFingerprint(tokenHash) : null,
-    hasCode: Boolean(code),
-  });
+  if (process.env.NODE_ENV !== "production") {
+    console.info("[AUTH CONFIRM] start", {
+      type: type ?? null,
+      next,
+      hasTokenHash: Boolean(tokenHash),
+      tokenFingerprint: tokenHash ? tokenFingerprint(tokenHash) : null,
+      hasCode: Boolean(code),
+    });
+  }
 
   // Legacy ConfirmationURL (?code=) cannot work cross-browser — do not exchange.
   if (code && !tokenHash) {
@@ -120,11 +122,13 @@ export async function GET(request: NextRequest) {
     return errorRedirect(reason);
   }
 
-  console.info("[AUTH CONFIRM] verifyOtp success", {
-    type,
-    destination,
-    userId: data.user?.id ?? data.session.user.id,
-  });
+  if (process.env.NODE_ENV !== "production") {
+    console.info("[AUTH CONFIRM] verifyOtp success", {
+      type,
+      destination,
+      userId: data.user?.id ?? data.session.user.id,
+    });
+  }
 
   return redirectResponse;
 }

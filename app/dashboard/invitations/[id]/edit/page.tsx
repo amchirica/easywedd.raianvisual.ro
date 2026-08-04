@@ -1,9 +1,21 @@
 import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 
-import { SectionEditor } from "@/components/invitations/section-editor";
 import { EmptyState } from "@/components/planner/empty-state";
 import { loadInvitationProject } from "@/lib/invitations/load-project";
 import { canManagePlanner } from "@/lib/planner/access";
+
+const SectionEditor = dynamic(
+  () =>
+    import("@/components/invitations/section-editor").then((m) => ({
+      default: m.SectionEditor,
+    })),
+  {
+    loading: () => (
+      <p className="text-sm text-muted-foreground">Se încarcă editorul…</p>
+    ),
+  },
+);
 
 export const metadata: Metadata = { title: "Editează invitația" };
 

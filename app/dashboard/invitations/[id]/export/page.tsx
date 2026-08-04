@@ -1,8 +1,20 @@
 import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 
-import { ExportPanel } from "@/components/invitations/export-panel";
 import { EmptyState } from "@/components/planner/empty-state";
 import { loadInvitationProject } from "@/lib/invitations/load-project";
+
+const ExportPanel = dynamic(
+  () =>
+    import("@/components/invitations/export-panel").then((m) => ({
+      default: m.ExportPanel,
+    })),
+  {
+    loading: () => (
+      <p className="text-sm text-muted-foreground">Se încarcă exportul…</p>
+    ),
+  },
+);
 
 export const metadata: Metadata = { title: "Export invitație" };
 

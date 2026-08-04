@@ -1,14 +1,26 @@
 import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 
 import { EmptyState } from "@/components/planner/empty-state";
 import { PrintButton } from "@/components/planner/print-button";
-import { SeatingBoard } from "@/components/planner/seating-board";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createTableAction } from "@/lib/actions/seating";
 import { canManageGuests } from "@/lib/planner/access";
 import { requireWeddingContext } from "@/lib/planner/context";
+
+const SeatingBoard = dynamic(
+  () =>
+    import("@/components/planner/seating-board").then((m) => ({
+      default: m.SeatingBoard,
+    })),
+  {
+    loading: () => (
+      <p className="text-sm text-muted-foreground">Se încarcă planul de mese…</p>
+    ),
+  },
+);
 
 export const metadata: Metadata = { title: "Seating" };
 
@@ -19,6 +31,7 @@ export default async function SeatingPage() {
   }
 
   const canWrite = canManageGuests(ctx.context.role);
+  // Keep full rows for SeatingBoard props (VenueTable / Guest shapes).
   const [{ data: tables }, { data: guests }, { data: assignments }] =
     await Promise.all([
       ctx.context.supabase

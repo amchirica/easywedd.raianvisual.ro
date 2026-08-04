@@ -204,11 +204,18 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user && (pathname.startsWith("/dashboard") || pathname.startsWith("/admin"))) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("onboarding_completed, suspended_at, account_status")
-      .eq("id", user.id)
-      .maybeSingle();
+    const isAdminPath = pathname.startsWith("/admin");
+    // Profile + admin RPC in parallel on /admin (saves one RTT).
+    const [{ data: profile }, adminCheck] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("onboarding_completed, suspended_at, account_status")
+        .eq("id", user.id)
+        .maybeSingle(),
+      isAdminPath
+        ? supabase.rpc("is_platform_admin")
+        : Promise.resolve({ data: null as boolean | null, error: null }),
+    ]);
 
     if (profile?.suspended_at || profile?.account_status === "suspended") {
       await supabase.auth.signOut();
@@ -221,6 +228,7 @@ export async function updateSession(request: NextRequest) {
     if (
       pathname.startsWith("/dashboard") &&
       pathname !== "/dashboard/onboarding" &&
+      !pathname.startsWith("/dashboard/onboarding/") &&
       pathname !== "/dashboard/pending" &&
       pathname !== "/dashboard/billing" &&
       profile &&
@@ -234,6 +242,7 @@ export async function updateSession(request: NextRequest) {
     if (
       pathname.startsWith("/dashboard") &&
       pathname !== "/dashboard/onboarding" &&
+      !pathname.startsWith("/dashboard/onboarding/") &&
       profile &&
       !profile.onboarding_completed
     ) {
@@ -241,14 +250,14 @@ export async function updateSession(request: NextRequest) {
       redirectUrl.pathname = "/dashboard/onboarding";
       return NextResponse.redirect(redirectUrl);
     }
-  }
 
-  if (user && pathname.startsWith("/admin")) {
-    const { data: isAdmin, error } = await supabase.rpc("is_platform_admin");
-    if (error || !isAdmin) {
-      const redirectUrl = request.nextUrl.clone();
-      redirectUrl.pathname = "/dashboard";
-      return NextResponse.redirect(redirectUrl);
+    if (isAdminPath) {
+      const { data: isAdmin, error } = adminCheck;
+      if (error || !isAdmin) {
+        const redirectUrl = request.nextUrl.clone();
+        redirectUrl.pathname = "/dashboard";
+        return NextResponse.redirect(redirectUrl);
+      }
     }
   }
 

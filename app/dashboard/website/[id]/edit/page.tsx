@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 
-import { SiteSectionEditor } from "@/components/website/site-section-editor";
 import { EmptyState } from "@/components/planner/empty-state";
 import {
   isFeatureEnabled,
@@ -9,6 +9,18 @@ import {
 import { requireWeddingContext } from "@/lib/planner/context";
 import { defaultSiteTheme, siteThemeSchema } from "@/lib/website/schema";
 import type { SiteSectionConfig } from "@/types/website";
+
+const SiteSectionEditor = dynamic(
+  () =>
+    import("@/components/website/site-section-editor").then((m) => ({
+      default: m.SiteSectionEditor,
+    })),
+  {
+    loading: () => (
+      <p className="text-sm text-muted-foreground">Se încarcă editorul…</p>
+    ),
+  },
+);
 
 export const metadata: Metadata = { title: "Editează website" };
 

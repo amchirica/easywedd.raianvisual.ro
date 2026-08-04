@@ -37,7 +37,11 @@ export function logAuthEvent(
   event: AuthEventName,
   payload: AuthEventPayload = {},
 ) {
-  console.info(`[auth:${event}]`, {
+  // Verbose auth trail only in development — keep production Worker quieter.
+  if (process.env.NODE_ENV === "production" && payload.ok !== false) {
+    return;
+  }
+  const line = {
     event,
     ts: new Date().toISOString(),
     requestId: payload.requestId ?? null,
@@ -46,5 +50,10 @@ export function logAuthEvent(
     code: payload.code ?? null,
     message: payload.message ?? null,
     ok: payload.ok ?? null,
-  });
+  };
+  if (payload.ok === false) {
+    console.error(`[auth:${event}]`, line);
+    return;
+  }
+  console.info(`[auth:${event}]`, line);
 }

@@ -44,28 +44,25 @@ export default async function AdminWorkspacesPage({ searchParams }: PageProps) {
   const ownerIds = [
     ...new Set((workspaces ?? []).map((w) => w.owner_id).filter(Boolean)),
   ];
-  const { data: owners } =
+  const workspaceIds = (workspaces ?? []).map((w) => w.id);
+
+  const [{ data: owners }, { data: subs }] = await Promise.all([
     ownerIds.length > 0
-      ? await supabase
+      ? supabase
           .from("profiles")
           .select("id, email, full_name")
           .in("id", ownerIds)
-      : { data: [] };
-
-  const ownerById = new Map((owners ?? []).map((o) => [o.id, o]));
-
-  const { data: subs } =
-    (workspaces?.length ?? 0) > 0
-      ? await supabase
+      : Promise.resolve({ data: [] as { id: string; email: string; full_name: string | null }[] }),
+    workspaceIds.length > 0
+      ? supabase
           .from("subscriptions")
           .select("workspace_id, plan_key, plan, status, access_source")
-          .in(
-            "workspace_id",
-            (workspaces ?? []).map((w) => w.id),
-          )
+          .in("workspace_id", workspaceIds)
           .is("soft_deleted_at", null)
-      : { data: [] };
+      : Promise.resolve({ data: [] as { workspace_id: string; plan_key: string | null; plan: string | null; status: string | null; access_source: string | null }[] }),
+  ]);
 
+  const ownerById = new Map((owners ?? []).map((o) => [o.id, o]));
   const subByWs = new Map((subs ?? []).map((s) => [s.workspace_id, s]));
 
   return (

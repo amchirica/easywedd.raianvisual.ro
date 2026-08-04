@@ -46,15 +46,18 @@ export default async function BillingPage({ searchParams }: PageProps) {
     );
   }
 
-  const { data: subscription } = await ctx.context.supabase
-    .from("subscriptions")
-    .select("*")
-    .eq("workspace_id", ctx.context.workspaceId)
-    .is("soft_deleted_at", null)
-    .maybeSingle();
-
-  const plans = await listPublicBillingPlans();
-  const snapshot = await getWorkspaceEntitlementSnapshot(ctx.context.workspaceId);
+  const [{ data: subscription }, plans, snapshot] = await Promise.all([
+    ctx.context.supabase
+      .from("subscriptions")
+      .select(
+        "id, workspace_id, plan_key, product_key, plan, status, access_source, access_ends_at, soft_deleted_at",
+      )
+      .eq("workspace_id", ctx.context.workspaceId)
+      .is("soft_deleted_at", null)
+      .maybeSingle(),
+    listPublicBillingPlans(),
+    getWorkspaceEntitlementSnapshot(ctx.context.workspaceId),
+  ]);
   const flags = featureFlagsForUi(snapshot.rows);
   const planKey =
     subscription?.plan_key ??

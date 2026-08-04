@@ -26,11 +26,14 @@ export async function requireAdminWorkspace(
     return { ok: false, context: null, error: auth.error };
   }
 
-  const { data: workspace } = await auth.supabase
-    .from("workspaces")
-    .select("*")
-    .eq("id", workspaceId)
-    .maybeSingle();
+  const [{ data: workspace }, { data: wedding }] = await Promise.all([
+    auth.supabase.from("workspaces").select("*").eq("id", workspaceId).maybeSingle(),
+    auth.supabase
+      .from("weddings")
+      .select("*")
+      .eq("workspace_id", workspaceId)
+      .maybeSingle(),
+  ]);
 
   if (!workspace) {
     return { ok: false, context: null, error: "Workspace inexistent" };
@@ -46,12 +49,6 @@ export async function requireAdminWorkspace(
       error: "Workspace-urile de tip admin/sistem nu pot fi gestionate aici.",
     };
   }
-
-  const { data: wedding } = await auth.supabase
-    .from("weddings")
-    .select("*")
-    .eq("workspace_id", workspaceId)
-    .maybeSingle();
 
   return {
     ok: true,
