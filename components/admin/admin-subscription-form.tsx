@@ -3,6 +3,7 @@
 import { useActionState, useMemo, useState, useTransition } from "react";
 
 import { AdminSearchableSelect } from "@/components/admin/admin-searchable-select";
+import { useI18n } from "@/components/providers/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +20,9 @@ import type {
   AdminWorkspaceOption,
 } from "@/lib/admin/admin-directory-types";
 import { ACCESS_SOURCE_LABELS } from "@/lib/billing/labels";
+import { formatDateShort } from "@/lib/i18n/format";
+import { getStatusLabel } from "@/lib/i18n/status-labels";
+import { t } from "@/lib/i18n/t";
 
 type PlanOption = { key: string; name: string; billing_type: string };
 
@@ -27,12 +31,8 @@ type Props = {
   plans: PlanOption[];
 };
 
-function formatExpiry(iso: string | null) {
-  if (!iso) return "Permanent / n/a";
-  return new Date(iso).toLocaleDateString("ro-RO");
-}
-
 export function AdminSubscriptionForm({ users, plans }: Props) {
+  const { dict, locale } = useI18n();
   const [userId, setUserId] = useState("");
   const [workspaceId, setWorkspaceId] = useState("");
   const [workspaces, setWorkspaces] = useState<AdminWorkspaceOption[]>([]);
@@ -47,6 +47,11 @@ export function AdminSubscriptionForm({ users, plans }: Props) {
     adminGrantAccessAction,
     {} as AdminBillingResult,
   );
+
+  function formatExpiry(iso: string | null) {
+    if (!iso) return dict.admin.permanentNa;
+    return formatDateShort(iso, locale);
+  }
 
   async function loadWorkspaces(nextUserId: string) {
     if (!nextUserId) {
@@ -73,11 +78,14 @@ export function AdminSubscriptionForm({ users, plans }: Props) {
         value: u.id,
         label: `${u.fullName} · ${u.email}`,
         description: u.suspended
-          ? "Cont suspendat"
-          : `${u.workspaceCount} workspace-uri${u.activePlan ? ` · ${u.activePlan}` : ""}`,
+          ? dict.admin.accountSuspended
+          : `${t(dict as never, "admin.workspaceCount", {
+              locale,
+              params: { count: u.workspaceCount },
+            })}${u.activePlan ? ` · ${u.activePlan}` : ""}`,
         keywords: `${u.fullName} ${u.email}`,
       })),
-    [users],
+    [users, dict, locale],
   );
 
   const workspaceOptions = useMemo(
@@ -88,13 +96,19 @@ export function AdminSubscriptionForm({ users, plans }: Props) {
           value: w.id,
           label: `${w.name} · ${w.workspaceType} · ${w.planLabel}`,
           description: system
-            ? "Workspace de sistem — nu poate primi grant de abonament"
-            : `Status: ${w.status ?? "—"} · Expiră: ${formatExpiry(w.accessEndsAt)}`,
+            ? dict.admin.systemWorkspaceNoGrant
+            : t(dict as never, "admin.workspaceStatusExpiry", {
+                locale,
+                params: {
+                  status: w.status ?? "—",
+                  expiry: formatExpiry(w.accessEndsAt),
+                },
+              }),
           keywords: `${w.name} ${w.workspaceType} ${w.planLabel}`,
           disabled: system,
         };
       }),
-    [workspaces],
+    [workspaces, dict, locale],
   );
 
   const selectedIsSystem = selectedWs?.workspaceType === "admin";
@@ -112,7 +126,7 @@ export function AdminSubscriptionForm({ users, plans }: Props) {
         setCreateMsg(res.error);
         return;
       }
-      setCreateMsg(res.success ?? "Workspace creat.");
+      setCreateMsg(res.success ?? dict.admin.workspaceCreated);
       setCreateName("");
       const refreshed = await getUserWorkspacesAction(userId);
       setWorkspaces(refreshed.data ?? []);
@@ -122,7 +136,7 @@ export function AdminSubscriptionForm({ users, plans }: Props) {
 
   return (
     <form action={formAction} className="grid max-w-2xl gap-4 border border-border p-4">
-      <h2 className="font-heading text-xl">Acordă / actualizează acces</h2>
+      <h2 className="font-heading text-xl">{dict.admin.grantAccessTitle}</h2>
 
       {state.error ? (
         <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
@@ -137,8 +151,8 @@ export function AdminSubscriptionForm({ users, plans }: Props) {
 
       <AdminSearchableSelect
         name="user_id"
-        label="Utilizator"
-        placeholder="Selectează utilizatorul"
+        label={dict.admin.user}
+        placeholder={dict.admin.selectUser}
         options={userOptions}
         value={userId}
         onChange={(v) => {
@@ -146,13 +160,13 @@ export function AdminSubscriptionForm({ users, plans }: Props) {
           void loadWorkspaces(v);
         }}
         required
-        emptyText="Niciun utilizator găsit"
+        emptyText={dict.admin.noUserFound}
       />
 
       <AdminSearchableSelect
         name="workspace_id"
-        label="Workspace"
-        placeholder="Selectează workspace-ul"
+        label={dict.admin.workspace}
+        placeholder={dict.admin.selectWorkspaceFull}
         options={workspaceOptions}
         value={workspaceId}
         onChange={setWorkspaceId}
@@ -160,22 +174,20 @@ export function AdminSubscriptionForm({ users, plans }: Props) {
         disabled={!userId}
         loading={loadingWs}
         emptyText={
-          userId
-            ? "Utilizatorul nu are workspace — creează unul mai jos"
-            : "Selectează mai întâi utilizatorul"
+          userId ? dict.admin.userHasNoWorkspace : dict.admin.selectUserFirst
         }
       />
 
       {userId && workspaces.length === 0 && !loadingWs ? (
         <div className="space-y-2 rounded-lg border border-dashed border-border p-3">
           <p className="text-sm text-muted-foreground">
-            Niciun workspace. Creează unul pentru acest utilizator:
+            {dict.admin.noWorkspaceCreate}
           </p>
           <div className="flex flex-wrap gap-2">
             <Input
               value={createName}
               onChange={(e) => setCreateName(e.target.value)}
-              placeholder="Nume workspace"
+              placeholder={dict.admin.workspaceNamePlaceholder}
               className="min-w-[200px] flex-1"
             />
             <Button
@@ -184,7 +196,7 @@ export function AdminSubscriptionForm({ users, plans }: Props) {
               disabled={pendingCreate || !createName.trim()}
               onClick={handleCreateWorkspace}
             >
-              {pendingCreate ? "Se creează…" : "Creează workspace"}
+              {pendingCreate ? dict.admin.creating : dict.admin.createWorkspace}
             </Button>
           </div>
           {createMsg ? (
@@ -196,21 +208,21 @@ export function AdminSubscriptionForm({ users, plans }: Props) {
       {selectedWs ? (
         <dl className="grid gap-1 rounded-lg bg-muted/30 p-3 text-xs text-muted-foreground sm:grid-cols-2">
           <div>
-            Plan curent:{" "}
+            {dict.admin.currentPlan}{" "}
             <span className="text-foreground">{selectedWs.planLabel}</span>
           </div>
           <div>
-            Status:{" "}
+            {dict.admin.status}:{" "}
             <span className="text-foreground">{selectedWs.status ?? "—"}</span>
           </div>
           <div>
-            Expirare:{" "}
+            {dict.admin.expiry}{" "}
             <span className="text-foreground">
               {formatExpiry(selectedWs.accessEndsAt)}
             </span>
           </div>
           <div>
-            Tip:{" "}
+            {dict.admin.type}:{" "}
             <span className="text-foreground">{selectedWs.workspaceType}</span>
           </div>
         </dl>
@@ -221,14 +233,12 @@ export function AdminSubscriptionForm({ users, plans }: Props) {
           role="alert"
           className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
         >
-          Workspace-ul selectat este de tip <strong>admin</strong> (sistem) și
-          nu poate primi grant. Alege workspace-ul de tip{" "}
-          <strong>couple</strong> (ex. nunta clientului).
+          {dict.admin.systemAdminAlert}
         </p>
       ) : null}
 
       <div className="space-y-1">
-        <Label htmlFor="plan_key">Plan</Label>
+        <Label htmlFor="plan_key">{dict.admin.plan}</Label>
         <select
           id="plan_key"
           name="plan_key"
@@ -247,7 +257,7 @@ export function AdminSubscriptionForm({ users, plans }: Props) {
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1">
-          <Label htmlFor="access_source">Sursă acces</Label>
+          <Label htmlFor="access_source">{dict.admin.accessSource}</Label>
           <select
             id="access_source"
             name="access_source"
@@ -262,7 +272,7 @@ export function AdminSubscriptionForm({ users, plans }: Props) {
           </select>
         </div>
         <div className="space-y-1">
-          <Label>Tip billing</Label>
+          <Label>{dict.admin.billingType}</Label>
           <Input
             readOnly
             value={selectedPlan?.billing_type ?? "—"}
@@ -273,7 +283,7 @@ export function AdminSubscriptionForm({ users, plans }: Props) {
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1">
-          <Label htmlFor="starts_at">Data început</Label>
+          <Label htmlFor="starts_at">{dict.admin.startDate}</Label>
           <Input
             id="starts_at"
             name="starts_at"
@@ -282,25 +292,25 @@ export function AdminSubscriptionForm({ users, plans }: Props) {
           />
         </div>
         <div className="space-y-1">
-          <Label htmlFor="status">Status</Label>
+          <Label htmlFor="status">{dict.admin.status}</Label>
           <select
             id="status"
             name="status"
             defaultValue="active"
             className="h-10 w-full rounded-lg border border-input bg-background px-2 text-sm"
           >
-            <option value="active">Activ</option>
-            <option value="trialing">Trial</option>
-            <option value="past_due">Restanță</option>
-            <option value="canceled">Anulat</option>
-            <option value="incomplete">Incomplet</option>
+            <option value="active">{getStatusLabel("billing", "active", locale)}</option>
+            <option value="trialing">{getStatusLabel("billing", "trialing", locale)}</option>
+            <option value="past_due">{getStatusLabel("billing", "past_due", locale)}</option>
+            <option value="canceled">{getStatusLabel("billing", "canceled", locale)}</option>
+            <option value="incomplete">{getStatusLabel("billing", "incomplete", locale)}</option>
           </select>
         </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1">
-          <Label htmlFor="access_months">Perioadă (luni)</Label>
+          <Label htmlFor="access_months">{dict.admin.accessMonths}</Label>
           <Input
             id="access_months"
             name="access_months"
@@ -312,7 +322,7 @@ export function AdminSubscriptionForm({ users, plans }: Props) {
           />
         </div>
         <div className="space-y-1">
-          <Label htmlFor="access_ends_at">Data expirării</Label>
+          <Label htmlFor="access_ends_at">{dict.admin.endDate}</Label>
           <Input
             id="access_ends_at"
             name="access_ends_at"
@@ -330,19 +340,23 @@ export function AdminSubscriptionForm({ users, plans }: Props) {
           checked={permanent}
           onChange={(e) => setPermanent(e.target.checked)}
         />
-        Acces permanent
+        {dict.admin.permanentAccess}
       </label>
 
       <div className="space-y-1">
-        <Label htmlFor="notes">Motiv administrativ</Label>
-        <Input id="notes" name="notes" placeholder="Ticket, partener, promo…" />
+        <Label htmlFor="notes">{dict.admin.adminReason}</Label>
+        <Input
+          id="notes"
+          name="notes"
+          placeholder={dict.admin.adminReasonPlaceholder}
+        />
       </div>
 
       <Button
         type="submit"
         disabled={pending || !workspaceId || selectedIsSystem}
       >
-        {pending ? "Se salvează…" : "Acordă acces"}
+        {pending ? dict.dialog.saving : dict.admin.grantAccess}
       </Button>
     </form>
   );

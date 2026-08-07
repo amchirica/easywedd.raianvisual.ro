@@ -1,4 +1,7 @@
 export const APP_NAME = "EasyWedd";
+export const APP_TAGLINE = "Organizează nunta. Fără haos.";
+export const EASYWEDD_PRO_URL = "https://easyweddpro.raianvisual.ro";
+export const SUPPORT_EMAIL = "raian.visual@yahoo.com";
 export const CONSENT_VERSION = "2026-07-01";
 export const WORKSPACE_COOKIE = "ew_workspace_id";
 export const DEFAULT_LOCALE = "ro";

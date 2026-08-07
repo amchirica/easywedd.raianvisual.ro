@@ -7,13 +7,19 @@ import { applyPaymentToItem } from "@/lib/planner/budget-math";
 import { canManagePlanner } from "@/lib/planner/access";
 import { logAudit, requireWeddingContext } from "@/lib/planner/context";
 import { toCsv } from "@/lib/planner/exports";
+import type { ErrorCode } from "@/lib/i18n/errors";
 import {
   budgetItemSchema,
   exchangeRateSchema,
   paymentSchema,
 } from "@/lib/validations/budget";
 
-export type ActionState = { error?: string; success?: string; csv?: string };
+export type ActionState = {
+  error?: string;
+  errorCode?: ErrorCode;
+  success?: string;
+  csv?: string;
+};
 
 export async function createBudgetItemAction(formData: FormData): Promise<void> {
   const ctx = await requireWeddingContext();
@@ -160,7 +166,9 @@ export async function seedBudgetCategoriesAction(): Promise<void> {
 
 export async function exportBudgetCsvAction(): Promise<ActionState> {
   const ctx = await requireWeddingContext();
-  if (ctx.error || !ctx.context) return { error: ctx.error ?? "Eroare" };
+  if (ctx.error || !ctx.context) {
+    return { error: ctx.error ?? "Eroare", errorCode: "generic" };
+  }
 
   const { data: items } = await ctx.context.supabase
     .from("budget_items")

@@ -4,11 +4,19 @@ import { AdminAccessForms } from "@/components/admin/admin-access-forms";
 import { listAdminUsersDirectory } from "@/lib/admin/admin-directory";
 import { FEATURE_LABELS_RO } from "@/lib/entitlements/policy";
 import { ENTITLEMENT_KEYS } from "@/lib/entitlements/keys";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-export const metadata: Metadata = { title: "Acces & aprobări · Admin" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.admin.accessMetaTitle };
+}
 
 export default async function AdminAccessPage() {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const { users } = await listAdminUsersDirectory({ pageSize: 100, status: "all" });
   const admin = createAdminClient();
 
@@ -36,7 +44,7 @@ export default async function AdminAccessPage() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="font-heading text-4xl">Acces & aprobări</h1>
+        <h1 className="font-heading text-4xl">{dict.admin.access}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Status cont, grant-uri pe funcții și expirare — selectoare pe nume/email,
           fără UUID-uri.

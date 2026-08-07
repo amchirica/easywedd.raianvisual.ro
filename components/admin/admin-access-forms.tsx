@@ -2,6 +2,7 @@
 
 import { useActionState, useMemo, useState } from "react";
 
+import { useI18n } from "@/components/providers/i18n-provider";
 import { AdminSearchableSelect } from "@/components/admin/admin-searchable-select";
 import { AdminGrantDeleteButton } from "@/components/admin/admin-deletion-controls";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,8 @@ import type {
   AdminUserOption,
   AdminWorkspaceOption,
 } from "@/lib/admin/admin-directory-types";
+import { formatDateTime } from "@/lib/i18n/format";
+import { t } from "@/lib/i18n/t";
 
 type GrantRow = {
   id: string;
@@ -38,6 +41,7 @@ type Props = {
 };
 
 export function AdminAccessForms({ users, featureOptions, grants }: Props) {
+  const { dict, locale } = useI18n();
   const [statusUserId, setStatusUserId] = useState("");
   const [grantUserId, setGrantUserId] = useState("");
   const [workspaceId, setWorkspaceId] = useState("");
@@ -62,10 +66,10 @@ export function AdminAccessForms({ users, featureOptions, grants }: Props) {
       users.map((u) => ({
         value: u.id,
         label: `${u.fullName} · ${u.email}`,
-        description: u.suspended ? "Suspendat" : u.activePlan ?? "Fără plan",
+        description: u.suspended ? dict.admin.suspended : u.activePlan ?? dict.admin.noPlan,
         keywords: `${u.fullName} ${u.email}`,
       })),
-    [users],
+    [users, dict],
   );
 
   async function loadWorkspaces(nextUserId: string) {
@@ -95,38 +99,38 @@ export function AdminAccessForms({ users, featureOptions, grants }: Props) {
   return (
     <div className="grid gap-8 lg:grid-cols-2">
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
-        <h2 className="font-heading text-2xl">Status cont</h2>
+        <h2 className="font-heading text-2xl">{dict.admin.accountStatus}</h2>
         <form action={statusAction} className="space-y-3">
           <div className="space-y-1">
             <AdminSearchableSelect
               name="user_id"
-              label="Utilizator"
+              label={dict.admin.user}
               value={statusUserId}
               onChange={setStatusUserId}
               options={userOptions}
-              placeholder="Caută utilizator…"
+              placeholder={dict.admin.searchUser}
               required
             />
           </div>
           <div className="space-y-1">
-            <Label>Status</Label>
+            <Label>{dict.admin.status}</Label>
             <select
               name="account_status"
               className="h-9 w-full rounded-lg border border-input bg-background px-2 text-sm"
               defaultValue="limited"
             >
-              <option value="pending">Pending — așteaptă aprobare</option>
-              <option value="limited">Limited — plan gratuit</option>
-              <option value="approved">Approved — acces normal</option>
-              <option value="suspended">Suspended — blocat</option>
+              <option value="pending">{dict.admin.statusPending}</option>
+              <option value="limited">{dict.admin.statusLimited}</option>
+              <option value="approved">{dict.admin.statusApproved}</option>
+              <option value="suspended">{dict.admin.statusSuspended}</option>
             </select>
           </div>
           <div className="space-y-1">
-            <Label>Motiv / notă</Label>
-            <Input name="note" placeholder="De ce se schimbă statusul…" />
+            <Label>{dict.admin.noteReason}</Label>
+            <Input name="note" placeholder={dict.admin.notePlaceholder} />
           </div>
           <Button type="submit" disabled={statusPending || !statusUserId}>
-            {statusPending ? "Se salvează…" : "Actualizează status"}
+            {statusPending ? dict.dialog.saving : dict.admin.updateStatus}
           </Button>
           {statusState.error ? (
             <p className="text-sm text-destructive">{statusState.error}</p>
@@ -138,35 +142,35 @@ export function AdminAccessForms({ users, featureOptions, grants }: Props) {
       </section>
 
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
-        <h2 className="font-heading text-2xl">Grant pe funcție</h2>
+        <h2 className="font-heading text-2xl">{dict.admin.featureGrant}</h2>
         <form action={grantAction} className="space-y-3">
           <div className="space-y-1">
             <AdminSearchableSelect
               name="user_pick"
-              label="Utilizator"
+              label={dict.admin.user}
               value={grantUserId}
               onChange={(id) => {
                 setGrantUserId(id);
                 void loadWorkspaces(id);
               }}
               options={userOptions}
-              placeholder="Caută utilizator…"
+              placeholder={dict.admin.searchUser}
             />
           </div>
           <div className="space-y-1">
             <AdminSearchableSelect
               name="workspace_id"
-              label="Workspace"
+              label={dict.admin.workspace}
               value={workspaceId}
               onChange={setWorkspaceId}
               options={workspaceOptions}
-              placeholder={loadingWs ? "Se încarcă…" : "Selectează workspace…"}
+              placeholder={loadingWs ? dict.dialog.loading : dict.admin.selectWorkspace}
               disabled={!grantUserId || loadingWs}
               required
             />
           </div>
           <div className="space-y-1">
-            <Label>Funcție</Label>
+            <Label>{dict.admin.feature}</Label>
             <select
               name="feature_key"
               className="h-9 w-full rounded-lg border border-input bg-background px-2 text-sm"
@@ -180,19 +184,19 @@ export function AdminAccessForms({ users, featureOptions, grants }: Props) {
             </select>
           </div>
           <div className="space-y-1">
-            <Label>Expiră la (opțional)</Label>
+            <Label>{dict.admin.expiresOptional}</Label>
             <Input name="ends_at" type="datetime-local" />
           </div>
           <div className="space-y-1">
-            <Label>Motiv (obligatoriu)</Label>
-            <Input name="reason" required placeholder="Ex: client Raian Fine Arts — acces temporar" />
+            <Label>{dict.admin.reasonRequired}</Label>
+            <Input name="reason" required placeholder={dict.admin.reasonPlaceholder} />
           </div>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="enabled" defaultChecked />
-            Activează funcția
+            {dict.admin.enableFeature}
           </label>
           <Button type="submit" disabled={grantPending || !workspaceId}>
-            {grantPending ? "Se salvează…" : "Acordă acces"}
+            {grantPending ? dict.dialog.saving : dict.admin.grantAccess}
           </Button>
           {grantState.error ? (
             <p className="text-sm text-destructive">{grantState.error}</p>
@@ -204,9 +208,9 @@ export function AdminAccessForms({ users, featureOptions, grants }: Props) {
       </section>
 
       <section className="space-y-3 lg:col-span-2">
-        <h2 className="font-heading text-2xl">Grant-uri active</h2>
+        <h2 className="font-heading text-2xl">{dict.admin.activeGrants}</h2>
         {!grants.length ? (
-          <p className="text-sm text-muted-foreground">Niciun grant activ.</p>
+          <p className="text-sm text-muted-foreground">{dict.admin.noActiveGrants}</p>
         ) : (
           <ul className="divide-y divide-border rounded-xl border border-border">
             {grants.map((g) => (
@@ -221,15 +225,20 @@ export function AdminAccessForms({ users, featureOptions, grants }: Props) {
                   <p className="text-muted-foreground">
                     {g.reason}
                     {g.endsAt
-                      ? ` · expiră ${new Date(g.endsAt).toLocaleString("ro-RO")}`
-                      : " · fără expirare"}
+                      ? t(dict as never, "admin.expiresAt", {
+                          locale,
+                          params: {
+                            date: formatDateTime(g.endsAt, locale),
+                          },
+                        })
+                      : dict.admin.noExpiry}
                   </p>
                 </div>
                 <form action={revokeAction} className="flex items-center gap-2">
                   <input type="hidden" name="grant_id" value={g.id} />
                   <Input
                     name="revoke_reason"
-                    placeholder="Motiv revocare"
+                    placeholder={dict.admin.revokeReasonPlaceholder}
                     className="h-8 w-48"
                     required
                   />
@@ -239,7 +248,7 @@ export function AdminAccessForms({ users, featureOptions, grants }: Props) {
                     size="sm"
                     disabled={revokePending}
                   >
-                    Revocă
+                    {dict.admin.revoke}
                   </Button>
                 </form>
                 <AdminGrantDeleteButton grantId={g.id} />

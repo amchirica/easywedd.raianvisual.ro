@@ -1,11 +1,20 @@
 import type { Metadata } from "next";
 
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
+
 import { consentTypeLabel } from "@/lib/consents";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = { title: "Consimțăminte · Admin" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.admin.consentsMetaTitle };
+}
 
 export default async function AdminConsentsPage() {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const supabase = await createClient();
 
   // Effective consents only (unique constraint keeps one current row)
@@ -28,7 +37,7 @@ export default async function AdminConsentsPage() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="font-heading text-4xl">Consimțăminte</h1>
+        <h1 className="font-heading text-4xl">{dict.admin.consents}</h1>
         <p className="mt-2 text-muted-foreground">
           Vizualizare consimțăminte efective (un rând per tip/versiune). Istoricul
           GDPR este separat mai jos.
@@ -36,7 +45,7 @@ export default async function AdminConsentsPage() {
       </header>
 
       <section className="space-y-3">
-        <h2 className="font-heading text-2xl">Consimțăminte curente</h2>
+        <h2 className="font-heading text-2xl">{dict.admin.consentsCurrent}</h2>
         {!consents?.length ? (
           <p className="text-sm text-muted-foreground">
             Niciun consimțământ înregistrat.
@@ -49,7 +58,7 @@ export default async function AdminConsentsPage() {
                   <th className="px-4 py-3 font-medium">Tip</th>
                   <th className="px-4 py-3 font-medium">Acordat</th>
                   <th className="px-4 py-3 font-medium">Versiune</th>
-                  <th className="px-4 py-3 font-medium">Sursă</th>
+                  <th className="px-4 py-3 font-medium">{dict.admin.source}</th>
                   <th className="px-4 py-3 font-medium">Utilizator</th>
                 </tr>
               </thead>
@@ -79,12 +88,12 @@ export default async function AdminConsentsPage() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-heading text-2xl">Istoric (arhivă)</h2>
+        <h2 className="font-heading text-2xl">{dict.admin.consentsHistory}</h2>
         <p className="text-sm text-muted-foreground">
           Rânduri arhivate la deduplicare — păstrate pentru audit GDPR.
         </p>
         {!history?.length ? (
-          <p className="text-sm text-muted-foreground">Niciun istoric încă.</p>
+          <p className="text-sm text-muted-foreground">{dict.admin.consentsHistoryEmpty}</p>
         ) : (
           <div className="overflow-x-auto border border-border bg-card">
             <table className="w-full text-left text-sm">

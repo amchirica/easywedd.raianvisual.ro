@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 
+import { useI18n } from "@/components/providers/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +10,7 @@ import {
   adminUpdateWeddingAction,
   type AdminActionResult,
 } from "@/lib/actions/admin-manage";
+import { getStatusLabel } from "@/lib/i18n/status-labels";
 import { WEDDING_STATUS_LABELS } from "@/lib/validations/wedding";
 import type { Wedding } from "@/types/database";
 
@@ -19,6 +21,7 @@ export function AdminWeddingForm({
   workspaceId: string;
   wedding: Wedding;
 }) {
+  const { dict, locale } = useI18n();
   const bound = adminUpdateWeddingAction.bind(null, workspaceId);
   const [state, action, pending] = useActionState(bound, {} as AdminActionResult);
 
@@ -26,17 +29,17 @@ export function AdminWeddingForm({
     <form action={action} className="max-w-xl space-y-4 border border-border p-4">
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1">
-          <Label>Partener 1</Label>
+          <Label>{dict.admin.partner1}</Label>
           <Input name="couple_name_1" defaultValue={wedding.couple_name_1 ?? ""} required />
         </div>
         <div className="space-y-1">
-          <Label>Partener 2</Label>
+          <Label>{dict.admin.partner2}</Label>
           <Input name="couple_name_2" defaultValue={wedding.couple_name_2 ?? ""} required />
         </div>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1">
-          <Label>Data</Label>
+          <Label>{dict.admin.date}</Label>
           <Input
             type="date"
             name="wedding_date"
@@ -44,17 +47,17 @@ export function AdminWeddingForm({
           />
         </div>
         <div className="space-y-1">
-          <Label>Oraș</Label>
+          <Label>{dict.admin.city}</Label>
           <Input name="city" defaultValue={wedding.city ?? ""} />
         </div>
       </div>
       <div className="space-y-1">
-        <Label>Locație</Label>
+        <Label>{dict.admin.venue}</Label>
         <Input name="venue_name" defaultValue={wedding.venue_name ?? ""} />
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="space-y-1">
-          <Label>Invitați estimați</Label>
+          <Label>{dict.admin.estimatedGuests}</Label>
           <Input
             type="number"
             name="estimated_guest_count"
@@ -62,7 +65,7 @@ export function AdminWeddingForm({
           />
         </div>
         <div className="space-y-1">
-          <Label>Monedă</Label>
+          <Label>{dict.admin.currency}</Label>
           <select
             name="currency"
             defaultValue={wedding.currency ?? "RON"}
@@ -74,15 +77,15 @@ export function AdminWeddingForm({
           </select>
         </div>
         <div className="space-y-1">
-          <Label>Status</Label>
+          <Label>{dict.admin.status}</Label>
           <select
             name="wedding_status"
             defaultValue={wedding.wedding_status ?? "planning"}
             className="h-9 w-full rounded-lg border border-input bg-background px-2 text-sm"
           >
-            {Object.entries(WEDDING_STATUS_LABELS).map(([value, label]) => (
+            {Object.keys(WEDDING_STATUS_LABELS).map((value) => (
               <option key={value} value={value}>
-                {label}
+                {getStatusLabel("wedding", value, locale)}
               </option>
             ))}
           </select>
@@ -95,7 +98,7 @@ export function AdminWeddingForm({
         <p className="text-sm text-muted-foreground">{state.success}</p>
       ) : null}
       <Button type="submit" disabled={pending}>
-        {pending ? "Se salvează..." : "Salvează nunta"}
+        {pending ? dict.dialog.saving : dict.admin.saveWedding}
       </Button>
     </form>
   );

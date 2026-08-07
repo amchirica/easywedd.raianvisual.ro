@@ -1,7 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 
+import {
+  LOCALE_COOKIE,
+  LOCALE_COOKIE_MAX_AGE,
+  safeLocale,
+} from "@/lib/i18n/config";
+import type { ErrorCode } from "@/lib/i18n/errors";
 import { canManagePlanner } from "@/lib/planner/access";
 import { requireWeddingContext } from "@/lib/planner/context";
 import { createClient } from "@/lib/supabase/server";
@@ -16,6 +23,7 @@ import { setActiveWorkspaceId } from "@/lib/workspace";
 
 export type SettingsActionResult = {
   error?: string;
+  errorCode?: ErrorCode;
   success?: string;
 };
 
@@ -27,7 +35,12 @@ export async function updateProfileSettingsAction(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: "Sesiunea a expirat. Autentifică-te din nou." };
+  if (!user) {
+    return {
+      error: "Sesiunea a expirat. Autentifică-te din nou.",
+      errorCode: "unauthenticated",
+    };
+  }
 
   const parsed = profileSettingsSchema.safeParse({
     full_name: formData.get("full_name"),
@@ -35,7 +48,10 @@ export async function updateProfileSettingsAction(
     timezone: formData.get("timezone") || "Europe/Bucharest",
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Date invalide" };
+    return {
+      error: parsed.error.issues[0]?.message ?? "validation.invalid",
+      errorCode: "validation_failed",
+    };
   }
 
   const { error } = await supabase
@@ -50,10 +66,24 @@ export async function updateProfileSettingsAction(
 
   if (error) {
     console.error("[settings:profile]", { code: error.code, message: error.message });
-    return { error: "Nu am putut actualiza profilul." };
+    return {
+      error: "Nu am putut actualiza profilul.",
+      errorCode: "settings_save_failed",
+    };
   }
 
+  const locale = safeLocale(parsed.data.locale);
+  const jar = await cookies();
+  jar.set(LOCALE_COOKIE, locale, {
+    path: "/",
+    maxAge: LOCALE_COOKIE_MAX_AGE,
+    sameSite: "lax",
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+  });
+
   revalidatePath("/dashboard/settings");
+  revalidatePath("/", "layout");
   return { success: "Profilul a fost actualizat." };
 }
 
@@ -65,14 +95,22 @@ export async function updateWorkspaceSettingsAction(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: "Sesiunea a expirat. Autentifică-te din nou." };
+  if (!user) {
+    return {
+      error: "Sesiunea a expirat. Autentifică-te din nou.",
+      errorCode: "unauthenticated",
+    };
+  }
 
   const parsed = workspaceSettingsSchema.safeParse({
     workspace_id: formData.get("workspace_id"),
     name: formData.get("name"),
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Date invalide" };
+    return {
+      error: parsed.error.issues[0]?.message ?? "validation.invalid",
+      errorCode: "validation_failed",
+    };
   }
 
   const { data: workspace } = await supabase
@@ -82,7 +120,10 @@ export async function updateWorkspaceSettingsAction(
     .maybeSingle();
 
   if (!workspace) {
-    return { error: "Workspace-ul nu a fost găsit." };
+    return {
+      error: "Workspace-ul nu a fost găsit.",
+      errorCode: "resource_not_found",
+    };
   }
 
   if (workspace.workspace_type === "admin") {
@@ -90,6 +131,7 @@ export async function updateWorkspaceSettingsAction(
     if (!isAdmin) {
       return {
         error: "Workspace-urile de tip admin nu pot fi redenumite din Setări.",
+        errorCode: "permission_denied",
       };
     }
   }
@@ -106,7 +148,10 @@ export async function updateWorkspaceSettingsAction(
     !membership ||
     !["owner", "partner", "admin"].includes(membership.role)
   ) {
-    return { error: "Nu ai permisiunea de a edita acest workspace." };
+    return {
+      error: "Nu ai permisiunea de a edita acest workspace.",
+      errorCode: "permission_denied",
+    };
   }
 
   // Never allow workspace_type changes from this action
@@ -120,7 +165,10 @@ export async function updateWorkspaceSettingsAction(
 
   if (error) {
     console.error("[settings:workspace]", { code: error.code, message: error.message });
-    return { error: "Nu am putut actualiza workspace-ul." };
+    return {
+      error: "Nu am putut actualiza workspace-ul.",
+      errorCode: "settings_save_failed",
+    };
   }
 
   revalidatePath("/dashboard/settings");
@@ -133,10 +181,16 @@ export async function updateWeddingPreferencesAction(
 ): Promise<SettingsActionResult> {
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) {
-    return { error: ctx.error ?? "Workspace incomplet" };
+    return {
+      error: ctx.error ?? "Workspace incomplet",
+      errorCode: "resource_not_found",
+    };
   }
   if (!canManagePlanner(ctx.context.role)) {
-    return { error: "Nu ai permisiunea de a edita preferințele nunții." };
+    return {
+      error: "Nu ai permisiunea de a edita preferințele nunții.",
+      errorCode: "permission_denied",
+    };
   }
 
   const guestRaw = String(formData.get("estimated_guest_count") ?? "").trim();
@@ -152,7 +206,10 @@ export async function updateWeddingPreferencesAction(
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Date invalide" };
+    return {
+      error: parsed.error.issues[0]?.message ?? "validation.invalid",
+      errorCode: "validation_failed",
+    };
   }
 
   const data = parsed.data;
@@ -173,7 +230,10 @@ export async function updateWeddingPreferencesAction(
     .eq("workspace_id", ctx.context.workspaceId);
 
   if (error) {
-    return { error: "Nu am putut salva preferințele nunții." };
+    return {
+      error: "Nu am putut salva preferințele nunții.",
+      errorCode: "wedding_save_failed",
+    };
   }
 
   revalidatePath("/dashboard/settings");
@@ -189,7 +249,12 @@ export async function updateNotificationPreferencesAction(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: "Sesiunea a expirat. Autentifică-te din nou." };
+  if (!user) {
+    return {
+      error: "Sesiunea a expirat. Autentifică-te din nou.",
+      errorCode: "unauthenticated",
+    };
+  }
 
   const parsed = notificationPreferencesSchema.safeParse({
     transactional_enabled: formData.get("transactional_enabled") === "on",
@@ -197,7 +262,10 @@ export async function updateNotificationPreferencesAction(
     marketing_enabled: formData.get("marketing_enabled") === "on",
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Date invalide" };
+    return {
+      error: parsed.error.issues[0]?.message ?? "validation.invalid",
+      errorCode: "validation_failed",
+    };
   }
 
   const { error } = await supabase.from("email_preferences").upsert(
@@ -215,7 +283,10 @@ export async function updateNotificationPreferencesAction(
       code: error.code,
       message: error.message,
     });
-    return { error: "Nu am putut salva preferințele de notificare." };
+    return {
+      error: "Nu am putut salva preferințele de notificare.",
+      errorCode: "settings_save_failed",
+    };
   }
 
   revalidatePath("/dashboard/settings");
@@ -231,14 +302,22 @@ export async function updatePasswordAction(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: "Sesiunea a expirat. Autentifică-te din nou." };
+  if (!user) {
+    return {
+      error: "Sesiunea a expirat. Autentifică-te din nou.",
+      errorCode: "unauthenticated",
+    };
+  }
 
   const parsed = updatePasswordSchema.safeParse({
     password: formData.get("password"),
     confirm_password: formData.get("confirm_password"),
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Date invalide" };
+    return {
+      error: parsed.error.issues[0]?.message ?? "validation.invalid",
+      errorCode: "validation_failed",
+    };
   }
 
   const { error } = await supabase.auth.updateUser({
@@ -247,11 +326,12 @@ export async function updatePasswordAction(
 
   if (error) {
     console.error("[settings:password]", { message: error.message });
+    const samePassword = error.message.toLowerCase().includes("same");
     return {
-      error:
-        error.message.toLowerCase().includes("same")
-          ? "Parola nouă trebuie să fie diferită de cea actuală."
-          : "Nu am putut actualiza parola. Încearcă din nou.",
+      error: samePassword
+        ? "Parola nouă trebuie să fie diferită de cea actuală."
+        : "Nu am putut actualiza parola. Încearcă din nou.",
+      errorCode: samePassword ? "validation_failed" : "update_failed",
     };
   }
 
@@ -264,13 +344,17 @@ export async function switchWorkspaceFormAction(
   formData: FormData,
 ): Promise<SettingsActionResult> {
   const workspaceId = String(formData.get("workspace_id") ?? "");
-  if (!workspaceId) return { error: "Workspace invalid." };
+  if (!workspaceId) {
+    return { error: "Workspace invalid.", errorCode: "validation_failed" };
+  }
 
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: "Sesiunea a expirat." };
+  if (!user) {
+    return { error: "Sesiunea a expirat.", errorCode: "unauthenticated" };
+  }
 
   const { data: membership } = await supabase
     .from("workspace_members")
@@ -281,7 +365,10 @@ export async function switchWorkspaceFormAction(
     .maybeSingle();
 
   if (!membership) {
-    return { error: "Nu ai acces la acest workspace." };
+    return {
+      error: "Nu ai acces la acest workspace.",
+      errorCode: "permission_denied",
+    };
   }
 
   await setActiveWorkspaceId(workspaceId);

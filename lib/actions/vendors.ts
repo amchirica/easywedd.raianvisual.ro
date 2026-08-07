@@ -4,13 +4,18 @@ import { revalidatePath } from "next/cache";
 
 import { trackProductEvent } from "@/lib/analytics/product";
 import { requireFeature } from "@/lib/entitlements/service";
+import type { ErrorCode } from "@/lib/i18n/errors";
 import { canManagePlanner } from "@/lib/planner/access";
 import { requireWeddingContext } from "@/lib/planner/context";
 import { vendorSchema } from "@/lib/validations/vendors";
 import { isVendorCategorySlug } from "@/lib/vendors/categories";
 import type { VendorStatus } from "@/types/planner";
 
-export type ActionState = { error?: string; success?: string };
+export type ActionState = {
+  error?: string;
+  errorCode?: ErrorCode;
+  success?: string;
+};
 
 export async function createVendorAction(formData: FormData): Promise<void> {
   const ctx = await requireWeddingContext();

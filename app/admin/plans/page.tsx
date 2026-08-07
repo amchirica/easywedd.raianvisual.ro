@@ -6,10 +6,18 @@ import {
   isValidStripePriceId,
   isValidStripeProductId,
 } from "@/lib/billing/stripe-ids";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 
-export const metadata: Metadata = { title: "Planuri billing" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.admin.plansTitle };
+}
 
 export default async function AdminBillingPlansPage() {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const plans = await listAllBillingPlans();
   const paid = plans.filter(
     (p) => p.billing_type === "subscription" || p.billing_type === "one_time",
@@ -18,11 +26,9 @@ export default async function AdminBillingPlansPage() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="font-heading text-4xl">Planuri billing</h1>
+        <h1 className="font-heading text-4xl">{dict.admin.plansTitle}</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Product ID (<code>prod_…</code>) și Price ID (<code>price_…</code>) sunt
-          câmpuri separate. Checkout folosește doar Price ID. Nu pune niciodată
-          un Product ID în câmpul Price.
+          {dict.admin.plansStripeHint}
         </p>
       </header>
 

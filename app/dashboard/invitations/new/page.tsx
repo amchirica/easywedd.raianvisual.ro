@@ -8,28 +8,36 @@ import {
 } from "@/lib/invitations/plan-limits";
 import { canAccessFeature, canManagePlanner } from "@/lib/planner/access";
 import { requireWeddingContext } from "@/lib/planner/context";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import type { InvitationTemplate } from "@/types/invitations";
 
-export const metadata: Metadata = { title: "Template invitație" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.invitations.newTitle };
+}
 
 export default async function NewInvitationPage() {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) {
-    return <EmptyState title="Workspace incomplet" description={ctx.error ?? ""} />;
+    return <EmptyState title={dict.shell.workspaceIncomplete} description={ctx.error ?? ""} />;
   }
   if (!canAccessFeature(ctx.context.entitlements, "invitations")) {
     return (
       <EmptyState
-        title="Modul dezactivat"
-        description="Entitlement-ul invitations nu este activ."
+        title={dict.shell.moduleDisabled}
+        description={dict.shell.moduleDisabledDesc}
       />
     );
   }
   if (!canManagePlanner(ctx.context.role)) {
     return (
       <EmptyState
-        title="Fără permisiune"
-        description="Doar rolurile de management pot crea invitații."
+        title={dict.shell.noPermission}
+        description=""
       />
     );
   }
@@ -64,9 +72,9 @@ export default async function NewInvitationPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-heading text-4xl">Alege un template</h1>
+        <h1 className="font-heading text-4xl">{dict.invitations.newTitle}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          5 stiluri originale · editor pe secțiuni
+          {dict.invitations.newSubtitle}
         </p>
       </header>
       <TemplateGallery

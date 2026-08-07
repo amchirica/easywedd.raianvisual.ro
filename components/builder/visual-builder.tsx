@@ -18,6 +18,7 @@ import { useEffect, useId, useState } from "react";
 
 import { SchemaForm } from "@/components/builder/schema-form";
 import { SectionEditorPanel } from "@/components/invitations/sections/section-editors";
+import { useI18n } from "@/components/providers/i18n-provider";
 import {
   CONTENT_FIELD_SCHEMAS,
   presentationFieldsForSection,
@@ -305,6 +306,7 @@ function SortableSectionRow({
   onSelect: () => void;
   onToggle: () => void;
 }) {
+  const { dict } = useI18n();
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id });
   const style = {
@@ -323,7 +325,7 @@ function SortableSectionRow({
       <button
         type="button"
         className="cursor-grab px-1 text-muted-foreground"
-        aria-label="Mută"
+        aria-label={dict.invitations.editor.move}
         {...attributes}
         {...listeners}
       >

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 
+import { useI18n } from "@/components/providers/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { resendConfirmationAction } from "@/lib/actions/auth";
 
@@ -24,6 +25,7 @@ function readStoredEmail(fallback: string | null): string {
 }
 
 export function CheckEmailClient({ initialEmail }: CheckEmailClientProps) {
+  const { dict } = useI18n();
   const [email] = useState(() => readStoredEmail(initialEmail));
   const [secondsLeft, setSecondsLeft] = useState(COOLDOWN_SEC);
   const [message, setMessage] = useState<string | null>(null);
@@ -65,25 +67,15 @@ export function CheckEmailClient({ initialEmail }: CheckEmailClientProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-heading text-3xl">Verifică-ți emailul</h1>
+        <h1 className="font-heading text-3xl">{dict.auth.checkEmailTitle}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Ți-am trimis un link de confirmare. Deschide emailul pentru a-ți
-          activa contul.
+          {dict.auth.checkEmailBody}
         </p>
-      </div>
-
-      <div
-        className="rounded-lg border border-champagne/50 bg-secondary/80 px-4 py-3 text-sm text-foreground"
-        role="status"
-      >
-        Verifică și folderele Spam, Junk sau Promotions. Uneori mesajul poate
-        ajunge acolo.
       </div>
 
       {email ? (
         <p className="text-sm text-muted-foreground">
-          Mesajul a fost trimis către{" "}
-          <span className="font-medium text-foreground">{email}</span>.
+          <span className="font-medium text-foreground">{email}</span>
         </p>
       ) : null}
 
@@ -107,16 +99,16 @@ export function CheckEmailClient({ initialEmail }: CheckEmailClientProps) {
           className="sm:flex-1"
         >
           {pending
-            ? "Se trimite..."
+            ? dict.auth.sending
             : secondsLeft > 0
-              ? `Retrimite peste ${secondsLeft}s`
-              : "Retrimite confirmarea"}
+              ? dict.auth.resendIn.replace("{n}", String(secondsLeft))
+              : dict.auth.resendConfirmation}
         </Button>
         <Link
           href="/login"
           className="inline-flex h-8 items-center justify-center rounded-lg bg-primary px-2.5 text-sm font-medium text-primary-foreground sm:flex-1"
         >
-          Mergi la autentificare
+          {dict.auth.loginLink}
         </Link>
       </div>
     </div>

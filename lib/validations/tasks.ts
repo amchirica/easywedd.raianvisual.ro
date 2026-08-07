@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const taskSchema = z.object({
-  title: z.string().min(1, "Titlul este obligatoriu"),
+  title: z.string().min(1, "validation.titleRequired"),
   description: z.string().optional(),
   category: z.enum([
     "venue",

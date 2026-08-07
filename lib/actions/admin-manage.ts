@@ -37,7 +37,7 @@ export async function adminUpdateWeddingAction(
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Date invalide" };
+    return { error: parsed.error.issues[0]?.message ?? "validation.invalid" };
   }
 
   const { error } = await ctx.context.supabase
@@ -189,7 +189,7 @@ export async function adminUpdateWorkspaceNameAction(
     .safeParse(formData.get("name"));
 
   if (!name.success) {
-    return { error: name.error.issues[0]?.message ?? "Nume invalid" };
+    return { error: name.error.issues[0]?.message ?? "validation.nameRequired" };
   }
 
   const { error } = await ctx.context.supabase

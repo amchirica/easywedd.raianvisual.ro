@@ -4,14 +4,20 @@ import Link from "next/link";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
 import { buttonVariants } from "@/components/ui/button";
 import { FORGOT_PASSWORD_PATH } from "@/lib/auth/callback-destination";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = {
-  title: "Setează o parolă nouă",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.meta.resetPasswordTitle };
+}
 
 export default async function AuthResetPasswordPage() {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const supabase = await createClient();
   const {
     data: { user },
@@ -21,25 +27,23 @@ export default async function AuthResetPasswordPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="font-heading text-3xl">Linkul a expirat</h1>
+          <h1 className="font-heading text-3xl">{dict.auth.resetExpiredTitle}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Acest link nu mai este valabil sau a fost deja utilizat. Solicită un
-            link nou și folosește doar cel mai recent email primit.
+            {dict.auth.resetExpiredBody}
           </p>
         </div>
         <div
           className="rounded-lg border border-champagne/50 bg-secondary/80 px-4 py-3 text-sm"
           role="status"
         >
-          Verifică și folderele Spam, Junk sau Promotions. Uneori mesajul poate
-          ajunge acolo.
+          {dict.auth.spamTip}
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <Link
             href={FORGOT_PASSWORD_PATH}
             className={cn(buttonVariants(), "inline-flex w-full sm:w-auto")}
           >
-            Solicită un link nou
+            {dict.auth.requestNewLink}
           </Link>
           <Link
             href="/login"
@@ -48,7 +52,7 @@ export default async function AuthResetPasswordPage() {
               "inline-flex w-full sm:w-auto",
             )}
           >
-            Autentificare
+            {dict.auth.loginTitle}
           </Link>
         </div>
       </div>
@@ -57,10 +61,9 @@ export default async function AuthResetPasswordPage() {
 
   return (
     <div>
-      <h1 className="font-heading text-3xl">Setează o parolă nouă</h1>
+      <h1 className="font-heading text-3xl">{dict.auth.resetTitle}</h1>
       <p className="mt-2 mb-6 text-sm text-muted-foreground">
-        Introdu parola nouă (minim 8 caractere) și confirm-o. După salvare te
-        poți autentifica.
+        {dict.auth.resetSubtitle}
       </p>
       <ResetPasswordForm />
     </div>

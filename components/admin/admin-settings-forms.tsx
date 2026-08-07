@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 
+import { useI18n } from "@/components/providers/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +19,7 @@ export function AdminWorkspaceSettingsForms({
   workspaceId: string;
   name: string;
 }) {
+  const { dict } = useI18n();
   const rename = adminUpdateWorkspaceNameAction.bind(null, workspaceId);
   const archive = adminArchiveWorkspaceAction.bind(null, workspaceId);
   const [renameState, renameAction, renamePending] = useActionState(
@@ -32,9 +34,9 @@ export function AdminWorkspaceSettingsForms({
   return (
     <div className="space-y-8">
       <form action={renameAction} className="max-w-md space-y-3 border border-border p-4">
-        <h2 className="font-heading text-xl">Redenumește workspace</h2>
+        <h2 className="font-heading text-xl">{dict.admin.renameWorkspace}</h2>
         <div className="space-y-1">
-          <Label>Nume</Label>
+          <Label>{dict.admin.name}</Label>
           <Input name="name" defaultValue={name} required />
         </div>
         {renameState.error ? (
@@ -44,14 +46,14 @@ export function AdminWorkspaceSettingsForms({
           <p className="text-sm text-muted-foreground">{renameState.success}</p>
         ) : null}
         <Button type="submit" disabled={renamePending}>
-          Salvează
+          {dict.dialog.save}
         </Button>
       </form>
 
       <form action={archiveAction} className="max-w-md space-y-3 border border-destructive/40 p-4">
-        <h2 className="font-heading text-xl text-destructive">Arhivează</h2>
+        <h2 className="font-heading text-xl text-destructive">{dict.admin.archive}</h2>
         <p className="text-sm text-muted-foreground">
-          Acțiune distructivă. Tastează <strong>ARHIVEAZA</strong> pentru confirmare.
+          {dict.dialog.typeToConfirm.replace("{phrase}", "ARHIVEAZA")}
         </p>
         <Input name="confirm" placeholder="ARHIVEAZA" autoComplete="off" />
         {archiveState.error ? (
@@ -61,7 +63,7 @@ export function AdminWorkspaceSettingsForms({
           <p className="text-sm text-muted-foreground">{archiveState.success}</p>
         ) : null}
         <Button type="submit" variant="destructive" disabled={archivePending}>
-          Arhivează workspace
+          {dict.admin.archiveWorkspace}
         </Button>
       </form>
     </div>

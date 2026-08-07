@@ -37,7 +37,7 @@ export async function adminUpdateAccountStatusAction(
     note: String(formData.get("note") || ""),
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Date invalide" };
+    return { error: parsed.error.issues[0]?.message ?? "validation.invalid" };
   }
 
   const admin = createAdminClient();
@@ -99,7 +99,7 @@ export async function adminCreateAccessGrantAction(
     reason: String(formData.get("reason") || ""),
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Date invalide" };
+    return { error: parsed.error.issues[0]?.message ?? "validation.invalid" };
   }
 
   const admin = createAdminClient();

@@ -3,11 +3,15 @@ import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button";
 import { FORGOT_PASSWORD_PATH } from "@/lib/auth/callback-destination";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = {
-  title: "Link autentificare",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.meta.authErrorTitle };
+}
 
 type PageProps = {
   searchParams: Promise<{ reason?: string }>;
@@ -28,41 +32,46 @@ function isExpiredOrUsed(reason?: string) {
   );
 }
 
-function contentForReason(reason?: string) {
+function contentForReason(
+  auth: Awaited<ReturnType<typeof getDictionary>>["auth"],
+  reason?: string,
+) {
   if (isExpiredOrUsed(reason)) {
     return {
-      title: "Linkul a expirat",
-      body: "Acest link nu mai este valabil sau a fost deja utilizat. Solicită un link nou și folosește doar cel mai recent email primit.",
+      title: auth.errorExpiredTitle,
+      body: auth.errorExpiredBody,
       showSpam: true,
     };
   }
 
   if (reason === "email_not_confirmed") {
     return {
-      title: "Email neconfirmat",
-      body: "Confirmă adresa de email folosind linkul primit, apoi autentifică-te.",
+      title: auth.errorEmailNotConfirmedTitle,
+      body: auth.errorEmailNotConfirmedBody,
       showSpam: true,
     };
   }
 
   if (reason === "account_suspended") {
     return {
-      title: "Cont suspendat",
-      body: "Contul este suspendat. Contactează suportul.",
+      title: auth.errorSuspendedTitle,
+      body: auth.errorSuspendedBody,
       showSpam: false,
     };
   }
 
   return {
-    title: "Ceva nu a mers",
-    body: "Nu am putut finaliza autentificarea. Încearcă din nou sau solicită un link nou.",
+    title: auth.errorGenericTitle,
+    body: auth.errorGenericBody,
     showSpam: true,
   };
 }
 
 export default async function AuthErrorPage({ searchParams }: PageProps) {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const { reason } = await searchParams;
-  const content = contentForReason(reason);
+  const content = contentForReason(dict.auth, reason);
 
   return (
     <div className="space-y-6">
@@ -76,8 +85,7 @@ export default async function AuthErrorPage({ searchParams }: PageProps) {
           className="rounded-lg border border-champagne/50 bg-secondary/80 px-4 py-3 text-sm"
           role="status"
         >
-          Verifică și folderele Spam, Junk sau Promotions. Uneori mesajul poate
-          ajunge acolo.
+          {dict.auth.spamTip}
         </div>
       ) : null}
 
@@ -86,7 +94,7 @@ export default async function AuthErrorPage({ searchParams }: PageProps) {
           href={FORGOT_PASSWORD_PATH}
           className={cn(buttonVariants(), "inline-flex w-full sm:w-auto")}
         >
-          Solicită un link nou
+          {dict.auth.requestNewLink}
         </Link>
         <Link
           href="/login"
@@ -95,7 +103,7 @@ export default async function AuthErrorPage({ searchParams }: PageProps) {
             "inline-flex w-full sm:w-auto",
           )}
         >
-          Autentificare
+          {dict.auth.loginTitle}
         </Link>
         <Link
           href="/register"
@@ -104,7 +112,7 @@ export default async function AuthErrorPage({ searchParams }: PageProps) {
             "inline-flex w-full sm:w-auto",
           )}
         >
-          Creează cont
+          {dict.auth.registerTitle}
         </Link>
       </div>
     </div>

@@ -7,20 +7,29 @@ import { getInvitationLimits, canCreateProject } from "@/lib/invitations/plan-li
 import { canAccessFeature, canManagePlanner } from "@/lib/planner/access";
 import { requireWeddingContext } from "@/lib/planner/context";
 import { buttonVariants } from "@/components/ui/button";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
+import { t } from "@/lib/i18n/t";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Invitation Studio" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.invitations.title };
+}
 
 export default async function InvitationsPage() {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) {
-    return <EmptyState title="Workspace incomplet" description={ctx.error ?? ""} />;
+    return <EmptyState title={dict.shell.workspaceIncomplete} description={ctx.error ?? ""} />;
   }
   if (!canAccessFeature(ctx.context.entitlements, "invitations")) {
     return (
       <EmptyState
-        title="Modul dezactivat"
-        description="Entitlement-ul invitations nu este activ pentru acest workspace."
+        title={dict.shell.moduleDisabled}
+        description={dict.shell.moduleDisabledDesc}
       />
     );
   }
@@ -53,10 +62,17 @@ export default async function InvitationsPage() {
     <div className="space-y-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-heading text-4xl">Invitation Studio</h1>
+          <h1 className="font-heading text-4xl">{dict.invitations.title}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Plan {limits.tier} · {activeCount}/{limits.maxProjects} proiecte
-            {limits.watermark ? " · watermark activ" : ""}
+            {t(dict as never, "invitations.planProjects", {
+              locale,
+              params: {
+                tier: limits.tier,
+                active: activeCount,
+                max: limits.maxProjects,
+              },
+            })}
+            {limits.watermark ? dict.invitations.watermarkActive : ""}
           </p>
         </div>
         {canCreate ? (
@@ -64,15 +80,15 @@ export default async function InvitationsPage() {
             href="/dashboard/invitations/new"
             className={cn(buttonVariants())}
           >
-            Template nou
+            {dict.invitations.create}
           </Link>
         ) : null}
       </header>
 
       {(projects ?? []).length === 0 ? (
         <EmptyState
-          title="Nicio invitație încă"
-          description="Alege un template și creează primul proiect."
+          title={dict.invitations.emptyTitle}
+          description={dict.invitations.emptyDescription}
         />
       ) : (
         <div>

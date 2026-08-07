@@ -12,13 +12,21 @@ import {
   getCountdownLabel,
   getWeddingTitle,
 } from "@/lib/dashboard-metrics";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
+import { getStatusLabel } from "@/lib/i18n/status-labels";
+import { t } from "@/lib/i18n/t";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = {
-  title: "Dashboard",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.dashboard.title };
+}
 
 export default async function DashboardPage() {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const cookieStore = await cookies();
   const onboardingWarning = cookieStore.get("ew_onboarding_warning")?.value;
   if (onboardingWarning) {
@@ -29,20 +37,20 @@ export default async function DashboardPage() {
   if (ctx.error || !ctx.context) {
     return (
       <div className="space-y-4">
-        <h1 className="font-heading text-4xl">Dashboard</h1>
+        <h1 className="font-heading text-4xl">{dict.dashboard.title}</h1>
         <p className="text-muted-foreground">
-          {ctx.error ?? "Completează onboarding-ul pentru a vedea analytics."}
+          {ctx.error ?? dict.dashboard.onboardingRequired}
         </p>
         <Link href="/dashboard/onboarding" className={cn(buttonVariants())}>
-          Continuă onboarding
+          {dict.dashboard.continueOnboarding}
         </Link>
       </div>
     );
   }
 
   const { wedding, profile, activeWorkspace, weddingId, supabase } = ctx.context;
-  const countdown = getCountdownLabel(wedding?.wedding_date);
-  const title = getWeddingTitle(wedding);
+  const countdown = getCountdownLabel(wedding?.wedding_date, locale);
+  const title = getWeddingTitle(wedding, locale);
 
   const [{ data: tasks }, { data: guests }, { data: vendors }, { data: budgetItems }] =
     await Promise.all([
@@ -85,7 +93,8 @@ export default async function DashboardPage() {
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm text-muted-foreground">
-            Bun venit{profile?.full_name ? `, ${profile.full_name}` : ""}
+            {dict.dashboard.welcome}
+            {profile?.full_name ? `, ${profile.full_name}` : ""}
           </p>
           <h1 className="font-heading text-4xl tracking-tight">{title}</h1>
           <p className="mt-2 text-muted-foreground">
@@ -97,30 +106,41 @@ export default async function DashboardPage() {
           href="/dashboard/wedding"
           className={cn(buttonVariants({ variant: "outline" }))}
         >
-          Editează detaliile nunții
+          {dict.dashboard.editWedding}
         </Link>
       </header>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          title="Countdown"
+          title={dict.dashboard.countdown}
           value={countdown.value}
           hint={countdown.hint}
         />
         <StatCard
-          title="Progres organizare"
+          title={dict.dashboard.progress}
           value={`${analytics.progress}%`}
-          hint="Calculat din task-uri, RSVP și furnizori contractați"
+          hint={dict.dashboard.progressHint}
         />
         <StatCard
-          title="Buget plătit"
-          value={formatMoney(analytics.budget.paid, currency)}
-          hint={`Rămas ${formatMoney(analytics.budget.remaining, currency)}`}
+          title={dict.dashboard.budgetPaid}
+          value={formatMoney(analytics.budget.paid, currency, locale)}
+          hint={t(dict as never, "dashboard.remainingHint", {
+            locale,
+            params: {
+              amount: formatMoney(analytics.budget.remaining, currency, locale),
+            },
+          })}
         />
         <StatCard
-          title="Invitați confirmați"
+          title={dict.dashboard.confirmedGuests}
           value={`${analytics.rsvp.confirmed}`}
-          hint={`${analytics.rsvp.pending} în așteptare · ${analytics.rsvp.declined} refuzați`}
+          hint={t(dict as never, "dashboard.rsvpPendingHint", {
+            locale,
+            params: {
+              pending: analytics.rsvp.pending,
+              declined: analytics.rsvp.declined,
+            },
+          })}
         />
       </section>
 
@@ -133,17 +153,19 @@ export default async function DashboardPage() {
 
       <section className="grid gap-4 lg:grid-cols-2">
         <article className="border border-border bg-card p-6">
-          <h2 className="font-heading text-2xl">Task-uri apropiate / întârziate</h2>
+          <h2 className="font-heading text-2xl">
+            {dict.dashboard.upcomingTasksTitle}
+          </h2>
           {analytics.overdueTasks.length === 0 &&
           analytics.upcomingTasks.length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">
-              Nicio notificare de termen momentan.
+              {dict.dashboard.noTaskAlerts}
             </p>
           ) : (
             <ul className="mt-3 space-y-2 text-sm">
               {analytics.overdueTasks.slice(0, 4).map((task) => (
                 <li key={task.id} className="text-destructive">
-                  Întârziat: {task.title} ({task.due_date})
+                  {dict.dashboard.overduePrefix}: {task.title} ({task.due_date})
                 </li>
               ))}
               {analytics.upcomingTasks.slice(0, 4).map((task) => (
@@ -157,41 +179,55 @@ export default async function DashboardPage() {
             href="/dashboard/planner"
             className="mt-4 inline-block text-sm underline underline-offset-4"
           >
-            Deschide planner
+            {dict.dashboard.openPlanner}
           </Link>
         </article>
 
         <article className="border border-border bg-card p-6">
-          <h2 className="font-heading text-2xl">RSVP & distribuție</h2>
+          <h2 className="font-heading text-2xl">{dict.dashboard.rsvpTitle}</h2>
           <p className="mt-3 text-sm text-muted-foreground">
-            {analytics.rsvp.confirmed} confirmați · {analytics.rsvp.pending}{" "}
-            așteptare · {analytics.rsvp.declined} refuz · {analytics.rsvp.maybe}{" "}
-            poate
+            {t(dict as never, "dashboard.rsvpSummary", {
+              locale,
+              params: {
+                confirmed: analytics.rsvp.confirmed,
+                pending: analytics.rsvp.pending,
+                declined: analytics.rsvp.declined,
+                maybe: analytics.rsvp.maybe,
+              },
+            })}
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Parte mireasă {analytics.sideDistribution.bride} · mire{" "}
-            {analytics.sideDistribution.groom} · amândoi{" "}
-            {analytics.sideDistribution.both}
+            {t(dict as never, "dashboard.sideSummary", {
+              locale,
+              params: {
+                bride: analytics.sideDistribution.bride,
+                groom: analytics.sideDistribution.groom,
+                both: analytics.sideDistribution.both,
+              },
+            })}
           </p>
           <Link
             href="/dashboard/guests"
             className="mt-4 inline-block text-sm underline underline-offset-4"
           >
-            Gestionează invitații
+            {dict.dashboard.manageGuests}
           </Link>
         </article>
 
         <article className="border border-border bg-card p-6">
-          <h2 className="font-heading text-2xl">Plăți apropiate</h2>
+          <h2 className="font-heading text-2xl">
+            {dict.dashboard.upcomingPayments}
+          </h2>
           {analytics.upcomingPayments.length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">
-              Nu există sume restante înregistrate.
+              {dict.dashboard.noUpcomingPayments}
             </p>
           ) : (
             <ul className="mt-3 space-y-2 text-sm">
               {analytics.upcomingPayments.map((item) => (
                 <li key={item.id}>
-                  {item.name}: {formatMoney(Number(item.due_amount), item.currency)}
+                  {item.name}:{" "}
+                  {formatMoney(Number(item.due_amount), item.currency, locale)}
                 </li>
               ))}
             </ul>
@@ -200,21 +236,24 @@ export default async function DashboardPage() {
             href="/dashboard/budget"
             className="mt-4 inline-block text-sm underline underline-offset-4"
           >
-            Deschide buget
+            {dict.dashboard.openBudget}
           </Link>
         </article>
 
         <article className="border border-border bg-card p-6">
-          <h2 className="font-heading text-2xl">Furnizori fără contract</h2>
+          <h2 className="font-heading text-2xl">
+            {dict.dashboard.vendorsWithoutContract}
+          </h2>
           {analytics.vendorsWithoutContract.length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">
-              Nu există furnizori în pipeline deschis.
+              {dict.dashboard.noOpenVendors}
             </p>
           ) : (
             <ul className="mt-3 space-y-2 text-sm">
               {analytics.vendorsWithoutContract.slice(0, 5).map((vendor) => (
                 <li key={vendor.id}>
-                  {vendor.company_name} · {vendor.status}
+                  {vendor.company_name} ·{" "}
+                  {getStatusLabel("vendor", vendor.status, locale)}
                 </li>
               ))}
             </ul>
@@ -223,7 +262,7 @@ export default async function DashboardPage() {
             href="/dashboard/vendors"
             className="mt-4 inline-block text-sm underline underline-offset-4"
           >
-            Vendor CRM
+            {dict.dashboard.openVendors}
           </Link>
         </article>
       </section>

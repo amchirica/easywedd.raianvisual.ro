@@ -1,55 +1,59 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
-export const metadata: Metadata = {
-  title: "Funcționalități",
-};
+import {
+  SectionHeader,
+  SectionShell,
+} from "@/components/marketing/sections/section-shell";
+import { buttonVariants } from "@/components/ui/button";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
+import { cn } from "@/lib/utils";
 
-const features = [
-  {
-    title: "Wedding Planner",
-    description:
-      "Task-uri, checklist-uri și calendar pentru fiecare etapă a organizării.",
-  },
-  {
-    title: "Invitation Studio",
-    description:
-      "Invitații digitale elegante, cu RSVP și urmărirea răspunsurilor.",
-  },
-  {
-    title: "Wedding Website Builder",
-    description:
-      "Un site de nuntă dedicat, cu informații esențiale pentru invitați.",
-  },
-  {
-    title: "Workspace colaborativ",
-    description:
-      "Invită partenerul, plannerul sau fotograful — fiecare cu rolul potrivit.",
-  },
-];
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
 
-export default function FeaturesPage() {
+  return {
+    title: dict.meta.featuresTitle,
+    description: dict.meta.featuresDescription,
+  };
+}
+
+export default async function FeaturesPage() {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  const t = dict.featuresPage;
+
   return (
-    <div className="bg-[linear-gradient(180deg,#f7f4ef_0%,#fffdf9_45%,#efe8dc_100%)]">
-      <div className="mx-auto max-w-6xl px-6 pb-20 pt-28">
-        <header className="max-w-2xl">
-          <h1 className="font-heading text-4xl md:text-5xl">Funcționalități</h1>
-          <p className="mt-4 text-lg text-muted-foreground">
-            Trei module majore, pe o fundație comună de workspace și abonamente.
-          </p>
-        </header>
-        <div className="mt-14 grid gap-10 md:grid-cols-2">
-          {features.map((feature, index) => (
-            <article
-              key={feature.title}
-              className="border-t border-border pt-6 transition duration-500"
-              style={{ animationDelay: `${index * 80}ms` }}
-            >
-              <h2 className="font-heading text-2xl">{feature.title}</h2>
-              <p className="mt-3 text-muted-foreground">{feature.description}</p>
+    <>
+      <SectionShell className="pt-28">
+        <SectionHeader
+          eyebrow={t.eyebrow}
+          title={t.title}
+          description={t.description}
+        />
+        <div className="mt-14 grid gap-5 sm:grid-cols-2">
+          {t.modules.map((mod) => (
+            <article key={mod.title} className="surface-card p-6">
+              <h2 className="font-heading text-xl text-foreground">
+                {mod.title}
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                {mod.description}
+              </p>
             </article>
           ))}
         </div>
-      </div>
-    </div>
+        <div className="mt-12 flex justify-center">
+          <Link
+            href="/register"
+            className={cn(buttonVariants({ size: "lg" }))}
+          >
+            {t.cta}
+          </Link>
+        </div>
+      </SectionShell>
+    </>
   );
 }

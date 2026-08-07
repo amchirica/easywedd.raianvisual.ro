@@ -3,11 +3,13 @@
 import { useTransition } from "react";
 
 import { ConfirmDeleteButton } from "@/components/planner/confirm-delete-button";
+import { useI18n } from "@/components/providers/i18n-provider";
 import { Button } from "@/components/ui/button";
 import {
   deleteTimelineItemAction,
   reorderTimelineAction,
 } from "@/lib/actions/timeline";
+import { formatDateTime } from "@/lib/i18n/format";
 import type { TimelineItem } from "@/types/planner";
 
 type TimelineListProps = {
@@ -15,6 +17,7 @@ type TimelineListProps = {
 };
 
 export function TimelineList({ items }: TimelineListProps) {
+  const { dict, locale } = useI18n();
   const [, startTransition] = useTransition();
   const ordered = [...items].sort((a, b) => a.sort_order - b.sort_order);
 
@@ -42,24 +45,24 @@ export function TimelineList({ items }: TimelineListProps) {
               <p className="font-heading text-xl">{item.title}</p>
               <p className="mt-1 text-sm text-muted-foreground">
                 {item.start_time
-                  ? new Date(item.start_time).toLocaleString("ro-RO")
-                  : "Oră nesetată"}
+                  ? formatDateTime(item.start_time, locale)
+                  : dict.dayTimeline.timeUnset}
                 {item.location ? ` · ${item.location}` : ""}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Vizibilitate: {item.visibility}
+                {dict.dayTimeline.visibility}: {item.visibility}
                 {item.responsible_person
-                  ? ` · Responsabil: ${item.responsible_person}`
+                  ? ` · ${dict.dayTimeline.responsible}: ${item.responsible_person}`
                   : ""}
               </p>
               {item.notes ? <p className="mt-2 text-sm">{item.notes}</p> : null}
             </div>
             <div className="flex gap-2 print:hidden">
               <Button size="sm" variant="outline" onClick={() => move(index, -1)}>
-                Sus
+                {dict.dayTimeline.moveUp}
               </Button>
               <Button size="sm" variant="outline" onClick={() => move(index, 1)}>
-                Jos
+                {dict.dayTimeline.moveDown}
               </Button>
               <ConfirmDeleteButton
                 id={item.id}

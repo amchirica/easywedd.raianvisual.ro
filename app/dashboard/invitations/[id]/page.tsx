@@ -6,19 +6,32 @@ import { InvitationDeleteControls } from "@/components/invitations/invitation-de
 import { EmptyState } from "@/components/planner/empty-state";
 import { buttonVariants } from "@/components/ui/button";
 import { getProjectAnalyticsAction } from "@/lib/actions/invitations";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { loadInvitationProject } from "@/lib/invitations/load-project";
 import { canManagePlanner } from "@/lib/planner/access";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Proiect invitație" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.invitations.projectMetaTitle };
+}
 
 type PageProps = { params: Promise<{ id: string }> };
 
 export default async function InvitationProjectPage({ params }: PageProps) {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const { id } = await params;
   const loaded = await loadInvitationProject(id);
   if (loaded.error || !loaded.data) {
-    return <EmptyState title="Proiect indisponibil" description={loaded.error ?? ""} />;
+    return (
+      <EmptyState
+        title={dict.invitations.projectUnavailable}
+        description={loaded.error ?? ""}
+      />
+    );
   }
 
   const { project, limits, ctx } = loaded.data;
@@ -29,11 +42,17 @@ export default async function InvitationProjectPage({ params }: PageProps) {
     Boolean((project as { soft_deleted_at?: string | null }).soft_deleted_at);
 
   const links = [
-    { href: `/dashboard/invitations/${id}/edit`, label: "Editor" },
-    { href: `/dashboard/invitations/${id}/preview`, label: "Preview" },
-    { href: `/dashboard/invitations/${id}/distribute`, label: "Distribuire" },
-    { href: `/dashboard/invitations/${id}/export`, label: "Export" },
-    { href: `/dashboard/invitations/${id}/analytics`, label: "Analytics" },
+    { href: `/dashboard/invitations/${id}/edit`, label: dict.invitations.editor.label },
+    { href: `/dashboard/invitations/${id}/preview`, label: dict.invitations.preview },
+    {
+      href: `/dashboard/invitations/${id}/distribute`,
+      label: dict.invitations.distributeTitle,
+    },
+    { href: `/dashboard/invitations/${id}/export`, label: dict.invitations.export },
+    {
+      href: `/dashboard/invitations/${id}/analytics`,
+      label: dict.invitations.analytics,
+    },
   ];
 
   return (
@@ -46,9 +65,7 @@ export default async function InvitationProjectPage({ params }: PageProps) {
           <h1 className="font-heading text-4xl">{project.name}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Plan {limits.tier}
-            {limits.customDomainReady
-              ? " · custom domain pregătit (fără DNS live)"
-              : ""}
+            {limits.customDomainReady ? dict.invitations.customDomainReady : ""}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -56,7 +73,7 @@ export default async function InvitationProjectPage({ params }: PageProps) {
             href="/dashboard/invitations"
             className={cn(buttonVariants({ variant: "outline" }))}
           >
-            Înapoi
+            {dict.dialog.back}
           </Link>
           {canWrite ? (
             <InvitationDeleteControls

@@ -22,20 +22,29 @@ import {
   sumBudgetItems,
   totalsByCategory,
 } from "@/lib/planner/budget-math";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
+import { t } from "@/lib/i18n/t";
 import { requireWeddingContext } from "@/lib/planner/context";
 
-export const metadata: Metadata = { title: "Buget" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.budget.title };
+}
 
 export default async function BudgetPage() {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) {
-    return <EmptyState title="Workspace incomplet" description={ctx.error ?? ""} />;
+    return <EmptyState title={dict.shell.workspaceIncomplete} description={ctx.error ?? ""} />;
   }
   if (!canAccessFeature(ctx.context.entitlements, "budget")) {
     return (
       <EmptyState
-        title="Modul dezactivat"
-        description="Entitlement-ul budget nu este activ."
+        title={dict.shell.moduleDisabled}
+        description={dict.shell.moduleDisabledDesc}
       />
     );
   }
@@ -79,9 +88,9 @@ export default async function BudgetPage() {
     <div className="space-y-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-heading text-4xl">Budget Planner</h1>
+          <h1 className="font-heading text-4xl">{dict.budget.title}</h1>
           <p className="mt-2 text-muted-foreground">
-            Monedă workspace: {currency}. Curs manual EUR/RON fără API extern.
+            {t(dict as never, "budget.currencyHint", { locale, params: { currency } })}
           </p>
         </div>
         <div className="flex flex-wrap gap-2 print:hidden">
@@ -93,7 +102,7 @@ export default async function BudgetPage() {
           {canWrite ? (
             <form action={seedBudgetCategoriesAction}>
               <Button type="submit" variant="outline">
-                Categorii implicite
+                {dict.budget.defaultCategories}
               </Button>
             </form>
           ) : null}
@@ -102,15 +111,15 @@ export default async function BudgetPage() {
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          ["Estimat", totals.estimated],
-          ["Contractat", totals.contracted],
-          ["Plătit", totals.paid],
-          ["Rămas", totals.remaining],
+          [dict.budget.columns.estimated, totals.estimated],
+          [dict.budget.columns.contracted, totals.contracted],
+          [dict.budget.columns.paid, totals.paid],
+          [dict.budget.columns.remaining, totals.remaining],
         ].map(([label, value]) => (
           <article key={String(label)} className="border border-border bg-card p-4">
             <p className="text-sm text-muted-foreground">{label}</p>
             <p className="mt-2 font-heading text-3xl">
-              {formatMoney(Number(value), currency)}
+              {formatMoney(Number(value), currency, locale)}
             </p>
           </article>
         ))}
@@ -118,22 +127,22 @@ export default async function BudgetPage() {
 
       <section className="grid gap-6 lg:grid-cols-2">
         <article className="border border-border bg-card p-4">
-          <h2 className="font-heading text-2xl">Pe categorii</h2>
+          <h2 className="font-heading text-2xl">{dict.budget.byCategory}</h2>
           <div className="mt-4">
             <BudgetChart data={byCategory} />
           </div>
           <p className="mt-4 text-xs text-muted-foreground">
-            Diferență estimat vs contractat:{" "}
-            {formatMoney(totals.varianceEstimatedVsContracted, currency)}
+            {dict.budget.varianceLabel}{" "}
+            {formatMoney(totals.varianceEstimatedVsContracted, currency, locale)}
           </p>
         </article>
 
         {canWrite ? (
           <article className="border border-border bg-card p-4 print:hidden">
-            <h2 className="font-heading text-2xl">Curs valutar</h2>
+            <h2 className="font-heading text-2xl">{dict.budget.exchangeRateTitle}</h2>
             <form action={saveExchangeRateAction} className="mt-4 grid gap-3 sm:grid-cols-2">
               <div className="space-y-1">
-                <Label>Din</Label>
+                <Label>{dict.budget.from}</Label>
                 <select
                   name="base_currency"
                   className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
@@ -144,7 +153,7 @@ export default async function BudgetPage() {
                 </select>
               </div>
               <div className="space-y-1">
-                <Label>În</Label>
+                <Label>{dict.budget.to}</Label>
                 <select
                   name="quote_currency"
                   className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
@@ -155,11 +164,11 @@ export default async function BudgetPage() {
                 </select>
               </div>
               <div className="space-y-1">
-                <Label>Curs</Label>
+                <Label>{dict.budget.rate}</Label>
                 <Input name="rate" type="number" step="0.0001" required />
               </div>
               <div className="space-y-1">
-                <Label>Data</Label>
+                <Label>{dict.budget.date}</Label>
                 <Input
                   name="effective_on"
                   type="date"
@@ -168,7 +177,7 @@ export default async function BudgetPage() {
                 />
               </div>
               <Button type="submit" className="sm:col-span-2">
-                Salvează curs
+                {dict.budget.saveRate}
               </Button>
             </form>
             <ul className="mt-4 space-y-1 text-xs text-muted-foreground">
@@ -189,17 +198,17 @@ export default async function BudgetPage() {
           className="grid gap-3 border border-border bg-card p-4 print:hidden sm:grid-cols-2 lg:grid-cols-3"
         >
           <div className="space-y-1">
-            <Label>Nume</Label>
+            <Label>{dict.budget.name}</Label>
             <Input name="name" required />
           </div>
           <div className="space-y-1">
-            <Label>Categorie</Label>
+            <Label>{dict.budget.columns.category}</Label>
             <select
               name="category_id"
               className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
               defaultValue=""
             >
-              <option value="">Fără categorie</option>
+              <option value="">{dict.budget.noCategory}</option>
               {(categories ?? []).map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -208,7 +217,7 @@ export default async function BudgetPage() {
             </select>
           </div>
           <div className="space-y-1">
-            <Label>Furnizor</Label>
+            <Label>{dict.budget.columns.vendor}</Label>
             <select
               name="vendor_id"
               className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
@@ -223,15 +232,15 @@ export default async function BudgetPage() {
             </select>
           </div>
           <div className="space-y-1">
-            <Label>Estimat</Label>
+            <Label>{dict.budget.columns.estimated}</Label>
             <Input name="estimated_amount" type="number" step="0.01" defaultValue={0} />
           </div>
           <div className="space-y-1">
-            <Label>Contractat</Label>
+            <Label>{dict.budget.columns.contracted}</Label>
             <Input name="contracted_amount" type="number" step="0.01" defaultValue={0} />
           </div>
           <div className="space-y-1">
-            <Label>Monedă</Label>
+            <Label>{dict.budget.currency}</Label>
             <select
               name="currency"
               className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
@@ -242,15 +251,15 @@ export default async function BudgetPage() {
             </select>
           </div>
           <Button type="submit" className="sm:col-span-2 lg:col-span-3">
-            Adaugă linie
+            {dict.budget.add}
           </Button>
         </form>
       ) : null}
 
       {(items ?? []).length === 0 ? (
         <EmptyState
-          title="Nicio linie de buget"
-          description="Adaugă cheltuieli estimate și contractate."
+          title={dict.budget.emptyTitle}
+          description={dict.budget.emptyDescription}
         />
       ) : (
         <div className="space-y-3">
@@ -263,13 +272,13 @@ export default async function BudgetPage() {
                 <div>
                   <h3 className="font-medium">{item.name}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Estimat {formatMoney(Number(item.estimated_amount), item.currency)} ·
-                    Contractat {formatMoney(Number(item.contracted_amount), item.currency)} ·
-                    Plătit {formatMoney(Number(item.paid_amount), item.currency)} ·
-                    Rămas {formatMoney(Number(item.due_amount), item.currency)}
+                    {dict.budget.columns.estimated} {formatMoney(Number(item.estimated_amount), item.currency, locale)} ·
+                    {dict.budget.columns.contracted} {formatMoney(Number(item.contracted_amount), item.currency, locale)} ·
+                    {dict.budget.columns.paid} {formatMoney(Number(item.paid_amount), item.currency, locale)} ·
+                    {dict.budget.columns.remaining} {formatMoney(Number(item.due_amount), item.currency, locale)}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Status: {item.payment_status}
+                    {dict.budget.paymentStatus}: {item.payment_status}
                   </p>
                 </div>
                 <div className="print:hidden">
@@ -285,7 +294,13 @@ export default async function BudgetPage() {
                   className="mt-4 grid gap-2 border-t border-border pt-4 print:hidden sm:grid-cols-4"
                 >
                   <input type="hidden" name="budget_item_id" value={item.id} />
-                  <Input name="amount" type="number" step="0.01" placeholder="Sumă" required />
+                  <Input
+                    name="amount"
+                    type="number"
+                    step="0.01"
+                    placeholder={dict.budget.amountPlaceholder}
+                    required
+                  />
                   <Input
                     name="payment_date"
                     type="date"
@@ -297,13 +312,13 @@ export default async function BudgetPage() {
                     className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
                     defaultValue="transfer"
                   >
-                    <option value="transfer">Transfer</option>
-                    <option value="card">Card</option>
-                    <option value="cash">Cash</option>
-                    <option value="other">Altul</option>
+                    <option value="transfer">{dict.budget.paymentTransfer}</option>
+                    <option value="card">{dict.budget.paymentCard}</option>
+                    <option value="cash">{dict.budget.paymentCash}</option>
+                    <option value="other">{dict.budget.paymentOther}</option>
                   </select>
                   <Button type="submit" variant="outline">
-                    Adaugă plată
+                    {dict.budget.addPayment}
                   </Button>
                 </form>
               ) : null}

@@ -2,12 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 
+import type { ErrorCode } from "@/lib/i18n/errors";
 import { canManagePlanner } from "@/lib/planner/access";
 import { requireWeddingContext } from "@/lib/planner/context";
 import { weddingDetailsSchema } from "@/lib/validations/wedding";
 
 export type WeddingActionResult = {
   error?: string;
+  errorCode?: ErrorCode;
   success?: string;
 };
 
@@ -17,10 +19,16 @@ export async function updateWeddingDetailsAction(
 ): Promise<WeddingActionResult> {
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) {
-    return { error: ctx.error ?? "Workspace incomplet" };
+    return {
+      error: ctx.error ?? "Workspace incomplet",
+      errorCode: "resource_not_found",
+    };
   }
   if (!canManagePlanner(ctx.context.role)) {
-    return { error: "Nu ai permisiunea de a edita detaliile nunții." };
+    return {
+      error: "Nu ai permisiunea de a edita detaliile nunții.",
+      errorCode: "permission_denied",
+    };
   }
 
   const guestRaw = String(formData.get("estimated_guest_count") ?? "").trim();
@@ -36,7 +44,10 @@ export async function updateWeddingDetailsAction(
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Date invalide" };
+    return {
+      error: parsed.error.issues[0]?.message ?? "validation.invalid",
+      errorCode: "validation_failed",
+    };
   }
 
   const data = parsed.data;
@@ -58,7 +69,10 @@ export async function updateWeddingDetailsAction(
 
   if (error) {
     console.error("[wedding:update]", { code: error.code, message: error.message });
-    return { error: "Nu am putut salva detaliile nunții. Încearcă din nou." };
+    return {
+      error: "Nu am putut salva detaliile nunții. Încearcă din nou.",
+      errorCode: "wedding_save_failed",
+    };
   }
 
   revalidatePath("/dashboard/wedding");

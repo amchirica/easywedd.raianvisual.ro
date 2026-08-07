@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import Link from "next/link";
 
 import { AdminConfirmDelete } from "@/components/admin/admin-confirm-delete";
@@ -20,13 +23,19 @@ import { CONTRACT_STATUS_LABELS } from "@/lib/billing/labels";
 import { listPublicBillingPlans } from "@/lib/billing/plan-catalog";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = { title: "Contracte · Admin" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.admin.contractsMetaTitle };
+}
 
 type PageProps = {
   searchParams: Promise<{ q?: string; status?: string }>;
 };
 
 export default async function AdminContractsPage({ searchParams }: PageProps) {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const params = await searchParams;
   const supabase = await createClient();
   const [plans, users, contracts] = await Promise.all([
@@ -47,7 +56,7 @@ export default async function AdminContractsPage({ searchParams }: PageProps) {
   return (
     <div className="space-y-10">
       <header>
-        <h1 className="font-heading text-4xl">Contracte</h1>
+        <h1 className="font-heading text-4xl">{dict.admin.contracts}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Selectează utilizatorul, workspace-ul și abonamentul — fără UUID-uri.
         </p>
@@ -115,7 +124,7 @@ export default async function AdminContractsPage({ searchParams }: PageProps) {
               <AdminConfirmDelete
                 workspaceId={c.workspaceId}
                 id={c.id}
-                label="Șterge"
+                label={dict.dialog.delete}
                 confirmLabel="Confirmă ștergerea"
                 action={adminSoftDeleteContractBound}
               />
@@ -150,7 +159,7 @@ export default async function AdminContractsPage({ searchParams }: PageProps) {
               <Input name="package_name" placeholder="Premium Wedding" />
             </div>
             <div className="space-y-1">
-              <Label>Referință contract</Label>
+              <Label>{dict.admin.contractReference}</Label>
               <Input name="external_contract_reference" />
             </div>
             <div className="space-y-1">
@@ -171,7 +180,7 @@ export default async function AdminContractsPage({ searchParams }: PageProps) {
               <Input name="access_months" type="number" defaultValue={12} />
             </div>
           </div>
-          <Button type="submit">Creează + trimite invitație</Button>
+          <Button type="submit">{dict.admin.createAndInvite}</Button>
         </form>
 
         <div className="divide-y divide-border border-y border-border">

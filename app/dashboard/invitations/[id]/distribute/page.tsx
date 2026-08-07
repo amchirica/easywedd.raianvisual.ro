@@ -2,17 +2,30 @@ import type { Metadata } from "next";
 
 import { DistributePanel } from "@/components/invitations/distribute-panel";
 import { EmptyState } from "@/components/planner/empty-state";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { appBaseUrl, loadInvitationProject } from "@/lib/invitations/load-project";
 
-export const metadata: Metadata = { title: "Distribuire invitație" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.invitations.distributeMetaTitle };
+}
 
 type PageProps = { params: Promise<{ id: string }> };
 
 export default async function DistributeInvitationPage({ params }: PageProps) {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const { id } = await params;
   const loaded = await loadInvitationProject(id);
   if (loaded.error || !loaded.data) {
-    return <EmptyState title="Proiect indisponibil" description={loaded.error ?? ""} />;
+    return (
+      <EmptyState
+        title={dict.invitations.projectUnavailable}
+        description={loaded.error ?? ""}
+      />
+    );
   }
 
   const { project, content, ctx } = loaded.data;
@@ -46,9 +59,9 @@ export default async function DistributeInvitationPage({ params }: PageProps) {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-heading text-4xl">Distribuire</h1>
+        <h1 className="font-heading text-4xl">{dict.invitations.distributeTitle}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Link, QR, email 1:1 și WhatsApp manual
+          {dict.invitations.distributeSubtitle}
         </p>
       </header>
       <DistributePanel

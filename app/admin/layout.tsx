@@ -4,22 +4,9 @@ import { redirect } from "next/navigation";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { Button } from "@/components/ui/button";
 import { logoutAction } from "@/lib/actions/auth";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { getCurrentUserContext } from "@/lib/workspace";
-
-const adminNav = [
-  { href: "/admin", label: "Prezentare" },
-  { href: "/admin/users", label: "Utilizatori" },
-  { href: "/admin/workspaces", label: "Workspace-uri" },
-  { href: "/admin/subscriptions", label: "Abonamente" },
-  { href: "/admin/plans", label: "Planuri" },
-  { href: "/admin/access", label: "Acces & aprobări" },
-  { href: "/admin/contracts", label: "Contracte" },
-  { href: "/admin/templates", label: "Templates" },
-  { href: "/admin/analytics", label: "Analytics" },
-  { href: "/admin/insights", label: "Insights" },
-  { href: "/admin/gdpr", label: "GDPR" },
-  { href: "/admin/consents", label: "Consimțăminte" },
-];
 
 export default async function AdminLayout({
   children,
@@ -36,6 +23,24 @@ export default async function AdminLayout({
     redirect("/dashboard");
   }
 
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+
+  const adminNav = [
+    { href: "/admin", label: dict.admin.overview },
+    { href: "/admin/users", label: dict.admin.users },
+    { href: "/admin/workspaces", label: dict.admin.workspaces },
+    { href: "/admin/subscriptions", label: dict.admin.subscriptions },
+    { href: "/admin/plans", label: dict.admin.plans },
+    { href: "/admin/access", label: dict.admin.access },
+    { href: "/admin/contracts", label: dict.admin.contracts },
+    { href: "/admin/templates", label: dict.admin.templates },
+    { href: "/admin/analytics", label: dict.admin.analytics },
+    { href: "/admin/insights", label: dict.admin.insights },
+    { href: "/admin/gdpr", label: dict.admin.gdpr },
+    { href: "/admin/consents", label: dict.admin.consents },
+  ];
+
   return (
     <div className="min-h-[100svh] bg-background">
       <header className="border-b border-border bg-card">
@@ -45,10 +50,11 @@ export default async function AdminLayout({
               href="/admin"
               size={26}
               showWordmark
-              wordmarkClassName="text-2xl"
+              lightPad
+              wordmarkClassName="text-2xl text-foreground"
             />
             <span className="rounded border border-border px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-              Admin
+              {dict.admin.title}
             </span>
           </div>
           <div className="flex items-center gap-3">
@@ -56,11 +62,11 @@ export default async function AdminLayout({
               href="/dashboard"
               className="text-sm underline-offset-4 hover:underline"
             >
-              Dashboard
+              {dict.admin.backDashboard}
             </Link>
             <form action={logoutAction}>
               <Button type="submit" variant="outline" size="sm">
-                Ieșire
+                {dict.admin.signOut}
               </Button>
             </form>
           </div>

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const tableSchema = z.object({
-  label: z.string().min(1, "Eticheta mesei este obligatorie"),
+  label: z.string().min(1, "validation.tableLabelRequired"),
   shape: z.enum(["round", "rectangle"]).default("round"),
   capacity: z.coerce.number().int().positive().max(100).default(8),
   layout_id: z.string().uuid().optional().or(z.literal("")),

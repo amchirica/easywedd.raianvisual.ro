@@ -14,9 +14,16 @@ import {
 } from "@/lib/billing/stripe-ids";
 import { trackProductEvent } from "@/lib/analytics/product";
 import { syncWorkspaceEntitlements } from "@/lib/entitlements/service";
+import type { ErrorCode } from "@/lib/i18n/errors";
 import { getStripe, isStripeConfigured } from "@/lib/stripe";
 import { requireWeddingContext } from "@/lib/planner/context";
 import { getSiteUrl } from "@/lib/url";
+
+export type ActionState = {
+  error?: string;
+  errorCode?: ErrorCode;
+  success?: string;
+};
 
 export async function startCheckoutAction(
   productKey: BillingProductKey,

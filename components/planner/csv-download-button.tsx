@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 
+import { useI18n } from "@/components/providers/i18n-provider";
 import { Button } from "@/components/ui/button";
 
 type CsvDownloadButtonProps = {
@@ -13,9 +14,11 @@ type CsvDownloadButtonProps = {
 export function CsvDownloadButton({
   filename,
   action,
-  label = "Export CSV",
+  label,
 }: CsvDownloadButtonProps) {
+  const { dict } = useI18n();
   const [pending, startTransition] = useTransition();
+  const resolvedLabel = label ?? dict.common.exportCsv;
 
   return (
     <Button
@@ -26,7 +29,7 @@ export function CsvDownloadButton({
         startTransition(async () => {
           const result = await action();
           if (!result.csv) {
-            window.alert(result.error ?? "Export eșuat");
+            window.alert(result.error ?? dict.common.exportFailed);
             return;
           }
           const blob = new Blob([result.csv], { type: "text/csv;charset=utf-8" });
@@ -39,7 +42,7 @@ export function CsvDownloadButton({
         })
       }
     >
-      {pending ? "Se exportă..." : label}
+      {pending ? dict.common.exporting : resolvedLabel}
     </Button>
   );
 }

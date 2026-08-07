@@ -5,7 +5,9 @@ import { useMemo, useState } from "react";
 
 import { AdminConfirmDelete } from "@/components/admin/admin-confirm-delete";
 import { AdminBulkWorkspaceDelete } from "@/components/admin/admin-deletion-controls";
+import { useI18n } from "@/components/providers/i18n-provider";
 import { adminSoftDeleteWorkspaceBound } from "@/lib/actions/admin-billing";
+import { t } from "@/lib/i18n/t";
 
 type Row = {
   id: string;
@@ -20,6 +22,7 @@ type Row = {
 };
 
 export function AdminWorkspacesBulkTable({ rows }: { rows: Row[] }) {
+  const { dict, locale } = useI18n();
   const [selected, setSelected] = useState<string[]>([]);
   const selectable = useMemo(
     () => rows.filter((r) => !r.deleted && !r.protectedWs).map((r) => r.id),
@@ -47,7 +50,10 @@ export function AdminWorkspacesBulkTable({ rows }: { rows: Row[] }) {
         />
         {selected.length ? (
           <p className="text-xs text-muted-foreground">
-            {selected.length} selectate
+            {t(dict as never, "admin.selectedCount", {
+              locale,
+              params: { count: selected.length },
+            })}
           </p>
         ) : null}
       </div>
@@ -63,15 +69,15 @@ export function AdminWorkspacesBulkTable({ rows }: { rows: Row[] }) {
                     selected.length === selectable.length
                   }
                   onChange={toggleAll}
-                  aria-label="Selectează toate"
+                  aria-label={dict.admin.selectAll}
                 />
               </th>
-              <th className="px-4 py-3 font-medium">Workspace</th>
-              <th className="px-4 py-3 font-medium">Owner</th>
-              <th className="px-4 py-3 font-medium">Tip</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Plan</th>
-              <th className="px-4 py-3 font-medium">Acțiuni</th>
+              <th className="px-4 py-3 font-medium">{dict.admin.workspace}</th>
+              <th className="px-4 py-3 font-medium">{dict.admin.owner}</th>
+              <th className="px-4 py-3 font-medium">{dict.admin.type}</th>
+              <th className="px-4 py-3 font-medium">{dict.admin.status}</th>
+              <th className="px-4 py-3 font-medium">{dict.admin.plan}</th>
+              <th className="px-4 py-3 font-medium">{dict.admin.actions}</th>
             </tr>
           </thead>
           <tbody>
@@ -86,7 +92,10 @@ export function AdminWorkspacesBulkTable({ rows }: { rows: Row[] }) {
                       type="checkbox"
                       checked={selected.includes(workspace.id)}
                       onChange={() => toggle(workspace.id)}
-                      aria-label={`Selectează ${workspace.name}`}
+                      aria-label={t(dict as never, "admin.selectNamed", {
+                        locale,
+                        params: { name: workspace.name },
+                      })}
                     />
                   ) : null}
                 </td>
@@ -115,7 +124,7 @@ export function AdminWorkspacesBulkTable({ rows }: { rows: Row[] }) {
                 </td>
                 <td className="px-4 py-3">{workspace.workspace_type}</td>
                 <td className="px-4 py-3">
-                  {workspace.deleted ? "Șters" : workspace.status}
+                  {workspace.deleted ? dict.admin.deleted : workspace.status}
                 </td>
                 <td className="px-4 py-3">{workspace.planLabel}</td>
                 <td className="px-4 py-3">
@@ -123,13 +132,13 @@ export function AdminWorkspacesBulkTable({ rows }: { rows: Row[] }) {
                     <AdminConfirmDelete
                       workspaceId={workspace.id}
                       id={workspace.id}
-                      label="Arhivează"
-                      confirmLabel="Confirmă arhivarea"
+                      label={dict.admin.archive}
+                      confirmLabel={dict.admin.confirmArchive}
                       action={adminSoftDeleteWorkspaceBound}
                     />
                   ) : workspace.protectedWs ? (
                     <span className="text-xs text-muted-foreground">
-                      Protejat
+                      {dict.admin.protected}
                     </span>
                   ) : null}
                 </td>

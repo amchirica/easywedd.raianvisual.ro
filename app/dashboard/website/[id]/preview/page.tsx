@@ -3,19 +3,32 @@ import type { Metadata } from "next";
 import { SiteCanvas } from "@/components/website/site-canvas";
 import { EmptyState } from "@/components/planner/empty-state";
 import { isFeatureEnabled, requireFeature } from "@/lib/entitlements/service";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { requireWeddingContext } from "@/lib/planner/context";
 import { defaultSiteTheme, siteThemeSchema } from "@/lib/website/schema";
 import type { SiteSectionConfig } from "@/types/website";
 
-export const metadata: Metadata = { title: "Preview website" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.website.previewMetaTitle };
+}
 
 type PageProps = { params: Promise<{ id: string }> };
 
 export default async function PreviewWebsitePage({ params }: PageProps) {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const { id } = await params;
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) {
-    return <EmptyState title="Workspace incomplet" description={ctx.error ?? ""} />;
+    return (
+      <EmptyState
+        title={dict.shell.workspaceIncomplete}
+        description={ctx.error ?? ""}
+      />
+    );
   }
 
   const [{ data: site }, { data: sections }, feature] = await Promise.all([
@@ -34,7 +47,7 @@ export default async function PreviewWebsitePage({ params }: PageProps) {
   ]);
 
   if (!site || !feature.ok) {
-    return <EmptyState title="Site indisponibil" description="" />;
+    return <EmptyState title={dict.website.unavailable} description="" />;
   }
 
   const theme = siteThemeSchema.safeParse(site.theme_config).success
@@ -43,7 +56,7 @@ export default async function PreviewWebsitePage({ params }: PageProps) {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-heading text-4xl">Preview</h1>
+      <h1 className="font-heading text-4xl">{dict.website.preview}</h1>
       <div className="mx-auto max-w-xl border border-border">
         <SiteCanvas
           theme={theme}

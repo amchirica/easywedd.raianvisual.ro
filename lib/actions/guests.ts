@@ -7,6 +7,7 @@ import {
   assertWithinLimit,
   requireFeature,
 } from "@/lib/entitlements/service";
+import type { ErrorCode } from "@/lib/i18n/errors";
 import { canManageGuests } from "@/lib/planner/access";
 import { logAudit, requireWeddingContext } from "@/lib/planner/context";
 import { parseGuestCsv, toCsv } from "@/lib/planner/exports";
@@ -16,6 +17,7 @@ import type { GuestSide } from "@/types/planner";
 
 export type ActionState = {
   error?: string;
+  errorCode?: ErrorCode;
   success?: string;
   csv?: string;
   rsvpUrl?: string;
@@ -175,7 +177,9 @@ export async function importGuestsCsvAction(formData: FormData): Promise<void> {
 
 export async function exportGuestsCsvAction(): Promise<ActionState> {
   const ctx = await requireWeddingContext();
-  if (ctx.error || !ctx.context) return { error: ctx.error ?? "Eroare" };
+  if (ctx.error || !ctx.context) {
+    return { error: ctx.error ?? "Eroare", errorCode: "generic" };
+  }
 
   const { data } = await ctx.context.supabase
     .from("guests")
@@ -212,15 +216,24 @@ export async function exportGuestsCsvAction(): Promise<ActionState> {
 
 export async function createRsvpLinkAction(guestId: string): Promise<ActionState> {
   const ctx = await requireWeddingContext();
-  if (ctx.error || !ctx.context) return { error: ctx.error ?? "Eroare" };
-  if (!canManageGuests(ctx.context.role)) return { error: "Fără permisiune." };
+  if (ctx.error || !ctx.context) {
+    return { error: ctx.error ?? "Eroare", errorCode: "generic" };
+  }
+  if (!canManageGuests(ctx.context.role)) {
+    return { error: "Fără permisiune.", errorCode: "permission_denied" };
+  }
 
   const { data: token, error } = await ctx.context.supabase.rpc(
     "create_rsvp_token",
     { p_guest_id: guestId, p_expires_days: 60 },
   );
 
-  if (error || !token) return { error: error?.message ?? "Nu am putut crea linkul." };
+  if (error || !token) {
+    return {
+      error: error?.message ?? "Nu am putut crea linkul.",
+      errorCode: "invite_failed",
+    };
+  }
 
   return {
     success: "Link RSVP creat.",

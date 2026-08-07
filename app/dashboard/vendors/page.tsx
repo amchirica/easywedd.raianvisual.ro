@@ -13,6 +13,9 @@ import {
   updateVendorStatusAction,
 } from "@/lib/actions/vendors";
 import { canAccessFeature, canManagePlanner } from "@/lib/planner/access";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
+import { getStatusLabel } from "@/lib/i18n/status-labels";
 import { requireWeddingContext } from "@/lib/planner/context";
 import { VendorStatusButtons } from "@/components/planner/vendor-status-buttons";
 import {
@@ -20,18 +23,24 @@ import {
   vendorCategoryLabel,
 } from "@/lib/vendors/categories";
 
-export const metadata: Metadata = { title: "Furnizori" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.vendorDesk.title };
+}
 
 export default async function VendorsPage() {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) {
-    return <EmptyState title="Workspace incomplet" description={ctx.error ?? ""} />;
+    return <EmptyState title={dict.shell.workspaceIncomplete} description={ctx.error ?? ""} />;
   }
   if (!canAccessFeature(ctx.context.entitlements, "vendors")) {
     return (
       <EmptyState
-        title="Modul dezactivat"
-        description="Entitlement-ul vendors nu este activ."
+        title={dict.shell.moduleDisabled}
+        description={dict.shell.moduleDisabledDesc}
       />
     );
   }
@@ -54,10 +63,8 @@ export default async function VendorsPage() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="font-heading text-4xl">Vendor CRM</h1>
-        <p className="mt-2 text-muted-foreground">
-          Pipeline: ofertat → contactat → shortlist → contractat / refuzat.
-        </p>
+        <h1 className="font-heading text-4xl">{dict.vendorDesk.title}</h1>
+        <p className="mt-2 text-muted-foreground">{dict.vendorDesk.subtitle}</p>
       </header>
 
       <RaianVisualRecommendedVendor
@@ -71,11 +78,11 @@ export default async function VendorsPage() {
           className="grid gap-3 border border-border bg-card p-4 sm:grid-cols-2 lg:grid-cols-3"
         >
           <div className="space-y-1">
-            <Label>Companie</Label>
+            <Label>{dict.vendorDesk.company}</Label>
             <Input name="company_name" required />
           </div>
           <div className="space-y-1">
-            <Label>Categorie</Label>
+            <Label>{dict.vendorDesk.categoryLabel}</Label>
             <select
               name="category"
               className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
@@ -90,37 +97,37 @@ export default async function VendorsPage() {
             </select>
           </div>
           <div className="space-y-1">
-            <Label>Contact</Label>
+            <Label>{dict.vendorDesk.contactLabel}</Label>
             <Input name="contact_name" />
           </div>
           <div className="space-y-1">
-            <Label>Telefon</Label>
+            <Label>{dict.vendorDesk.phone}</Label>
             <Input name="phone" />
           </div>
           <div className="space-y-1">
-            <Label>Email</Label>
+            <Label>{dict.vendorDesk.email}</Label>
             <Input name="email" type="email" />
           </div>
           <div className="space-y-1">
-            <Label>Preț ofertat</Label>
+            <Label>{dict.vendorDesk.quotedPrice}</Label>
             <Input name="quoted_price" type="number" step="0.01" />
           </div>
           <div className="space-y-1">
-            <Label>Termen</Label>
+            <Label>{dict.vendorDesk.dueDate}</Label>
             <Input name="due_date" type="date" />
           </div>
           <div className="space-y-1 sm:col-span-2">
-            <Label>Notițe</Label>
+            <Label>{dict.vendorDesk.notes}</Label>
             <Input name="notes" />
           </div>
-          <Button type="submit">Adaugă furnizor</Button>
+          <Button type="submit">{dict.vendorDesk.add}</Button>
         </form>
       ) : null}
 
       {(vendors ?? []).length === 0 ? (
         <EmptyState
-          title="Niciun furnizor"
-          description="Adaugă primul furnizor în pipeline."
+          title={dict.vendorDesk.emptyTitle}
+          description={dict.vendorDesk.emptyDescription}
         />
       ) : (
         <div className="space-y-4">
@@ -132,13 +139,17 @@ export default async function VendorsPage() {
                   <div>
                     <h2 className="font-heading text-2xl">{vendor.company_name}</h2>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {vendorCategoryLabel(vendor.category)} · {vendor.status}
-                      {vendor.due_date ? ` · termen ${vendor.due_date}` : ""}
+                      {vendorCategoryLabel(vendor.category)} ·{" "}
+                      {getStatusLabel("vendor", vendor.status, locale) ||
+                        vendor.status}
+                      {vendor.due_date
+                        ? ` · ${dict.vendorDesk.duePrefix} ${vendor.due_date}`
+                        : ""}
                     </p>
                     <p className="mt-2 text-sm">
                       {[vendor.contact_name, vendor.phone, vendor.email]
                         .filter(Boolean)
-                        .join(" · ") || "Fără date de contact"}
+                        .join(" · ") || dict.vendorDesk.noContact}
                     </p>
                     {vendor.notes ? (
                       <p className="mt-2 text-sm text-muted-foreground">{vendor.notes}</p>
@@ -180,11 +191,22 @@ export default async function VendorsPage() {
                     className="mt-4 grid gap-2 border-t border-border pt-4 sm:grid-cols-4"
                   >
                     <input type="hidden" name="vendor_id" value={vendor.id} />
-                    <Input name="title" placeholder="Titlu document" required />
-                    <Input name="document_url" placeholder="URL contract/document" required />
-                    <Input name="document_type" placeholder="Tip" />
+                    <Input
+                      name="title"
+                      placeholder={dict.vendorDesk.docTitle}
+                      required
+                    />
+                    <Input
+                      name="document_url"
+                      placeholder={dict.vendorDesk.docUrl}
+                      required
+                    />
+                    <Input
+                      name="document_type"
+                      placeholder={dict.vendorDesk.docType}
+                    />
                     <Button type="submit" variant="outline">
-                      Adaugă document
+                      {dict.vendorDesk.addDocument}
                     </Button>
                   </form>
                 ) : null}

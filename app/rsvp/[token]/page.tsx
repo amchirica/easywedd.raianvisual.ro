@@ -1,17 +1,24 @@
 import type { Metadata } from "next";
 
 import { RsvpForm } from "@/components/planner/rsvp-form";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = {
-  title: "RSVP",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.publicUi.rsvpMetaTitle };
+}
 
 type RsvpPageProps = {
   params: Promise<{ token: string }>;
 };
 
 export default async function RsvpPage({ params }: RsvpPageProps) {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  const { publicUi } = dict;
   const { token } = await params;
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("get_rsvp_by_token", {
@@ -23,9 +30,9 @@ export default async function RsvpPage({ params }: RsvpPageProps) {
   if (error || !row) {
     return (
       <Shell>
-        <h1 className="font-heading text-3xl">Link invalid</h1>
+        <h1 className="font-heading text-3xl">{publicUi.linkInvalid}</h1>
         <p className="mt-3 text-sm text-muted-foreground">
-          Invitația nu a fost găsită sau linkul nu mai este valabil.
+          {publicUi.linkInvalidBody}
         </p>
       </Shell>
     );
@@ -34,9 +41,9 @@ export default async function RsvpPage({ params }: RsvpPageProps) {
   if (row.revoked_at) {
     return (
       <Shell>
-        <h1 className="font-heading text-3xl">Link revocat</h1>
+        <h1 className="font-heading text-3xl">{publicUi.linkRevoked}</h1>
         <p className="mt-3 text-sm text-muted-foreground">
-          Cere mirilor un link nou de RSVP.
+          {publicUi.linkRevokedBody}
         </p>
       </Shell>
     );
@@ -45,9 +52,9 @@ export default async function RsvpPage({ params }: RsvpPageProps) {
   if (row.expires_at && new Date(row.expires_at) < new Date()) {
     return (
       <Shell>
-        <h1 className="font-heading text-3xl">Link expirat</h1>
+        <h1 className="font-heading text-3xl">{publicUi.linkExpired}</h1>
         <p className="mt-3 text-sm text-muted-foreground">
-          Perioada de răspuns s-a încheiat.
+          {publicUi.linkExpiredBody}
         </p>
       </Shell>
     );
@@ -56,13 +63,18 @@ export default async function RsvpPage({ params }: RsvpPageProps) {
   if (row.used_at) {
     return (
       <Shell>
-        <h1 className="font-heading text-3xl">Răspuns înregistrat</h1>
+        <h1 className="font-heading text-3xl">{publicUi.responseRecorded}</h1>
         <p className="mt-3 text-sm text-muted-foreground">
-          Mulțumim, {row.first_name}. Acest link a fost deja folosit.
+          {publicUi.responseRecordedBody.replace(
+            "{name}",
+            String(row.first_name ?? ""),
+          )}
         </p>
       </Shell>
     );
   }
+
+  const guestName = `${row.first_name} ${row.last_name}`.trim();
 
   return (
     <Shell>
@@ -71,12 +83,9 @@ export default async function RsvpPage({ params }: RsvpPageProps) {
         {row.wedding_date ? ` · ${row.wedding_date}` : ""}
       </p>
       <h1 className="mt-2 font-heading text-3xl">
-        RSVP — {row.first_name} {row.last_name}
+        {publicUi.rsvpHeading.replace("{name}", guestName)}
       </h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Completează răspunsul. Datele tale sunt folosite doar pentru organizarea
-        nunții.
-      </p>
+      <p className="mt-2 text-sm text-muted-foreground">{publicUi.rsvpHint}</p>
       <div className="mt-6">
         <RsvpForm
           token={token}

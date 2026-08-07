@@ -1,14 +1,20 @@
+"use client";
+
+import { useI18n } from "@/components/providers/i18n-provider";
+import { formatNumber } from "@/lib/i18n/format";
+
 type BudgetChartProps = {
   data: { categoryName: string; estimated: number; paid: number }[];
 };
 
 export function BudgetChart({ data }: BudgetChartProps) {
+  const { dict, locale } = useI18n();
   const max = Math.max(...data.map((d) => d.estimated), 1);
 
   if (data.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        Nu există încă date pe categorii.
+        {dict.budget.noCategoryData}
       </p>
     );
   }
@@ -20,8 +26,8 @@ export function BudgetChart({ data }: BudgetChartProps) {
           <div className="mb-1 flex justify-between text-xs">
             <span>{row.categoryName}</span>
             <span className="text-muted-foreground">
-              {row.paid.toLocaleString("ro-RO")} /{" "}
-              {row.estimated.toLocaleString("ro-RO")}
+              {formatNumber(row.paid, locale)} /{" "}
+              {formatNumber(row.estimated, locale)}
             </span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-secondary">

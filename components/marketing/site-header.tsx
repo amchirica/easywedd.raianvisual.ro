@@ -1,83 +1,95 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { PreferenceControls } from "@/components/shared/preference-controls";
+import { useI18n } from "@/components/providers/i18n-provider";
 import { buttonVariants } from "@/components/ui/button";
+import { APP_NAME, EASYWEDD_PRO_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
-const nav = [
-  { href: "/features", label: "Funcționalități" },
-  { href: "/pricing", label: "Prețuri" },
-];
-
 export function SiteHeader() {
-  const pathname = usePathname();
-  const onHero = pathname === "/";
+  const { dict } = useI18n();
+  const nav = dict.navigation;
+
+  const NAV_LINKS = [
+    { href: "/#cum-functioneaza", label: nav.howItWorks },
+    { href: "/#functii", label: nav.features },
+    { href: "/#furnizori", label: nav.vendors },
+    { href: "/pricing", label: nav.pricing },
+    { href: "/#faq", label: nav.faq },
+  ];
 
   return (
-    <header
-      className={cn(
-        "z-20",
-        onHero
-          ? "absolute inset-x-0 top-0"
-          : "sticky top-0 border-b border-border bg-card/90 backdrop-blur",
-      )}
-    >
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5">
+    <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-lg">
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-6 py-4">
         <BrandLogo
           href="/"
           size={28}
           priority
-          inverted={onHero}
-          wordmarkClassName={cn(
-            "md:text-[1.75rem]",
-            onHero ? "text-primary-foreground" : "text-foreground",
-          )}
+          lightPad
+          wordmarkClassName="text-foreground md:text-[1.75rem]"
         />
-        <nav
-          className={cn(
-            "hidden items-center gap-8 text-sm md:flex",
-            onHero ? "text-primary-foreground/85" : "text-muted-foreground",
-          )}
-        >
-          {nav.map((item) => (
+
+        <nav className="hidden items-center gap-6 text-sm text-muted-foreground lg:flex">
+          {NAV_LINKS.map((link) => (
             <Link
-              key={item.href}
-              href={item.href}
+              key={link.href}
+              href={link.href}
               prefetch={false}
-              className={cn(
-                "transition",
-                onHero
-                  ? "hover:text-primary-foreground"
-                  : "hover:text-foreground",
-              )}
+              className="transition-colors hover:text-foreground"
             >
-              {item.label}
+              {link.label}
             </Link>
           ))}
+          <a
+            href={EASYWEDD_PRO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="transition-colors hover:text-champagne-soft"
+          >
+            {nav.pro}
+          </a>
         </nav>
+
         <div className="flex items-center gap-2">
+          <PreferenceControls className="hidden sm:flex" compact />
           <Link
             href="/login"
-            className={cn(
-              buttonVariants({ variant: "ghost" }),
-              onHero &&
-                "text-primary-foreground hover:bg-white/10 hover:text-primary-foreground",
-            )}
+            className={cn(buttonVariants({ variant: "ghost" }))}
           >
-            Autentificare
+            {nav.login}
           </Link>
-          <Link
-            href="/register"
-            className={cn(
-              buttonVariants(),
-              "bg-champagne text-foreground hover:bg-champagne/90",
-            )}
-          >
-            Începe
+          <Link href="/register" className={cn(buttonVariants())}>
+            {nav.signup}
           </Link>
+        </div>
+      </div>
+
+      <div className="border-t border-border/60 px-6 py-2">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 lg:hidden">
+            {NAV_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                prefetch={false}
+                className="hover:text-foreground"
+              >
+                {link.label}
+              </Link>
+            ))}
+            <a
+              href={EASYWEDD_PRO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-champagne-soft"
+            >
+              {APP_NAME} Pro
+            </a>
+          </div>
+          <PreferenceControls className="sm:hidden" compact />
         </div>
       </div>
     </header>

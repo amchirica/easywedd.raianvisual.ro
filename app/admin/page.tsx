@@ -1,11 +1,20 @@
 import type { Metadata } from "next";
 
 import { mrrEstimateRon } from "@/lib/billing/catalog";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = { title: "Admin" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.admin.title };
+}
 
 export default async function AdminHomePage() {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  const { admin } = dict;
   const supabase = await createClient();
 
   const [
@@ -90,27 +99,30 @@ export default async function AdminHomePage() {
   const churned = churnedCount ?? 0;
 
   const cards = [
-    { label: "Utilizatori", value: usersCount ?? 0 },
-    { label: "Workspace-uri", value: workspacesCount ?? 0 },
-    { label: "Nunți active", value: weddingsCount ?? 0 },
-    { label: "Trial-uri", value: trials },
-    { label: "MRR estimat (RON)", value: mrr },
-    { label: "Venit one-time (RON)", value: oneTimeRevenue },
-    { label: "Starter → Premium (proxy)", value: `${starter}/${premium}` },
-    { label: "Churn (canceled)", value: churned },
-    { label: "Website-uri publicate", value: sitesCount ?? 0 },
-    { label: "Invitații create", value: invitationsCount ?? 0 },
-    { label: "RSVP procesate", value: rsvpsCount ?? 0 },
-    { label: "Consimțăminte", value: consentsCount ?? 0 },
-    { label: "GDPR pending", value: gdprCount ?? 0 },
+    { label: admin.users, value: usersCount ?? 0 },
+    { label: admin.workspaces, value: workspacesCount ?? 0 },
+    { label: admin.kpiActiveWeddings, value: weddingsCount ?? 0 },
+    { label: admin.kpiTrials, value: trials },
+    { label: admin.kpiMrr, value: mrr },
+    { label: admin.kpiOneTime, value: oneTimeRevenue },
+    {
+      label: admin.kpiStarterPremium,
+      value: `${starter}/${premium}`,
+    },
+    { label: admin.kpiChurn, value: churned },
+    { label: admin.kpiSitesPublished, value: sitesCount ?? 0 },
+    { label: admin.kpiInvitationsCreated, value: invitationsCount ?? 0 },
+    { label: admin.kpiRsvpsProcessed, value: rsvpsCount ?? 0 },
+    { label: admin.consents, value: consentsCount ?? 0 },
+    { label: admin.kpiGdprPending, value: gdprCount ?? 0 },
   ];
 
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="font-heading text-4xl">Admin overview</h1>
+        <h1 className="font-heading text-4xl">{admin.overviewTitle}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          KPI-uri agregate · fără PII implicit
+          {admin.overviewSubtitle}
         </p>
       </header>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

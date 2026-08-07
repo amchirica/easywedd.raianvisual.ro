@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { filterDashboardNav } from "@/components/dashboard/nav-config";
+import { DashboardAssistant } from "@/components/dashboard/assistant/dashboard-assistant";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { DashboardTopbar } from "@/components/dashboard/topbar";
 import {
@@ -42,6 +43,7 @@ export default async function DashboardLayout({
         />
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
       </div>
+      <DashboardAssistant />
     </div>
   );
 }

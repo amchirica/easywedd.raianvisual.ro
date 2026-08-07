@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 
 import { EmptyState } from "@/components/planner/empty-state";
+import { InvitationEditorLoading } from "@/components/shared/module-loading";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
+import { t } from "@/lib/i18n/t";
 import { loadInvitationProject } from "@/lib/invitations/load-project";
 import { canManagePlanner } from "@/lib/planner/access";
 
@@ -10,30 +14,37 @@ const SectionEditor = dynamic(
     import("@/components/invitations/section-editor").then((m) => ({
       default: m.SectionEditor,
     })),
-  {
-    loading: () => (
-      <p className="text-sm text-muted-foreground">Se încarcă editorul…</p>
-    ),
-  },
+  { loading: () => <InvitationEditorLoading /> },
 );
 
-export const metadata: Metadata = { title: "Editează invitația" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.invitations.editMetaTitle };
+}
 
 type PageProps = { params: Promise<{ id: string }> };
 
 export default async function EditInvitationPage({ params }: PageProps) {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const { id } = await params;
   const loaded = await loadInvitationProject(id);
   if (loaded.error || !loaded.data) {
-    return <EmptyState title="Proiect indisponibil" description={loaded.error ?? ""} />;
+    return (
+      <EmptyState
+        title={dict.invitations.projectUnavailable}
+        description={loaded.error ?? ""}
+      />
+    );
   }
 
   const { project, theme, content, limits, ctx } = loaded.data;
   if (!canManagePlanner(ctx.role)) {
     return (
       <EmptyState
-        title="Fără permisiune"
-        description="Nu poți edita invitațiile cu rolul curent."
+        title={dict.shell.noPermission}
+        description={dict.invitations.noEditPermission}
       />
     );
   }
@@ -41,9 +52,12 @@ export default async function EditInvitationPage({ params }: PageProps) {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-heading text-4xl">Invitation Builder</h1>
+        <h1 className="font-heading text-4xl">{dict.invitations.builderTitle}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Conținut + prezentare · autosave · {project.name}
+          {t(dict as never, "invitations.builderSubtitle", {
+            locale,
+            params: { name: project.name },
+          })}
         </p>
       </header>
       <SectionEditor

@@ -3,6 +3,7 @@
 import { startTransition, useRef, useState } from "react";
 
 import { InvitationCanvas } from "@/components/invitations/invitation-canvas";
+import { useI18n } from "@/components/providers/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { logInvitationExportAction } from "@/lib/actions/invitations";
 import {
@@ -36,6 +37,7 @@ export function ExportPanel({
   allowPdf,
   allowMultiExport,
 }: ExportPanelProps) {
+  const { dict } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState<ExportViewport>("story");
   const [busy, setBusy] = useState(false);
@@ -88,7 +90,7 @@ export function ExportPanel({
 
       <div className="flex flex-wrap gap-2">
         <Button type="button" disabled={busy} onClick={() => void run("png")}>
-          Export PNG
+          {dict.invitations.exportPng}
         </Button>
         {allowMultiExport ? (
           <Button
@@ -97,7 +99,7 @@ export function ExportPanel({
             disabled={busy}
             onClick={() => void run("jpg")}
           >
-            Export JPG
+            {dict.invitations.exportJpg}
           </Button>
         ) : null}
         {allowPdf ? (
@@ -107,11 +109,11 @@ export function ExportPanel({
             disabled={busy}
             onClick={() => void run("pdf")}
           >
-            Export PDF
+            {dict.invitations.exportPdf}
           </Button>
         ) : (
           <p className="text-sm text-muted-foreground self-center">
-            PDF disponibil pe plan Premium+
+            {dict.invitations.pdfPremiumOnly}
           </p>
         )}
       </div>

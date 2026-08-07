@@ -20,12 +20,19 @@ import {
   contentConfigSchema,
 } from "@/lib/invitations/schema";
 import { sendTransactionalEmail } from "@/lib/resend";
+import type { ErrorCode } from "@/lib/i18n/errors";
 import { createProjectSchema, saveProjectSchema } from "@/lib/validations/invitations";
 import type { Database, Json, SubscriptionPlan } from "@/types/database";
 import type {
   InvitationContentConfig,
   InvitationThemeConfig,
 } from "@/types/invitations";
+
+export type ActionState = {
+  error?: string;
+  errorCode?: ErrorCode;
+  success?: string;
+};
 
 type WeddingSupabase = Awaited<
   ReturnType<typeof requireWeddingContext>

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 
+import { useI18n } from "@/components/providers/i18n-provider";
 import { Button } from "@/components/ui/button";
 
 type RsvpLinkButtonProps = {
@@ -10,6 +11,7 @@ type RsvpLinkButtonProps = {
 };
 
 export function RsvpLinkButton({ guestId, action }: RsvpLinkButtonProps) {
+  const { dict } = useI18n();
   const [url, setUrl] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -27,12 +29,12 @@ export function RsvpLinkButton({ guestId, action }: RsvpLinkButtonProps) {
               setUrl(result.rsvpUrl);
               await navigator.clipboard.writeText(result.rsvpUrl);
             } else {
-              window.alert(result.error ?? "Eroare");
+              window.alert(result.error ?? dict.common.error);
             }
           })
         }
       >
-        {pending ? "..." : "Link RSVP"}
+        {pending ? "..." : dict.guests.linkRsvp}
       </Button>
       {url ? (
         <p className="max-w-xs truncate text-[10px] text-muted-foreground">{url}</p>

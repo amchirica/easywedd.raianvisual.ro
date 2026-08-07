@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { ConfirmDeleteButton } from "@/components/planner/confirm-delete-button";
 import { CsvDownloadButton } from "@/components/planner/csv-download-button";
 import { EmptyState } from "@/components/planner/empty-state";
+import { RsvpLinkButton } from "@/components/planner/rsvp-link-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,28 +16,57 @@ import {
   exportGuestsCsvAction,
   importGuestsCsvAction,
 } from "@/lib/actions/guests";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
+import { getStatusLabel } from "@/lib/i18n/status-labels";
 import { canAccessFeature, canManageGuests } from "@/lib/planner/access";
 import { requireWeddingContext } from "@/lib/planner/context";
 import { findDuplicateGuests } from "@/lib/planner/duplicates";
-import { RsvpLinkButton } from "@/components/planner/rsvp-link-button";
 
-export const metadata: Metadata = { title: "Invitați" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.guests.title };
+}
 
 type GuestsPageProps = {
   searchParams: Promise<{ q?: string; side?: string; rsvp?: string }>;
 };
 
+function sideLabel(
+  side: string,
+  dict: Awaited<ReturnType<typeof getDictionary>>,
+) {
+  switch (side) {
+    case "bride":
+      return dict.guests.sideBride;
+    case "groom":
+      return dict.guests.sideGroom;
+    case "both":
+      return dict.guests.sideBoth;
+    default:
+      return dict.guests.sideOther;
+  }
+}
+
 export default async function GuestsPage({ searchParams }: GuestsPageProps) {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const params = await searchParams;
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) {
-    return <EmptyState title="Workspace incomplet" description={ctx.error ?? ""} />;
+    return (
+      <EmptyState
+        title={dict.shell.workspaceIncomplete}
+        description={ctx.error ?? ""}
+      />
+    );
   }
   if (!canAccessFeature(ctx.context.entitlements, "guests")) {
     return (
       <EmptyState
-        title="Modul dezactivat"
-        description="Entitlement-ul guests nu este activ."
+        title={dict.shell.moduleDisabled}
+        description={dict.shell.moduleDisabledDesc}
       />
     );
   }
@@ -77,13 +107,8 @@ export default async function GuestsPage({ searchParams }: GuestsPageProps) {
     <div className="space-y-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-heading text-4xl">Invitați</h1>
-          <p className="mt-2 text-muted-foreground">
-            Datele personale sunt colectate exclusiv pentru a facilita organizarea
-            nunții, comunicarea dintre participanți și gestionarea eficientă a
-            evenimentului. Acestea sunt protejate și nu sunt utilizate automat în
-            scopuri de marketing.
-          </p>
+          <h1 className="font-heading text-4xl">{dict.guests.title}</h1>
+          <p className="mt-2 text-muted-foreground">{dict.guests.subtitle}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <CsvDownloadButton
@@ -94,37 +119,46 @@ export default async function GuestsPage({ searchParams }: GuestsPageProps) {
       </header>
 
       <form method="get" className="grid gap-2 sm:grid-cols-4">
-        <Input name="q" placeholder="Caută..." defaultValue={params.q} />
+        <Input name="q" placeholder={dict.guests.search} defaultValue={params.q} />
         <select
           name="side"
           defaultValue={params.side ?? "all"}
           className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
         >
-          <option value="all">Toate părțile</option>
-          <option value="bride">Mireasă</option>
-          <option value="groom">Mire</option>
-          <option value="both">Amândoi</option>
-          <option value="other">Altele</option>
+          <option value="all">{dict.guests.allSides}</option>
+          <option value="bride">{dict.guests.sideBride}</option>
+          <option value="groom">{dict.guests.sideGroom}</option>
+          <option value="both">{dict.guests.sideBoth}</option>
+          <option value="other">{dict.guests.sideOther}</option>
         </select>
         <select
           name="rsvp"
           defaultValue={params.rsvp ?? "all"}
           className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
         >
-          <option value="all">Toate RSVP</option>
-          <option value="pending">În așteptare</option>
-          <option value="confirmed">Confirmat</option>
-          <option value="declined">Refuzat</option>
-          <option value="maybe">Poate</option>
+          <option value="all">{dict.guests.allRsvp}</option>
+          <option value="pending">
+            {getStatusLabel("rsvp", "pending", locale)}
+          </option>
+          <option value="confirmed">
+            {getStatusLabel("rsvp", "confirmed", locale)}
+          </option>
+          <option value="declined">
+            {getStatusLabel("rsvp", "declined", locale)}
+          </option>
+          <option value="maybe">{getStatusLabel("rsvp", "maybe", locale)}</option>
         </select>
         <Button type="submit" variant="outline">
-          Filtrează
+          {dict.guests.filter}
         </Button>
       </form>
 
       {duplicates.length > 0 ? (
         <div className="border border-champagne/40 bg-secondary px-4 py-3 text-sm">
-          Posibile duplicate detectate: {duplicates.length} grupuri.
+          {dict.guests.duplicatesDetected.replace(
+            "{count}",
+            String(duplicates.length),
+          )}
         </div>
       ) : null}
 
@@ -134,44 +168,44 @@ export default async function GuestsPage({ searchParams }: GuestsPageProps) {
             action={createGuestAction}
             className="grid gap-3 border border-border bg-card p-4 sm:grid-cols-2"
           >
-            <h2 className="font-heading text-2xl sm:col-span-2">Adaugă invitat</h2>
+            <h2 className="font-heading text-2xl sm:col-span-2">{dict.guests.add}</h2>
             <div className="space-y-1">
-              <Label>Prenume</Label>
+              <Label>{dict.guests.fields.firstName}</Label>
               <Input name="first_name" required />
             </div>
             <div className="space-y-1">
-              <Label>Nume</Label>
+              <Label>{dict.guests.fields.lastName}</Label>
               <Input name="last_name" />
             </div>
             <div className="space-y-1">
-              <Label>Email</Label>
+              <Label>{dict.guests.fields.email}</Label>
               <Input name="email" type="email" />
             </div>
             <div className="space-y-1">
-              <Label>Telefon</Label>
+              <Label>{dict.guests.fields.phone}</Label>
               <Input name="phone" />
             </div>
             <div className="space-y-1">
-              <Label>Parte</Label>
+              <Label>{dict.guests.columns.side}</Label>
               <select
                 name="side"
                 className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
                 defaultValue="other"
               >
-                <option value="bride">Mireasă</option>
-                <option value="groom">Mire</option>
-                <option value="both">Amândoi</option>
-                <option value="other">Altele</option>
+                <option value="bride">{dict.guests.sideBride}</option>
+                <option value="groom">{dict.guests.sideGroom}</option>
+                <option value="both">{dict.guests.sideBoth}</option>
+                <option value="other">{dict.guests.sideOther}</option>
               </select>
             </div>
             <div className="space-y-1">
-              <Label>Grup</Label>
+              <Label>{dict.guests.columns.party}</Label>
               <select
                 name="group_id"
                 className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
                 defaultValue=""
               >
-                <option value="">Fără grup</option>
+                <option value="">{dict.guests.noGroup}</option>
                 {(groups ?? []).map((g) => (
                   <option key={g.id} value={g.id}>
                     {g.name}
@@ -180,29 +214,39 @@ export default async function GuestsPage({ searchParams }: GuestsPageProps) {
               </select>
             </div>
             <div className="space-y-1">
-              <Label>Adulți</Label>
+              <Label>{dict.guests.adults}</Label>
               <Input name="attendance_count" type="number" defaultValue={1} />
             </div>
             <div className="space-y-1">
-              <Label>Copii</Label>
+              <Label>{dict.guests.children}</Label>
               <Input name="children_count" type="number" defaultValue={0} />
             </div>
             <div className="space-y-1 sm:col-span-2">
-              <Label>Alergii / meniu</Label>
-              <Input name="allergies" placeholder="Alergii" />
-              <Input name="meal_preference" className="mt-2" placeholder="Preferință meniu" />
+              <Label>{dict.guests.columns.menu}</Label>
+              <Input
+                name="allergies"
+                placeholder={dict.guests.allergiesPlaceholder}
+              />
+              <Input
+                name="meal_preference"
+                className="mt-2"
+                placeholder={dict.guests.mealPreferencePlaceholder}
+              />
             </div>
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" name="transport_needed" /> Transport
+              <input type="checkbox" name="transport_needed" />{" "}
+              {dict.guests.transport}
             </label>
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" name="accommodation_needed" /> Cazare
+              <input type="checkbox" name="accommodation_needed" />{" "}
+              {dict.guests.accommodation}
             </label>
             <label className="flex items-center gap-2 text-sm sm:col-span-2">
-              <input type="checkbox" name="consent_to_contact" /> Consimțământ contact
+              <input type="checkbox" name="consent_to_contact" />{" "}
+              {dict.guests.consentToContact}
             </label>
             <Button type="submit" className="sm:col-span-2">
-              Salvează invitat
+              {dict.guests.add}
             </Button>
           </form>
 
@@ -211,24 +255,27 @@ export default async function GuestsPage({ searchParams }: GuestsPageProps) {
               action={createGuestGroupAction}
               className="space-y-3 border border-border bg-card p-4"
             >
-              <h2 className="font-heading text-2xl">Grup / familie</h2>
-              <Input name="name" required placeholder="Ex. Familia Ionescu" />
+              <h2 className="font-heading text-2xl">{dict.guests.groupFamily}</h2>
+              <Input
+                name="name"
+                required
+                placeholder={dict.guests.groupPlaceholder}
+              />
               <Button type="submit" variant="outline">
-                Adaugă grup
+                {dict.guests.addGroup}
               </Button>
             </form>
             <form
               action={importGuestsCsvAction}
               className="space-y-3 border border-border bg-card p-4"
             >
-              <h2 className="font-heading text-2xl">Import CSV</h2>
+              <h2 className="font-heading text-2xl">{dict.guests.importCsv}</h2>
               <p className="text-xs text-muted-foreground">
-                Coloane: first_name, last_name, email, phone, side, relationship,
-                meal_preference, allergies
+                {dict.guests.importHint}
               </p>
               <Input name="file" type="file" accept=".csv,text/csv" required />
               <Button type="submit" variant="outline">
-                Importă
+                {dict.guests.importSubmit}
               </Button>
             </form>
           </div>
@@ -237,8 +284,8 @@ export default async function GuestsPage({ searchParams }: GuestsPageProps) {
 
       {filtered.length === 0 ? (
         <EmptyState
-          title="Niciun invitat"
-          description="Adaugă invitați individual sau importă un CSV."
+          title={dict.guests.emptyTitle}
+          description={dict.guests.emptyDescription}
         />
       ) : (
         <>
@@ -246,11 +293,13 @@ export default async function GuestsPage({ searchParams }: GuestsPageProps) {
             <table className="w-full text-left text-sm">
               <thead className="border-b border-border text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3">Nume</th>
-                  <th className="px-4 py-3">Parte</th>
-                  <th className="px-4 py-3">RSVP</th>
-                  <th className="px-4 py-3">Adulți/Copii</th>
-                  <th className="px-4 py-3">Nevoi</th>
+                  <th className="px-4 py-3">{dict.guests.columns.name}</th>
+                  <th className="px-4 py-3">{dict.guests.columns.side}</th>
+                  <th className="px-4 py-3">{dict.guests.columns.rsvp}</th>
+                  <th className="px-4 py-3">
+                    {dict.guests.columns.adultsChildren}
+                  </th>
+                  <th className="px-4 py-3">{dict.guests.columns.needs}</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -261,23 +310,30 @@ export default async function GuestsPage({ searchParams }: GuestsPageProps) {
                       {guest.first_name} {guest.last_name}
                       {guest.is_anonymized ? (
                         <span className="ml-2 text-xs text-muted-foreground">
-                          (anonimizat)
+                          {dict.guests.anonymized}
                         </span>
                       ) : null}
                     </td>
-                    <td className="px-4 py-3">{guest.side}</td>
-                    <td className="px-4 py-3">{guest.rsvp_status}</td>
+                    <td className="px-4 py-3">
+                      {sideLabel(guest.side, dict)}
+                    </td>
+                    <td className="px-4 py-3">
+                      {getStatusLabel("rsvp", guest.rsvp_status, locale) ||
+                        guest.rsvp_status}
+                    </td>
                     <td className="px-4 py-3">
                       {guest.attendance_count}/{guest.children_count}
                     </td>
                     <td className="px-4 py-3 text-xs">
                       {[
-                        guest.transport_needed ? "transport" : null,
-                        guest.accommodation_needed ? "cazare" : null,
-                        guest.allergies ? "alergii" : null,
+                        guest.transport_needed ? dict.guests.needTransport : null,
+                        guest.accommodation_needed
+                          ? dict.guests.needAccommodation
+                          : null,
+                        guest.allergies ? dict.guests.needAllergies : null,
                       ]
                         .filter(Boolean)
-                        .join(", ") || "—"}
+                        .join(", ") || "?"}
                     </td>
                     <td className="px-4 py-3">
                       {canWrite && !guest.is_anonymized ? (
@@ -287,8 +343,8 @@ export default async function GuestsPage({ searchParams }: GuestsPageProps) {
                             action={createRsvpLinkAction}
                           />
                           <ConfirmDeleteButton
-                            label="Anonimizează"
-                            confirmLabel="Confirmă anonimizarea"
+                            label={dict.guests.anonymize}
+                            confirmLabel={dict.guests.confirmAnonymize}
                             id={guest.id}
                             action={anonymizeGuestAction}
                           />
@@ -311,8 +367,10 @@ export default async function GuestsPage({ searchParams }: GuestsPageProps) {
                   {guest.first_name} {guest.last_name}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {guest.side} · {guest.rsvp_status} · {guest.attendance_count} adulți /{" "}
-                  {guest.children_count} copii
+                  {sideLabel(guest.side, dict)} ·{" "}
+                  {getStatusLabel("rsvp", guest.rsvp_status, locale) ||
+                    guest.rsvp_status}{" "}
+                  · {guest.attendance_count}/{guest.children_count}
                 </p>
                 {canWrite && !guest.is_anonymized ? (
                   <div className="mt-3 flex flex-wrap gap-2">

@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import Link from "next/link";
 
 import { AdminConfirmDelete } from "@/components/admin/admin-confirm-delete";
@@ -16,9 +19,15 @@ import { ACCESS_SOURCE_LABELS } from "@/lib/billing/labels";
 import { listPublicBillingPlans } from "@/lib/billing/plan-catalog";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = { title: "Abonamente · Admin" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.admin.subscriptionsMetaTitle };
+}
 
 export default async function AdminSubscriptionsPage() {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const supabase = await createClient();
   const [plans, users] = await Promise.all([
     listPublicBillingPlans(),
@@ -89,7 +98,7 @@ export default async function AdminSubscriptionsPage() {
   return (
     <div className="space-y-10">
       <header>
-        <h1 className="font-heading text-4xl">Abonamente</h1>
+        <h1 className="font-heading text-4xl">{dict.admin.subscriptions}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Selectează utilizatorul și workspace-ul — fără UUID-uri în interfață.
         </p>
@@ -155,7 +164,7 @@ export default async function AdminSubscriptionsPage() {
                       <AdminConfirmDelete
                         workspaceId={sub.workspace_id}
                         id={sub.id}
-                        label="Reactivează acces"
+                        label={dict.admin.reactivateAccess}
                         confirmLabel="Confirmă reactivarea"
                         action={adminReactivateAccessBound}
                       />
@@ -163,7 +172,7 @@ export default async function AdminSubscriptionsPage() {
                       <AdminConfirmDelete
                         workspaceId={sub.workspace_id}
                         id={sub.id}
-                        label="Revocă acces"
+                        label={dict.admin.revokeAccess}
                         confirmLabel="Confirmă revocarea"
                         action={adminRevokeAccessBound}
                       />
@@ -177,7 +186,7 @@ export default async function AdminSubscriptionsPage() {
 
                 <dl className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   <div>
-                    <dt className="text-muted-foreground">Sursă acces</dt>
+                    <dt className="text-muted-foreground">{dict.admin.accessSource}</dt>
                     <dd>
                       {ACCESS_SOURCE_LABELS[sub.access_source ?? "legacy"] ??
                         sub.access_source}
@@ -188,7 +197,7 @@ export default async function AdminSubscriptionsPage() {
                     <dd>{sub.billing_interval ?? plan?.billing_type ?? "—"}</dd>
                   </div>
                   <div>
-                    <dt className="text-muted-foreground">Expiră</dt>
+                    <dt className="text-muted-foreground">{dict.admin.expires}</dt>
                     <dd>
                       {sub.access_ends_at
                         ? new Date(sub.access_ends_at).toLocaleDateString(
@@ -198,7 +207,7 @@ export default async function AdminSubscriptionsPage() {
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-muted-foreground">Ultima plată</dt>
+                    <dt className="text-muted-foreground">{dict.admin.lastPayment}</dt>
                     <dd>
                       {sub.last_payment_at
                         ? new Date(sub.last_payment_at).toLocaleString("ro-RO")

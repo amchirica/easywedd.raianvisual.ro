@@ -1,3 +1,5 @@
+import type { Locale } from "@/lib/i18n/config";
+import { formatMoney as formatMoneyLocale } from "@/lib/i18n/format";
 import type { BudgetItem, Payment, PaymentStatus } from "@/types/planner";
 
 export type BudgetTotals = {
@@ -88,12 +90,12 @@ export function applyPaymentToItem(
   };
 }
 
-export function formatMoney(amount: number, currency = "RON") {
-  return new Intl.NumberFormat("ro-RO", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 2,
-  }).format(amount);
+export function formatMoney(
+  amount: number,
+  currency = "RON",
+  locale?: Locale | string | null,
+) {
+  return formatMoneyLocale(amount, currency, locale);
 }
 
 export function organizationProgress(input: {

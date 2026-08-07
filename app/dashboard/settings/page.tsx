@@ -8,21 +8,29 @@ import {
   WorkspaceSettingsForm,
   WorkspaceSwitcher,
 } from "@/components/dashboard/settings-forms";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { canManagePlanner } from "@/lib/planner/access";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUserContext } from "@/lib/workspace";
 
-export const metadata: Metadata = { title: "Setări" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.settings.title };
+}
 
 export default async function SettingsPage() {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const { user, profile, activeWorkspace, workspaces, wedding } =
     await getCurrentUserContext();
 
   if (!user || !profile) {
     return (
       <div className="space-y-4">
-        <h1 className="font-heading text-4xl">Setări</h1>
-        <p className="text-muted-foreground">Autentifică-te pentru a continua.</p>
+        <h1 className="font-heading text-4xl">{dict.settings.title}</h1>
+        <p className="text-muted-foreground">{dict.settings.authRequired}</p>
       </div>
     );
   }
@@ -56,35 +64,35 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="font-heading text-4xl">Setări</h1>
-        <p className="mt-2 text-muted-foreground">
-          Cont, workspace, preferințe nuntă și notificări.
-        </p>
+        <h1 className="font-heading text-4xl">{dict.settings.title}</h1>
+        <p className="mt-2 text-muted-foreground">{dict.settings.subtitle}</p>
       </header>
 
       <section className="border border-border bg-card p-6">
-        <h2 className="font-heading text-2xl">Profil</h2>
+        <h2 className="font-heading text-2xl">{dict.settings.profileSection}</h2>
         <div className="mt-4">
           <ProfileSettingsForm profile={profile} />
         </div>
       </section>
 
       <section className="border border-border bg-card p-6">
-        <h2 className="font-heading text-2xl">Parolă</h2>
+        <h2 className="font-heading text-2xl">{dict.settings.passwordSection}</h2>
         <div className="mt-4 max-w-md">
           <SettingsPasswordSection />
         </div>
       </section>
 
-      <section className="border border-border bg-card p-6 space-y-6">
-        <h2 className="font-heading text-2xl">Workspace</h2>
+      <section className="space-y-6 border border-border bg-card p-6">
+        <h2 className="font-heading text-2xl">{dict.settings.workspaceSection}</h2>
         {workspaces.length > 0 ? (
           <WorkspaceSwitcher
             workspaces={workspaces}
             activeId={activeWorkspace?.id ?? null}
           />
         ) : (
-          <p className="text-sm text-muted-foreground">Niciun workspace.</p>
+          <p className="text-sm text-muted-foreground">
+            {dict.settings.noWorkspace}
+          </p>
         )}
         {activeWorkspace ? (
           <WorkspaceSettingsForm
@@ -96,7 +104,9 @@ export default async function SettingsPage() {
 
       {wedding && canEditWedding ? (
         <section className="border border-border bg-card p-6">
-          <h2 className="font-heading text-2xl">Preferințe nuntă</h2>
+          <h2 className="font-heading text-2xl">
+            {dict.settings.weddingPrefsSection}
+          </h2>
           <div className="mt-4">
             <WeddingPreferencesForm wedding={wedding} />
           </div>
@@ -104,7 +114,9 @@ export default async function SettingsPage() {
       ) : null}
 
       <section className="border border-border bg-card p-6">
-        <h2 className="font-heading text-2xl">Notificări</h2>
+        <h2 className="font-heading text-2xl">
+          {dict.settings.notificationsSection}
+        </h2>
         <div className="mt-4">
           <NotificationPreferencesForm
             prefs={{

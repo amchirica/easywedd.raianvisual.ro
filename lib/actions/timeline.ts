@@ -4,9 +4,14 @@ import { revalidatePath } from "next/cache";
 
 import { canManagePlanner } from "@/lib/planner/access";
 import { requireWeddingContext } from "@/lib/planner/context";
+import type { ErrorCode } from "@/lib/i18n/errors";
 import { timelineItemSchema } from "@/lib/validations/timeline";
 
-export type ActionState = { error?: string; success?: string };
+export type ActionState = {
+  error?: string;
+  errorCode?: ErrorCode;
+  success?: string;
+};
 
 export async function createTimelineItemAction(formData: FormData): Promise<void> {
   const ctx = await requireWeddingContext();

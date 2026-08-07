@@ -17,7 +17,12 @@ type BrandLogoProps = {
   className?: string;
   wordmarkClassName?: string;
   priority?: boolean;
-  /** Invert mark for dark/hero backgrounds via CSS filter */
+  /**
+   * When true on dark surfaces, wraps the mark in a light pad for contrast.
+   * Does not invert or recolor the logo asset.
+   */
+  lightPad?: boolean;
+  /** @deprecated Prefer lightPad — invert filters are not used. */
   inverted?: boolean;
 };
 
@@ -31,17 +36,16 @@ export function BrandLogo({
   className,
   wordmarkClassName,
   priority = false,
+  lightPad = false,
   inverted = false,
 }: BrandLogoProps) {
   const [failed, setFailed] = useState(false);
+  const usePad = lightPad || inverted;
 
-  const mark = failed ? (
+  const markInner = failed ? (
     <span
       aria-hidden
-      className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-sm bg-foreground font-heading text-[0.65em] font-semibold text-background",
-        inverted && "bg-background text-foreground",
-      )}
+      className="inline-flex shrink-0 items-center justify-center rounded-sm bg-foreground font-heading text-[0.65em] font-semibold text-background"
       style={{ width: size, height: size }}
     >
       N
@@ -53,13 +57,39 @@ export function BrandLogo({
       width={size}
       height={size}
       priority={priority}
-      className={cn(
-        "shrink-0 object-contain",
-        inverted && "brightness-0 invert",
-      )}
+      className="shrink-0 object-contain"
       style={{ width: size, height: size }}
       onError={() => setFailed(true)}
     />
+  );
+
+  const mark = usePad ? (
+    <span
+      className="inline-flex shrink-0 items-center justify-center rounded-md bg-white p-1 shadow-sm"
+      style={{ width: size + 8, height: size + 8 }}
+    >
+      {failed ? (
+        <span
+          aria-hidden
+          className="inline-flex size-full items-center justify-center rounded-sm bg-[#2a2420] font-heading text-[0.65em] font-semibold text-white"
+        >
+          N
+        </span>
+      ) : (
+        <Image
+          src={MARK_SRC}
+          alt=""
+          width={size}
+          height={size}
+          priority={priority}
+          className="object-contain"
+          style={{ width: size - 2, height: size - 2 }}
+          onError={() => setFailed(true)}
+        />
+      )}
+    </span>
+  ) : (
+    markInner
   );
 
   const content = (

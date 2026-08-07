@@ -8,21 +8,30 @@ import { createWeddingSiteAction } from "@/lib/actions/website";
 import { requireFeature } from "@/lib/entitlements/service";
 import { canManagePlanner } from "@/lib/planner/access";
 import { requireWeddingContext } from "@/lib/planner/context";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
+import { t } from "@/lib/i18n/t";
 import { slugifyCoupleNames } from "@/lib/website/slug";
 
-export const metadata: Metadata = { title: "Site nou" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.website.newTitle };
+}
 
 export default async function NewWebsitePage() {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) {
-    return <EmptyState title="Workspace incomplet" description={ctx.error ?? ""} />;
+    return <EmptyState title={dict.shell.workspaceIncomplete} description={ctx.error ?? ""} />;
   }
   if (!canManagePlanner(ctx.context.role)) {
-    return <EmptyState title="Fără permisiune" description="" />;
+    return <EmptyState title={dict.shell.noPermission} description="" />;
   }
   const feature = await requireFeature(ctx.context.workspaceId, "website");
   if (!feature.ok) {
-    return <EmptyState title="Website dezactivat" description={feature.error} />;
+    return <EmptyState title={dict.website.disabled} description={feature.error} />;
   }
 
   const { data: templates } = await ctx.context.supabase
@@ -40,9 +49,9 @@ export default async function NewWebsitePage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-heading text-4xl">Alege un template</h1>
+        <h1 className="font-heading text-4xl">{dict.website.newTitle}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Slug public: /w/{defaultSlug}
+          {t(dict as never, "website.newSubtitle", { locale, params: { slug: defaultSlug } })}
         </p>
       </header>
 
@@ -65,14 +74,14 @@ export default async function NewWebsitePage() {
             <p className="font-heading text-xl">{template.name}</p>
             {template.is_premium ? (
               <p className="text-[10px] uppercase tracking-wide text-champagne">
-                Premium
+                {dict.website.premium}
               </p>
             ) : null}
             <div className="space-y-1">
-              <Label>Slug</Label>
+              <Label>{dict.website.slug}</Label>
               <Input name="slug" defaultValue={defaultSlug} required />
             </div>
-            <Button type="submit">Creează</Button>
+            <Button type="submit">{dict.website.create}</Button>
           </form>
         ))}
       </div>

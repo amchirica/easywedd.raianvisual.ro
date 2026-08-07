@@ -21,6 +21,7 @@ import {
 } from "react";
 
 import { ConfirmDeleteButton } from "@/components/planner/confirm-delete-button";
+import { useI18n } from "@/components/providers/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -148,6 +149,7 @@ function TableNode({
     capacity: number;
   }) => void;
 }) {
+  const { dict } = useI18n();
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: `table-drop:${table.id}`,
     data: { tableId: table.id },
@@ -271,9 +273,11 @@ function TableNode({
       <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
         <p className="font-heading text-base pointer-events-none">{table.label}</p>
         <p className="pointer-events-none text-[10px] text-muted-foreground">
-          {table.shape === "round" ? "Rotundă" : "Dreptunghiulară"} ·{" "}
-          {seated.length}/{table.capacity}
-          {over ? " · plină" : ""}
+          {table.shape === "round"
+            ? dict.seating.shapeRound
+            : dict.seating.shapeRectangle}{" "}
+          · {seated.length}/{table.capacity}
+          {over ? ` · ${dict.seating.full}` : ""}
         </p>
         <div
           className="mt-1 flex max-h-16 flex-wrap justify-center gap-1 overflow-hidden"
@@ -308,7 +312,7 @@ function TableNode({
                 setEditing((v) => !v);
               }}
             >
-              Editează
+              {dict.seating.edit}
             </Button>
             <ConfirmDeleteButton id={table.id} action={deleteTableAction} />
           </div>
@@ -328,8 +332,8 @@ function TableNode({
               setShape(e.target.value as "round" | "rectangle")
             }
           >
-            <option value="round">Rotundă</option>
-            <option value="rectangle">Dreptunghiulară</option>
+            <option value="round">{dict.seating.shapeRound}</option>
+            <option value="rectangle">{dict.seating.shapeRectangle}</option>
           </select>
           <Input
             type="number"
@@ -345,7 +349,7 @@ function TableNode({
               setEditing(false);
             }}
           >
-            Salvează
+            {dict.dialog.save}
           </Button>
         </div>
       ) : null}
@@ -359,6 +363,7 @@ export function SeatingBoard({
   assignments,
   canWrite,
 }: SeatingBoardProps) {
+  const { dict } = useI18n();
   const [, startTransition] = useTransition();
   const [activeGuestId, setActiveGuestId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -485,16 +490,18 @@ export function SeatingBoard({
           }`}
         >
           <h2 className="font-heading text-2xl">
-            Invitați nealocați ({unassigned.length})
+            {dict.seating.unassignedTitle.replace(
+              "{count}",
+              String(unassigned.length),
+            )}
           </h2>
           <p className="mt-1 text-xs text-muted-foreground print:hidden">
-            Trage invitații pe mese. Pe mobil, ține apăsat și mută masa pe
-            canvas.
+            {dict.seating.dragHint}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {unassigned.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Toți invitații sunt alocați.
+                {dict.seating.allAssigned}
               </p>
             ) : (
               unassigned.map((guest) => (
@@ -553,7 +560,7 @@ export function SeatingBoard({
           ))}
           {tables.length === 0 ? (
             <p className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
-              Adaugă mese pentru a începe planul vizual.
+              {dict.seating.addTablesHint}
             </p>
           ) : null}
         </div>

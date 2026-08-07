@@ -7,20 +7,30 @@ import { SiteDeleteControls } from "@/components/website/site-delete-controls";
 import { requireFeature } from "@/lib/entitlements/service";
 import { canManagePlanner } from "@/lib/planner/access";
 import { requireWeddingContext } from "@/lib/planner/context";
+import { formatDateShort } from "@/lib/i18n/format";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
+import { t } from "@/lib/i18n/t";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Wedding Website" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.website.title };
+}
 
 export default async function WebsitePage() {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) {
-    return <EmptyState title="Workspace incomplet" description={ctx.error ?? ""} />;
+    return <EmptyState title={dict.shell.workspaceIncomplete} description={ctx.error ?? ""} />;
   }
 
   const feature = await requireFeature(ctx.context.workspaceId, "website");
   if (!feature.ok) {
     return (
-      <EmptyState title="Website dezactivat" description={feature.error} />
+      <EmptyState title={dict.website.disabled} description={feature.error} />
     );
   }
 
@@ -39,22 +49,20 @@ export default async function WebsitePage() {
     <div className="space-y-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-heading text-4xl">Wedding Website</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Site public pe /w/[slug] · editor pe secțiuni
-          </p>
+          <h1 className="font-heading text-4xl">{dict.website.title}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{dict.website.subtitle}</p>
         </div>
         {canWrite ? (
           <Link href="/dashboard/website/new" className={cn(buttonVariants())}>
-            Site nou
+            {dict.website.create}
           </Link>
         ) : null}
       </header>
 
       {visible.length === 0 ? (
         <EmptyState
-          title="Niciun site încă"
-          description="Alege un template și publică site-ul nunții."
+          title={dict.website.emptyTitle}
+          description={dict.website.emptyDescription}
         />
       ) : (
         <div className="divide-y divide-border border-y border-border">
@@ -69,8 +77,12 @@ export default async function WebsitePage() {
               >
                 <p className="font-heading text-2xl">/w/{site.slug}</p>
                 <p className="text-sm text-muted-foreground">
-                  actualizat{" "}
-                  {new Date(site.updated_at).toLocaleDateString("ro-RO")}
+                  {t(dict as never, "website.updated", {
+                    locale,
+                    params: {
+                      date: formatDateShort(site.updated_at, locale),
+                    },
+                  })}
                 </p>
               </Link>
               <div className="flex shrink-0 flex-col items-end gap-2">

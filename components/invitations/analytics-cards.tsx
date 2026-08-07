@@ -1,3 +1,6 @@
+"use client";
+
+import { useI18n } from "@/components/providers/i18n-provider";
 import type { InvitationAnalytics } from "@/lib/invitations/analytics";
 
 export function AnalyticsCards({
@@ -7,12 +10,16 @@ export function AnalyticsCards({
   stats: InvitationAnalytics;
   advanced: boolean;
 }) {
+  const { dict } = useI18n();
   const cards = [
-    { label: "Trimise", value: stats.sent },
-    { label: "Deschideri", value: stats.opens },
-    { label: "RSVP", value: stats.rsvps },
-    { label: "Rată confirmare", value: `${stats.confirmationRate}%` },
-    { label: "Fără răspuns", value: stats.unanswered },
+    { label: dict.invitations.sent, value: stats.sent },
+    { label: dict.invitations.opens, value: stats.opens },
+    { label: dict.invitations.rsvp, value: stats.rsvps },
+    {
+      label: dict.invitations.confirmationRate,
+      value: `${stats.confirmationRate}%`,
+    },
+    { label: dict.invitations.unanswered, value: stats.unanswered },
   ];
 
   return (
@@ -29,12 +36,11 @@ export function AnalyticsCards({
       </div>
       {advanced ? (
         <p className="text-sm text-muted-foreground">
-          Analytics avansat activ: deschideri pe clasă de device (mobile/desktop),
-          fără fingerprinting.
+          {dict.invitations.advancedAnalyticsOn}
         </p>
       ) : (
         <p className="text-sm text-muted-foreground">
-          Upgrade la Premium pentru analytics avansat.
+          {dict.invitations.upgradeAdvancedAnalytics}
         </p>
       )}
     </div>

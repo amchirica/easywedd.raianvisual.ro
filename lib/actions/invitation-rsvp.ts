@@ -33,7 +33,7 @@ export async function submitInvitationRsvpAction(
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Date invalide" };
+    return { error: parsed.error.issues[0]?.message ?? "validation.invalid" };
   }
 
   const headerStore = await headers();

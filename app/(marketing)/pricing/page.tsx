@@ -1,66 +1,53 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
-import { buttonVariants } from "@/components/ui/button";
+import { PricingGrid } from "@/components/marketing/pricing-grid";
+import {
+  SectionHeader,
+  SectionShell,
+} from "@/components/marketing/sections/section-shell";
 import { listPublicBillingPlans } from "@/lib/billing/plan-catalog";
-import { cn } from "@/lib/utils";
+import { EASYWEDD_PRO_URL } from "@/lib/constants";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 
-export const metadata: Metadata = {
-  title: "Prețuri",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+
+  return {
+    title: dict.meta.pricingTitle,
+    description: dict.meta.pricingDescription,
+  };
+}
 
 export default async function PricingPage() {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  const t = dict.pricing;
   const plans = await listPublicBillingPlans();
-  const display = plans.filter((p) => p.key !== "trial");
 
   return (
-    <div className="bg-[linear-gradient(160deg,#f7f4ef_0%,#fffdf9_50%,#efe8dc_100%)]">
-      <div className="mx-auto max-w-6xl px-6 pb-20 pt-28">
-        <header className="max-w-2xl">
-          <h1 className="font-heading text-4xl md:text-5xl">Prețuri</h1>
-          <p className="mt-4 text-lg text-muted-foreground">
-            Alege un plan și plătește online — chiar dacă nu ai încă cont
-            EasyWedd. Accesul se activează după confirmarea Stripe.
-          </p>
-        </header>
-
-        <div className="mt-14 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {display.map((plan) => (
-            <article
-              key={plan.key}
-              className="flex flex-col border border-border bg-card p-6"
-            >
-              <h2 className="font-heading text-2xl">{plan.name}</h2>
-              <p className="mt-3 text-sm text-muted-foreground">
-                {plan.description}
-              </p>
-              <ul className="mt-4 flex-1 space-y-1 text-sm text-muted-foreground">
-                <li>Invitați: până la {plan.guest_limit}</li>
-                <li>
-                  Website public: {plan.website_publishing ? "Da" : "Nu"}
-                </li>
-                <li>Export PDF: {plan.pdf_export ? "Da" : "Nu"}</li>
-                <li>Analytics: {plan.analytics ? "Da" : "Nu"}</li>
-              </ul>
-              {plan.billing_type === "grant" ? (
-                <Link
-                  href="/register"
-                  className={cn(buttonVariants({ variant: "outline" }), "mt-6")}
-                >
-                  Contactează-ne
-                </Link>
-              ) : (
-                <Link
-                  href={`/checkout/${plan.key}`}
-                  className={cn(buttonVariants(), "mt-6")}
-                >
-                  Cumpără
-                </Link>
-              )}
-            </article>
-          ))}
-        </div>
+    <SectionShell className="pt-28" muted>
+      <SectionHeader
+        eyebrow={t.eyebrow}
+        title={t.pageTitle}
+        description={t.pageDescription}
+      />
+      <div className="mt-12">
+        <PricingGrid plans={plans} />
       </div>
-    </div>
+      <p className="mx-auto mt-8 max-w-2xl text-center text-sm text-muted-soft">
+        {t.vendorHintPrefix}{" "}
+        <a
+          href={EASYWEDD_PRO_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-champagne-soft underline-offset-4 hover:underline"
+        >
+          {t.vendorHintLink}
+        </a>
+        .
+      </p>
+    </SectionShell>
   );
 }

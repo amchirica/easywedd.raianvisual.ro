@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { notFound } from "next/navigation";
 
 import { AdminConfirmDelete } from "@/components/admin/admin-confirm-delete";
@@ -16,7 +19,11 @@ import {
   type AdminWorkspaceSection,
 } from "@/lib/admin/workspace-context";
 
-export const metadata: Metadata = { title: "Gestionare workspace · Admin" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.admin.workspaceManageMetaTitle };
+}
 
 type PageProps = {
   params: Promise<{ id: string; section: string }>;
@@ -27,6 +34,8 @@ function isSection(value: string): value is AdminWorkspaceSection {
 }
 
 export default async function AdminWorkspaceSectionPage({ params }: PageProps) {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const { id, section } = await params;
   if (!isSection(section)) notFound();
 
@@ -50,7 +59,7 @@ export default async function AdminWorkspaceSectionPage({ params }: PageProps) {
 
   if (section === "wedding") {
     if (!wedding) {
-      return <p className="text-sm text-muted-foreground">Nu există nuntă.</p>;
+      return <p className="text-sm text-muted-foreground">{dict.admin.noWedding}</p>;
     }
     return (
       <div className="space-y-4">

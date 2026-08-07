@@ -2,10 +2,14 @@ import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 
 import { EmptyState } from "@/components/planner/empty-state";
+import { WebsiteEditorLoading } from "@/components/shared/module-loading";
 import {
   isFeatureEnabled,
   requireFeature,
 } from "@/lib/entitlements/service";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
+import { t } from "@/lib/i18n/t";
 import { requireWeddingContext } from "@/lib/planner/context";
 import { defaultSiteTheme, siteThemeSchema } from "@/lib/website/schema";
 import type { SiteSectionConfig } from "@/types/website";
@@ -15,22 +19,29 @@ const SiteSectionEditor = dynamic(
     import("@/components/website/site-section-editor").then((m) => ({
       default: m.SiteSectionEditor,
     })),
-  {
-    loading: () => (
-      <p className="text-sm text-muted-foreground">Se încarcă editorul…</p>
-    ),
-  },
+  { loading: () => <WebsiteEditorLoading /> },
 );
 
-export const metadata: Metadata = { title: "Editează website" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.website.editMetaTitle };
+}
 
 type PageProps = { params: Promise<{ id: string }> };
 
 export default async function EditWebsitePage({ params }: PageProps) {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const { id } = await params;
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) {
-    return <EmptyState title="Workspace incomplet" description={ctx.error ?? ""} />;
+    return (
+      <EmptyState
+        title={dict.shell.workspaceIncomplete}
+        description={ctx.error ?? ""}
+      />
+    );
   }
 
   const [{ data: site }, { data: sections }, feature] = await Promise.all([
@@ -49,7 +60,12 @@ export default async function EditWebsitePage({ params }: PageProps) {
   ]);
 
   if (!site || !feature.ok) {
-    return <EmptyState title="Site indisponibil" description={feature.ok ? "" : feature.error} />;
+    return (
+      <EmptyState
+        title={dict.website.unavailable}
+        description={feature.ok ? "" : feature.error}
+      />
+    );
   }
 
   const themeParsed = siteThemeSchema.safeParse(site.theme_config);
@@ -60,9 +76,12 @@ export default async function EditWebsitePage({ params }: PageProps) {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-heading text-4xl">Website Builder</h1>
+        <h1 className="font-heading text-4xl">{dict.website.builderTitle}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Conținut + prezentare · DnD · autosave · /w/{site.slug}
+          {t(dict as never, "website.builderSubtitle", {
+            locale,
+            params: { slug: site.slug },
+          })}
         </p>
       </header>
       <SiteSectionEditor

@@ -1,10 +1,16 @@
 "use client";
 
+import { useI18n } from "@/components/providers/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { sectionDefaults } from "@/lib/invitations/sections/defaults";
 import { newId, type CanonicalSectionKey, type SectionContentMap } from "@/lib/invitations/sections/types";
+
+function useEditorDict() {
+  const { dict } = useI18n();
+  return dict.invitations.editor;
+}
 
 type EditorProps<K extends CanonicalSectionKey> = {
   data: SectionContentMap[K];
@@ -58,12 +64,13 @@ function Panel({
   onReset: () => void;
   children: React.ReactNode;
 }) {
+  const ed = useEditorDict();
   return (
     <div className="space-y-3 border-t border-border pt-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="font-heading text-2xl">{title}</h2>
         <Button type="button" variant="outline" size="sm" onClick={onReset}>
-          Resetează
+          {ed.reset}
         </Button>
       </div>
       {children}
@@ -98,6 +105,7 @@ function UrlField({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const ed = useEditorDict();
   const ok = isValidUrl(value);
   return (
     <div className="space-y-1">
@@ -109,30 +117,34 @@ function UrlField({
         aria-invalid={!ok}
       />
       {!ok ? (
-        <p className="text-xs text-destructive">URL invalid (http/https)</p>
+        <p className="text-xs text-destructive">{ed.invalidUrl}</p>
       ) : null}
     </div>
   );
 }
 
 function HeroEditor({ data, onChange, onReset }: EditorProps<"hero">) {
+  const ed = useEditorDict();
+  const { dict } = useI18n();
   return (
-    <Panel title="Copertă" onReset={onReset}>
-      <Field label="Eyebrow" value={data.eyebrow} onChange={(eyebrow) => onChange({ ...data, eyebrow })} />
-      <Field label="Titlu" value={data.title} onChange={(title) => onChange({ ...data, title })} />
-      <Field label="Subtitlu" value={data.subtitle} onChange={(subtitle) => onChange({ ...data, subtitle })} />
-      <UrlField label="URL imagine" value={data.imageUrl} onChange={(imageUrl) => onChange({ ...data, imageUrl })} />
+    <Panel title={ed.cover} onReset={onReset}>
+      <Field label={ed.eyebrow} value={data.eyebrow} onChange={(eyebrow) => onChange({ ...data, eyebrow })} />
+      <Field label={ed.title} value={data.title} onChange={(title) => onChange({ ...data, title })} />
+      <Field label={ed.subtitle} value={data.subtitle} onChange={(subtitle) => onChange({ ...data, subtitle })} />
+      <UrlField label={ed.imageUrl} value={data.imageUrl} onChange={(imageUrl) => onChange({ ...data, imageUrl })} />
     </Panel>
   );
 }
 
 function AnnouncementEditor({ data, onChange, onReset }: EditorProps<"announcement">) {
+  const ed = useEditorDict();
+  const { dict } = useI18n();
   return (
-    <Panel title="Anunț" onReset={onReset}>
-      <Field label="Eyebrow" value={data.eyebrow} onChange={(eyebrow) => onChange({ ...data, eyebrow })} />
-      <Field label="Titlu" value={data.title} onChange={(title) => onChange({ ...data, title })} />
+    <Panel title={ed.announcement} onReset={onReset}>
+      <Field label={ed.eyebrow} value={data.eyebrow} onChange={(eyebrow) => onChange({ ...data, eyebrow })} />
+      <Field label={ed.title} value={data.title} onChange={(title) => onChange({ ...data, title })} />
       <Field
-        label="Descriere"
+        label={ed.description}
         value={data.description}
         multiline
         onChange={(description) => onChange({ ...data, description })}
@@ -142,24 +154,26 @@ function AnnouncementEditor({ data, onChange, onReset }: EditorProps<"announceme
 }
 
 function CoupleEditor({ data, onChange, onReset }: EditorProps<"couple">) {
+  const ed = useEditorDict();
+  const { dict } = useI18n();
   return (
-    <Panel title="Cuplu & introducere" onReset={onReset}>
-      <Field label="Nume 1" value={data.name1} onChange={(name1) => onChange({ ...data, name1 })} />
-      <Field label="Nume 2" value={data.name2} onChange={(name2) => onChange({ ...data, name2 })} />
+    <Panel title={ed.coupleIntro} onReset={onReset}>
+      <Field label={ed.name1} value={data.name1} onChange={(name1) => onChange({ ...data, name1 })} />
+      <Field label={ed.name2} value={data.name2} onChange={(name2) => onChange({ ...data, name2 })} />
       <Field
-        label="Introducere"
+        label={ed.introduction}
         value={data.introText}
         multiline
         onChange={(introText) => onChange({ ...data, introText })}
       />
       <Field
-        label="Părinți"
+        label={ed.parents}
         value={data.parentsText}
         multiline
         onChange={(parentsText) => onChange({ ...data, parentsText })}
       />
       <Field
-        label="Nași"
+        label={ed.godparents}
         value={data.godparentsText}
         multiline
         onChange={(godparentsText) => onChange({ ...data, godparentsText })}
@@ -169,11 +183,13 @@ function CoupleEditor({ data, onChange, onReset }: EditorProps<"couple">) {
 }
 
 function StoryEditor({ data, onChange, onReset }: EditorProps<"story">) {
+  const ed = useEditorDict();
+  const { dict } = useI18n();
   return (
-    <Panel title="Povestea noastră" onReset={onReset}>
-      <Field label="Titlu" value={data.title} onChange={(title) => onChange({ ...data, title })} />
+    <Panel title={ed.ourStory} onReset={onReset}>
+      <Field label={ed.title} value={data.title} onChange={(title) => onChange({ ...data, title })} />
       <Field
-        label="Introducere"
+        label={ed.introduction}
         value={data.introduction}
         multiline
         onChange={(introduction) => onChange({ ...data, introduction })}
@@ -181,7 +197,7 @@ function StoryEditor({ data, onChange, onReset }: EditorProps<"story">) {
       {data.items.map((item, index) => (
         <div key={item.id} className="space-y-2 rounded-lg border border-border p-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground">Moment {index + 1}</p>
+            <p className="text-xs text-muted-foreground">{ed.momentN.replace("{n}", String(index + 1))}</p>
             <div className="flex gap-1">
               <Button
                 type="button"
@@ -213,13 +229,11 @@ function StoryEditor({ data, onChange, onReset }: EditorProps<"story">) {
                     items: data.items.filter((i) => i.id !== item.id),
                   })
                 }
-              >
-                Șterge
-              </Button>
+              >{dict.common.delete}</Button>
             </div>
           </div>
           <Field
-            label="Dată"
+            label={ed.date}
             value={item.date}
             onChange={(date) =>
               onChange({
@@ -229,7 +243,7 @@ function StoryEditor({ data, onChange, onReset }: EditorProps<"story">) {
             }
           />
           <Field
-            label="Titlu"
+            label={ed.title}
             value={item.title}
             onChange={(title) =>
               onChange({
@@ -239,7 +253,7 @@ function StoryEditor({ data, onChange, onReset }: EditorProps<"story">) {
             }
           />
           <Field
-            label="Descriere"
+            label={ed.description}
             value={item.description}
             multiline
             onChange={(description) =>
@@ -252,7 +266,7 @@ function StoryEditor({ data, onChange, onReset }: EditorProps<"story">) {
             }
           />
           <UrlField
-            label="URL imagine"
+            label={ed.imageUrl}
             value={item.imageUrl}
             onChange={(imageUrl) =>
               onChange({
@@ -284,18 +298,20 @@ function StoryEditor({ data, onChange, onReset }: EditorProps<"story">) {
           })
         }
       >
-        Adaugă moment
+        {ed.addMoment}
       </Button>
     </Panel>
   );
 }
 
 function CountdownEditor({ data, onChange, onReset }: EditorProps<"countdown">) {
+  const ed = useEditorDict();
+  const { dict } = useI18n();
   return (
-    <Panel title="Numărătoare inversă" onReset={onReset}>
-      <Field label="Titlu" value={data.title} onChange={(title) => onChange({ ...data, title })} />
+    <Panel title={ed.countdown} onReset={onReset}>
+      <Field label={ed.title} value={data.title} onChange={(title) => onChange({ ...data, title })} />
       <Field
-        label="Data nunții"
+        label={ed.weddingDate}
         type="date"
         value={data.targetDate}
         onChange={(targetDate) => onChange({ ...data, targetDate })}
@@ -305,33 +321,35 @@ function CountdownEditor({ data, onChange, onReset }: EditorProps<"countdown">) 
 }
 
 function WhenWhereEditor({ data, onChange, onReset }: EditorProps<"when_where">) {
+  const ed = useEditorDict();
+  const { dict } = useI18n();
   return (
-    <Panel title="Când și unde" onReset={onReset}>
-      <Field label="Titlu" value={data.title} onChange={(title) => onChange({ ...data, title })} />
+    <Panel title={ed.whenWhere} onReset={onReset}>
+      <Field label={ed.title} value={data.title} onChange={(title) => onChange({ ...data, title })} />
       <Field
-        label="Data"
+        label={ed.date}
         type="date"
         value={data.weddingDate}
         onChange={(weddingDate) => onChange({ ...data, weddingDate })}
       />
       <Field
-        label="Ora"
+        label={ed.time}
         type="time"
         value={data.weddingTime}
         onChange={(weddingTime) => onChange({ ...data, weddingTime })}
       />
       <Field
-        label="Locație ceremonie"
+        label={ed.ceremonyLocation}
         value={data.ceremonyLocation}
         onChange={(ceremonyLocation) => onChange({ ...data, ceremonyLocation })}
       />
       <Field
-        label="Locație petrecere"
+        label={ed.receptionLocation}
         value={data.receptionLocation}
         onChange={(receptionLocation) => onChange({ ...data, receptionLocation })}
       />
       <UrlField
-        label="URL hartă"
+        label={ed.mapUrl}
         value={data.mapUrl}
         onChange={(mapUrl) => onChange({ ...data, mapUrl })}
       />
@@ -340,13 +358,15 @@ function WhenWhereEditor({ data, onChange, onReset }: EditorProps<"when_where">)
 }
 
 function TimelineEditor({ data, onChange, onReset }: EditorProps<"timeline">) {
+  const ed = useEditorDict();
+  const { dict } = useI18n();
   return (
-    <Panel title="Programul evenimentului" onReset={onReset}>
-      <Field label="Titlu" value={data.title} onChange={(title) => onChange({ ...data, title })} />
+    <Panel title={ed.eventSchedule} onReset={onReset}>
+      <Field label={ed.title} value={data.title} onChange={(title) => onChange({ ...data, title })} />
       {data.items.map((item, index) => (
         <div key={item.id} className="space-y-2 rounded-lg border border-border p-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground">Eveniment {index + 1}</p>
+            <p className="text-xs text-muted-foreground">{ed.eventN.replace("{n}", String(index + 1))}</p>
             <div className="flex gap-1">
               <Button
                 type="button"
@@ -378,18 +398,16 @@ function TimelineEditor({ data, onChange, onReset }: EditorProps<"timeline">) {
                     items: data.items.filter((i) => i.id !== item.id),
                   })
                 }
-              >
-                Șterge
-              </Button>
+              >{dict.common.delete}</Button>
             </div>
           </div>
           {(
             [
-              ["time", "Ora", "time"],
-              ["title", "Titlu", "text"],
-              ["description", "Descriere", "text"],
-              ["location", "Locație", "text"],
-              ["icon", "Iconiță", "text"],
+              ["time", ed.time, "time"],
+              ["title", ed.title, "text"],
+              ["description", ed.description, "text"],
+              ["location", ed.location, "text"],
+              ["icon", ed.icon, "text"],
             ] as const
           ).map(([key, label, type]) => (
             <Field
@@ -430,25 +448,27 @@ function TimelineEditor({ data, onChange, onReset }: EditorProps<"timeline">) {
           })
         }
       >
-        Adaugă eveniment
+        {ed.addEvent}
       </Button>
     </Panel>
   );
 }
 
 function GalleryEditor({ data, onChange, onReset }: EditorProps<"gallery">) {
+  const ed = useEditorDict();
+  const { dict } = useI18n();
   return (
-    <Panel title="Galerie" onReset={onReset}>
-      <Field label="Titlu" value={data.title} onChange={(title) => onChange({ ...data, title })} />
+    <Panel title={ed.gallery} onReset={onReset}>
+      <Field label={ed.title} value={data.title} onChange={(title) => onChange({ ...data, title })} />
       {data.items.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-          Nicio imagine încă. Adaugă URL-uri pentru fotografii.
+          {ed.galleryEmpty}
         </p>
       ) : null}
       {data.items.map((item, index) => (
         <div key={item.id} className="space-y-2 rounded-lg border border-border p-3">
           <div className="flex justify-between gap-1">
-            <p className="text-xs text-muted-foreground">Imagine {index + 1}</p>
+            <p className="text-xs text-muted-foreground">{ed.imageN.replace("{n}", String(index + 1))}</p>
             <div className="flex gap-1">
               <Button
                 type="button"
@@ -480,13 +500,11 @@ function GalleryEditor({ data, onChange, onReset }: EditorProps<"gallery">) {
                     items: data.items.filter((i) => i.id !== item.id),
                   })
                 }
-              >
-                Șterge
-              </Button>
+              >{dict.common.delete}</Button>
             </div>
           </div>
           <UrlField
-            label="URL imagine"
+            label={ed.imageUrl}
             value={item.url}
             onChange={(url) =>
               onChange({
@@ -496,7 +514,7 @@ function GalleryEditor({ data, onChange, onReset }: EditorProps<"gallery">) {
             }
           />
           <Field
-            label="Legendă"
+            label={ed.caption}
             value={item.caption}
             onChange={(caption) =>
               onChange({
@@ -519,24 +537,26 @@ function GalleryEditor({ data, onChange, onReset }: EditorProps<"gallery">) {
           })
         }
       >
-        Adaugă imagine
+        {ed.addImage}
       </Button>
     </Panel>
   );
 }
 
 function DressCodeEditor({ data, onChange, onReset }: EditorProps<"dress_code">) {
+  const ed = useEditorDict();
+  const { dict } = useI18n();
   return (
-    <Panel title="Dress code" onReset={onReset}>
-      <Field label="Titlu" value={data.title} onChange={(title) => onChange({ ...data, title })} />
+    <Panel title={ed.dressCode} onReset={onReset}>
+      <Field label={ed.title} value={data.title} onChange={(title) => onChange({ ...data, title })} />
       <Field
-        label="Descriere"
+        label={ed.description}
         value={data.description}
         multiline
         onChange={(description) => onChange({ ...data, description })}
       />
       <div className="space-y-2">
-        <Label>Paletă culori</Label>
+        <Label>{ed.colorPalette}</Label>
         {data.colors.map((color, index) => (
           <div key={`${color}-${index}`} className="flex gap-2">
             <Input
@@ -567,9 +587,7 @@ function DressCodeEditor({ data, onChange, onReset }: EditorProps<"dress_code">)
                   colors: data.colors.filter((_, i) => i !== index),
                 })
               }
-            >
-              Șterge
-            </Button>
+            >{dict.common.delete}</Button>
           </div>
         ))}
         <Button
@@ -578,11 +596,11 @@ function DressCodeEditor({ data, onChange, onReset }: EditorProps<"dress_code">)
           size="sm"
           onClick={() => onChange({ ...data, colors: [...data.colors, "#C4A574"] })}
         >
-          Adaugă culoare
+          {ed.addColor}
         </Button>
       </div>
       <UrlField
-        label="Imagine inspirație"
+        label={ed.inspirationImage}
         value={data.inspirationImageUrl}
         onChange={(inspirationImageUrl) => onChange({ ...data, inspirationImageUrl })}
       />
@@ -591,11 +609,13 @@ function DressCodeEditor({ data, onChange, onReset }: EditorProps<"dress_code">)
 }
 
 function AccommodationEditor({ data, onChange, onReset }: EditorProps<"accommodation">) {
+  const ed = useEditorDict();
+  const { dict } = useI18n();
   return (
-    <Panel title="Cazare" onReset={onReset}>
-      <Field label="Titlu" value={data.title} onChange={(title) => onChange({ ...data, title })} />
+    <Panel title={ed.accommodation} onReset={onReset}>
+      <Field label={ed.title} value={data.title} onChange={(title) => onChange({ ...data, title })} />
       <Field
-        label="Descriere"
+        label={ed.description}
         value={data.description}
         multiline
         onChange={(description) => onChange({ ...data, description })}
@@ -603,7 +623,7 @@ function AccommodationEditor({ data, onChange, onReset }: EditorProps<"accommoda
       {data.items.map((item, index) => (
         <div key={item.id} className="space-y-2 rounded-lg border border-border p-3">
           <div className="flex justify-between">
-            <p className="text-xs text-muted-foreground">Cazare {index + 1}</p>
+            <p className="text-xs text-muted-foreground">{ed.accommodationN.replace("{n}", String(index + 1))}</p>
             <Button
               type="button"
               size="sm"
@@ -614,16 +634,14 @@ function AccommodationEditor({ data, onChange, onReset }: EditorProps<"accommoda
                   items: data.items.filter((i) => i.id !== item.id),
                 })
               }
-            >
-              Șterge
-            </Button>
+            >{dict.common.delete}</Button>
           </div>
           {(
             [
-              ["name", "Nume"],
-              ["address", "Adresă"],
-              ["phone", "Telefon"],
-              ["bookingInfo", "Info rezervare"],
+              ["name", ed.name],
+              ["address", ed.address],
+              ["phone", ed.phone],
+              ["bookingInfo", ed.bookingInfo],
             ] as const
           ).map(([key, label]) => (
             <Field
@@ -641,7 +659,7 @@ function AccommodationEditor({ data, onChange, onReset }: EditorProps<"accommoda
             />
           ))}
           <UrlField
-            label="Website"
+            label={ed.website}
             value={item.website}
             onChange={(website) =>
               onChange({
@@ -653,7 +671,7 @@ function AccommodationEditor({ data, onChange, onReset }: EditorProps<"accommoda
             }
           />
           <UrlField
-            label="URL hartă"
+            label={ed.mapUrl}
             value={item.mapUrl}
             onChange={(mapUrl) =>
               onChange({
@@ -687,40 +705,42 @@ function AccommodationEditor({ data, onChange, onReset }: EditorProps<"accommoda
           })
         }
       >
-        Adaugă cazare
+        {ed.addAccommodation}
       </Button>
     </Panel>
   );
 }
 
 function TransportEditor({ data, onChange, onReset }: EditorProps<"transport">) {
+  const ed = useEditorDict();
+  const { dict } = useI18n();
   return (
-    <Panel title="Transport" onReset={onReset}>
-      <Field label="Titlu" value={data.title} onChange={(title) => onChange({ ...data, title })} />
+    <Panel title={ed.transport} onReset={onReset}>
+      <Field label={ed.title} value={data.title} onChange={(title) => onChange({ ...data, title })} />
       <Field
-        label="Descriere"
+        label={ed.description}
         value={data.description}
         multiline
         onChange={(description) => onChange({ ...data, description })}
       />
       <Field
-        label="Puncte de preluare"
+        label={ed.pickupPoints}
         value={data.pickupPoints}
         multiline
         onChange={(pickupPoints) => onChange({ ...data, pickupPoints })}
       />
       <Field
-        label="Ore plecare"
+        label={ed.departureTimes}
         value={data.departureTimes}
         onChange={(departureTimes) => onChange({ ...data, departureTimes })}
       />
       <Field
-        label="Ore întoarcere"
+        label={ed.returnTimes}
         value={data.returnTimes}
         onChange={(returnTimes) => onChange({ ...data, returnTimes })}
       />
       <Field
-        label="Contact"
+        label={ed.contact}
         value={data.contact}
         onChange={(contact) => onChange({ ...data, contact })}
       />
@@ -729,17 +749,19 @@ function TransportEditor({ data, onChange, onReset }: EditorProps<"transport">) 
 }
 
 function GiftsEditor({ data, onChange, onReset }: EditorProps<"gifts">) {
+  const ed = useEditorDict();
+  const { dict } = useI18n();
   return (
-    <Panel title="Daruri" onReset={onReset}>
-      <Field label="Titlu" value={data.title} onChange={(title) => onChange({ ...data, title })} />
+    <Panel title={ed.gifts} onReset={onReset}>
+      <Field label={ed.title} value={data.title} onChange={(title) => onChange({ ...data, title })} />
       <Field
-        label="Descriere"
+        label={ed.description}
         value={data.description}
         multiline
         onChange={(description) => onChange({ ...data, description })}
       />
       <Field
-        label="Detalii bancare"
+        label={ed.bankDetails}
         value={data.bankDetails}
         multiline
         onChange={(bankDetails) => onChange({ ...data, bankDetails })}
@@ -750,10 +772,10 @@ function GiftsEditor({ data, onChange, onReset }: EditorProps<"gifts">) {
           checked={data.hideBankDetails}
           onChange={(e) => onChange({ ...data, hideBankDetails: e.target.checked })}
         />
-        Ascunde detaliile financiare pe site-ul public
+        {ed.hideBankDetails}
       </label>
       <UrlField
-        label="URL listă cadouri"
+        label={ed.giftListUrl}
         value={data.registryUrl}
         onChange={(registryUrl) => onChange({ ...data, registryUrl })}
       />
@@ -762,13 +784,15 @@ function GiftsEditor({ data, onChange, onReset }: EditorProps<"gifts">) {
 }
 
 function FaqEditor({ data, onChange, onReset }: EditorProps<"faq">) {
+  const ed = useEditorDict();
+  const { dict } = useI18n();
   return (
-    <Panel title="Întrebări frecvente" onReset={onReset}>
-      <Field label="Titlu" value={data.title} onChange={(title) => onChange({ ...data, title })} />
+    <Panel title={ed.faq} onReset={onReset}>
+      <Field label={ed.title} value={data.title} onChange={(title) => onChange({ ...data, title })} />
       {data.items.map((item, index) => (
         <div key={item.id} className="space-y-2 rounded-lg border border-border p-3">
           <div className="flex justify-between">
-            <p className="text-xs text-muted-foreground">Întrebare {index + 1}</p>
+            <p className="text-xs text-muted-foreground">{ed.questionN.replace("{n}", String(index + 1))}</p>
             <div className="flex gap-1">
               <Button
                 type="button"
@@ -800,13 +824,11 @@ function FaqEditor({ data, onChange, onReset }: EditorProps<"faq">) {
                     items: data.items.filter((i) => i.id !== item.id),
                   })
                 }
-              >
-                Șterge
-              </Button>
+              >{dict.common.delete}</Button>
             </div>
           </div>
           <Field
-            label="Întrebare"
+            label={ed.question}
             value={item.question}
             onChange={(question) =>
               onChange({
@@ -818,7 +840,7 @@ function FaqEditor({ data, onChange, onReset }: EditorProps<"faq">) {
             }
           />
           <Field
-            label="Răspuns"
+            label={ed.answer}
             value={item.answer}
             multiline
             onChange={(answer) =>
@@ -845,18 +867,20 @@ function FaqEditor({ data, onChange, onReset }: EditorProps<"faq">) {
           })
         }
       >
-        Adaugă întrebare
+        {ed.addQuestion}
       </Button>
     </Panel>
   );
 }
 
 function RsvpEditor({ data, onChange, onReset }: EditorProps<"rsvp">) {
+  const ed = useEditorDict();
+  const { dict } = useI18n();
   return (
-    <Panel title="Confirmare participare" onReset={onReset}>
-      <Field label="Titlu" value={data.title} onChange={(title) => onChange({ ...data, title })} />
+    <Panel title={ed.rsvpConfirm} onReset={onReset}>
+      <Field label={ed.title} value={data.title} onChange={(title) => onChange({ ...data, title })} />
       <Field
-        label="Mesaj"
+        label={ed.message}
         value={data.message}
         multiline
         onChange={(message) => onChange({ ...data, message })}
@@ -866,11 +890,13 @@ function RsvpEditor({ data, onChange, onReset }: EditorProps<"rsvp">) {
 }
 
 function FooterEditor({ data, onChange, onReset }: EditorProps<"footer">) {
+  const ed = useEditorDict();
+  const { dict } = useI18n();
   return (
-    <Panel title="Încheiere" onReset={onReset}>
-      <Field label="Text" value={data.text} onChange={(text) => onChange({ ...data, text })} />
+    <Panel title={ed.closing} onReset={onReset}>
+      <Field label={ed.text} value={data.text} onChange={(text) => onChange({ ...data, text })} />
       <Field
-        label="Semnătură"
+        label={ed.signature}
         value={data.signature}
         onChange={(signature) => onChange({ ...data, signature })}
       />

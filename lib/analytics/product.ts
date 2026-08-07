@@ -19,6 +19,8 @@ export const PRODUCT_EVENT_NAMES = [
   "subscription_upgraded",
   "subscription_cancelled",
   "raian_visual_promo_click",
+  "assistant_ask",
+  "assistant_feedback",
 ] as const;
 
 export type ProductEventName = (typeof PRODUCT_EVENT_NAMES)[number];

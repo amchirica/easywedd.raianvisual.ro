@@ -2,20 +2,28 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = {
-  title: "Parolă actualizată",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.meta.passwordUpdatedTitle };
+}
 
-export default function AuthPasswordUpdatedPage() {
+export default async function AuthPasswordUpdatedPage() {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-heading text-3xl">Parola a fost schimbată</h1>
+        <h1 className="font-heading text-3xl">
+          {dict.auth.passwordUpdatedHeading}
+        </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Parola contului tău EasyWedd a fost actualizată cu succes. Te poți
-          autentifica folosind noua parolă.
+          {dict.auth.passwordUpdatedBody}
         </p>
       </div>
 
@@ -23,7 +31,7 @@ export default function AuthPasswordUpdatedPage() {
         href="/login"
         className={cn(buttonVariants(), "inline-flex w-full sm:w-auto")}
       >
-        Autentificare
+        {dict.auth.loginTitle}
       </Link>
     </div>
   );

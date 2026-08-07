@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const guestSchema = z.object({
-  first_name: z.string().min(1, "Prenumele este obligatoriu"),
+  first_name: z.string().min(1, "validation.firstNameRequired"),
   last_name: z.string().default(""),
   email: z.email().optional().or(z.literal("")),
   phone: z.string().optional(),

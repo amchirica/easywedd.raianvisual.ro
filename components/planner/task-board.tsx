@@ -3,16 +3,20 @@
 import { useMemo, useState, useTransition } from "react";
 
 import { ConfirmDeleteButton } from "@/components/planner/confirm-delete-button";
+import { useI18n } from "@/components/providers/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   deleteTaskAction,
   updateTaskStatusAction,
 } from "@/lib/actions/tasks";
+import { getStatusLabel } from "@/lib/i18n/status-labels";
 import {
   TASK_CATEGORIES,
   TASK_PRIORITIES,
   TASK_STATUSES,
+  type TaskCategory,
+  type TaskPriority,
   type TaskStatus,
   type WeddingTask,
 } from "@/types/planner";
@@ -23,11 +27,19 @@ type TaskBoardProps = {
 };
 
 export function TaskBoard({ tasks, view }: TaskBoardProps) {
+  const { dict, locale } = useI18n();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [, startTransition] = useTransition();
+
+  const categoryLabel = (value: TaskCategory | string) =>
+    dict.planner.categories[value as TaskCategory] ?? value;
+  const priorityLabel = (value: TaskPriority | string) =>
+    dict.planner.priorities[value as TaskPriority] ?? value;
+  const statusLabel = (value: TaskStatus | string) =>
+    getStatusLabel("task", value, locale) || value;
 
   const filtered = useMemo(() => {
     return tasks.filter((task) => {
@@ -55,7 +67,7 @@ export function TaskBoard({ tasks, view }: TaskBoardProps) {
   const filters = (
     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 print:hidden">
       <Input
-        placeholder="Caută task..."
+        placeholder={dict.planner.searchPlaceholder}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
@@ -64,10 +76,10 @@ export function TaskBoard({ tasks, view }: TaskBoardProps) {
         value={statusFilter}
         onChange={(e) => setStatusFilter(e.target.value)}
       >
-        <option value="all">Toate statusurile</option>
+        <option value="all">{dict.planner.allStatuses}</option>
         {TASK_STATUSES.map((s) => (
           <option key={s.value} value={s.value}>
-            {s.label}
+            {statusLabel(s.value)}
           </option>
         ))}
       </select>
@@ -76,10 +88,10 @@ export function TaskBoard({ tasks, view }: TaskBoardProps) {
         value={categoryFilter}
         onChange={(e) => setCategoryFilter(e.target.value)}
       >
-        <option value="all">Toate categoriile</option>
+        <option value="all">{dict.planner.allCategories}</option>
         {TASK_CATEGORIES.map((c) => (
           <option key={c.value} value={c.value}>
-            {c.label}
+            {categoryLabel(c.value)}
           </option>
         ))}
       </select>
@@ -88,10 +100,10 @@ export function TaskBoard({ tasks, view }: TaskBoardProps) {
         value={priorityFilter}
         onChange={(e) => setPriorityFilter(e.target.value)}
       >
-        <option value="all">Toate prioritățile</option>
+        <option value="all">{dict.planner.allPriorities}</option>
         {TASK_PRIORITIES.map((p) => (
           <option key={p.value} value={p.value}>
-            {p.label}
+            {priorityLabel(p.value)}
           </option>
         ))}
       </select>
@@ -106,9 +118,7 @@ export function TaskBoard({ tasks, view }: TaskBoardProps) {
         <div className="grid gap-4 lg:grid-cols-4">
           {columns.map((column) => (
             <section key={column} className="border border-border bg-card p-3">
-              <h3 className="text-sm font-medium">
-                {TASK_STATUSES.find((s) => s.value === column)?.label}
-              </h3>
+              <h3 className="text-sm font-medium">{statusLabel(column)}</h3>
               <div className="mt-3 space-y-2">
                 {filtered
                   .filter((t) => t.status === column)
@@ -119,7 +129,8 @@ export function TaskBoard({ tasks, view }: TaskBoardProps) {
                     >
                       <p className="text-sm font-medium">{task.title}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {task.due_date ?? "Fără termen"} · {task.priority}
+                        {task.due_date ?? dict.planner.noDueDate} ·{" "}
+                        {priorityLabel(task.priority)}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-1">
                         {columns
@@ -132,8 +143,7 @@ export function TaskBoard({ tasks, view }: TaskBoardProps) {
                               variant="outline"
                               onClick={() => setStatus(task.id, next)}
                             >
-                              →{" "}
-                              {TASK_STATUSES.find((s) => s.value === next)?.label}
+                              → {statusLabel(next)}
                             </Button>
                           ))}
                       </div>
@@ -150,7 +160,7 @@ export function TaskBoard({ tasks, view }: TaskBoardProps) {
   if (view === "calendar") {
     const byDate = new Map<string, WeddingTask[]>();
     for (const task of filtered) {
-      const key = task.due_date ?? "Fără dată";
+      const key = task.due_date ?? dict.planner.noDate;
       byDate.set(key, [...(byDate.get(key) ?? []), task]);
     }
     const dates = Array.from(byDate.keys()).sort();
@@ -166,7 +176,9 @@ export function TaskBoard({ tasks, view }: TaskBoardProps) {
                 {(byDate.get(date) ?? []).map((task) => (
                   <li key={task.id} className="flex justify-between gap-3">
                     <span>{task.title}</span>
-                    <span className="text-muted-foreground">{task.status}</span>
+                    <span className="text-muted-foreground">
+                      {statusLabel(task.status)}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -184,11 +196,11 @@ export function TaskBoard({ tasks, view }: TaskBoardProps) {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border text-muted-foreground">
             <tr>
-              <th className="px-4 py-3">Titlu</th>
-              <th className="px-4 py-3">Categorie</th>
-              <th className="px-4 py-3">Prioritate</th>
-              <th className="px-4 py-3">Termen</th>
-              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">{dict.planner.columns.title}</th>
+              <th className="px-4 py-3">{dict.planner.columns.category}</th>
+              <th className="px-4 py-3">{dict.planner.columns.priority}</th>
+              <th className="px-4 py-3">{dict.planner.columns.due}</th>
+              <th className="px-4 py-3">{dict.planner.columns.status}</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -196,8 +208,8 @@ export function TaskBoard({ tasks, view }: TaskBoardProps) {
             {filtered.map((task) => (
               <tr key={task.id} className="border-b border-border last:border-0">
                 <td className="px-4 py-3 font-medium">{task.title}</td>
-                <td className="px-4 py-3">{task.category}</td>
-                <td className="px-4 py-3">{task.priority}</td>
+                <td className="px-4 py-3">{categoryLabel(task.category)}</td>
+                <td className="px-4 py-3">{priorityLabel(task.priority)}</td>
                 <td className="px-4 py-3">{task.due_date ?? "—"}</td>
                 <td className="px-4 py-3">
                   <select
@@ -209,7 +221,7 @@ export function TaskBoard({ tasks, view }: TaskBoardProps) {
                   >
                     {TASK_STATUSES.map((s) => (
                       <option key={s.value} value={s.value}>
-                        {s.label}
+                        {statusLabel(s.value)}
                       </option>
                     ))}
                   </select>
@@ -227,7 +239,8 @@ export function TaskBoard({ tasks, view }: TaskBoardProps) {
           <article key={task.id} className="border border-border bg-card p-4">
             <p className="font-medium">{task.title}</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              {task.category} · {task.priority} · {task.due_date ?? "Fără termen"}
+              {categoryLabel(task.category)} · {priorityLabel(task.priority)} ·{" "}
+              {task.due_date ?? dict.planner.noDueDate}
             </p>
             <div className="mt-3 flex items-center justify-between gap-2">
               <select
@@ -239,7 +252,7 @@ export function TaskBoard({ tasks, view }: TaskBoardProps) {
               >
                 {TASK_STATUSES.map((s) => (
                   <option key={s.value} value={s.value}>
-                    {s.label}
+                    {statusLabel(s.value)}
                   </option>
                 ))}
               </select>

@@ -5,10 +5,15 @@ import { addWeeks, addMonths, parseISO } from "date-fns";
 
 import { canManagePlanner } from "@/lib/planner/access";
 import { logAudit, requireWeddingContext } from "@/lib/planner/context";
+import type { ErrorCode } from "@/lib/i18n/errors";
 import { taskSchema } from "@/lib/validations/tasks";
 import type { TaskStatus } from "@/types/planner";
 
-export type ActionState = { error?: string; success?: string };
+export type ActionState = {
+  error?: string;
+  errorCode?: ErrorCode;
+  success?: string;
+};
 
 export async function createTaskAction(formData: FormData): Promise<void> {
   const ctx = await requireWeddingContext();
@@ -148,8 +153,12 @@ export async function addChecklistItemAction(
   title: string,
 ): Promise<ActionState> {
   const ctx = await requireWeddingContext();
-  if (ctx.error || !ctx.context) return { error: ctx.error ?? "Eroare" };
-  if (!canManagePlanner(ctx.context.role)) return { error: "Fără permisiune." };
+  if (ctx.error || !ctx.context) {
+    return { error: ctx.error ?? "Eroare", errorCode: "generic" };
+  }
+  if (!canManagePlanner(ctx.context.role)) {
+    return { error: "Fără permisiune.", errorCode: "permission_denied" };
+  }
 
   const { error } = await ctx.context.supabase
     .from("wedding_task_checklist_items")
@@ -159,7 +168,9 @@ export async function addChecklistItemAction(
       title,
     });
 
-  if (error) return { error: error.message };
+  if (error) {
+    return { error: error.message, errorCode: "task_save_failed" };
+  }
   revalidatePath("/dashboard/planner");
   return { success: "Checklist actualizat." };
 }
@@ -169,8 +180,12 @@ export async function toggleChecklistItemAction(
   isDone: boolean,
 ): Promise<ActionState> {
   const ctx = await requireWeddingContext();
-  if (ctx.error || !ctx.context) return { error: ctx.error ?? "Eroare" };
-  if (!canManagePlanner(ctx.context.role)) return { error: "Fără permisiune." };
+  if (ctx.error || !ctx.context) {
+    return { error: ctx.error ?? "Eroare", errorCode: "generic" };
+  }
+  if (!canManagePlanner(ctx.context.role)) {
+    return { error: "Fără permisiune.", errorCode: "permission_denied" };
+  }
 
   const { error } = await ctx.context.supabase
     .from("wedding_task_checklist_items")
@@ -178,7 +193,9 @@ export async function toggleChecklistItemAction(
     .eq("id", itemId)
     .eq("workspace_id", ctx.context.workspaceId);
 
-  if (error) return { error: error.message };
+  if (error) {
+    return { error: error.message, errorCode: "task_save_failed" };
+  }
   revalidatePath("/dashboard/planner");
   return { success: "Salvat." };
 }

@@ -3,11 +3,16 @@
 import { revalidatePath } from "next/cache";
 
 import { requireFeature } from "@/lib/entitlements/service";
+import type { ErrorCode } from "@/lib/i18n/errors";
 import { canManageGuests } from "@/lib/planner/access";
 import { requireWeddingContext } from "@/lib/planner/context";
 import { tableSchema, updateTableSchema } from "@/lib/validations/seating";
 
-export type ActionState = { error?: string; success?: string };
+export type ActionState = {
+  error?: string;
+  errorCode?: ErrorCode;
+  success?: string;
+};
 
 export async function createTableAction(formData: FormData): Promise<void> {
   const ctx = await requireWeddingContext();
@@ -87,15 +92,21 @@ export async function updateTableAction(
 ): Promise<ActionState> {
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) {
-    return { error: ctx.error ?? "Workspace incomplet" };
+    return { error: ctx.error ?? "Workspace incomplet", errorCode: "generic" };
   }
   if (!canManageGuests(ctx.context.role)) {
-    return { error: "Nu ai permisiunea de a edita mesele." };
+    return {
+      error: "Nu ai permisiunea de a edita mesele.",
+      errorCode: "permission_denied",
+    };
   }
 
   const parsed = updateTableSchema.safeParse(input);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Date invalide" };
+    return {
+      error: parsed.error.issues[0]?.message ?? "validation.invalid",
+      errorCode: "validation_failed",
+    };
   }
 
   const { error } = await ctx.context.supabase
@@ -114,7 +125,7 @@ export async function updateTableAction(
     .eq("workspace_id", ctx.context.workspaceId);
 
   if (error) {
-    return { error: "Nu am putut actualiza masa." };
+    return { error: "Nu am putut actualiza masa.", errorCode: "seating_save_failed" };
   }
 
   revalidatePath("/dashboard/seating");
@@ -128,10 +139,13 @@ export async function updateTablePositionAction(
 ): Promise<ActionState> {
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) {
-    return { error: ctx.error ?? "Workspace incomplet" };
+    return { error: ctx.error ?? "Workspace incomplet", errorCode: "generic" };
   }
   if (!canManageGuests(ctx.context.role)) {
-    return { error: "Nu ai permisiunea de a edita mesele." };
+    return {
+      error: "Nu ai permisiunea de a edita mesele.",
+      errorCode: "permission_denied",
+    };
   }
 
   const { error } = await ctx.context.supabase
@@ -145,7 +159,10 @@ export async function updateTablePositionAction(
     .eq("workspace_id", ctx.context.workspaceId);
 
   if (error) {
-    return { error: "Nu am putut actualiza poziția mesei." };
+    return {
+      error: "Nu am putut actualiza poziția mesei.",
+      errorCode: "seating_save_failed",
+    };
   }
 
   // Optimistic UI on the board — skip full seating RSC refresh on drag.
@@ -158,10 +175,13 @@ export async function assignGuestToTableAction(
 ): Promise<ActionState> {
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) {
-    return { error: ctx.error ?? "Workspace incomplet" };
+    return { error: ctx.error ?? "Workspace incomplet", errorCode: "generic" };
   }
   if (!canManageGuests(ctx.context.role)) {
-    return { error: "Nu ai permisiunea de a aloca invitați." };
+    return {
+      error: "Nu ai permisiunea de a aloca invitați.",
+      errorCode: "permission_denied",
+    };
   }
 
   const { supabase, workspaceId } = ctx.context;
@@ -175,7 +195,9 @@ export async function assignGuestToTableAction(
       .eq("id", tableId)
       .maybeSingle();
 
-    if (!table) return { error: "Masa nu există." };
+    if (!table) {
+      return { error: "Masa nu există.", errorCode: "resource_not_found" };
+    }
 
     const { count } = await supabase
       .from("table_assignments")
@@ -183,7 +205,10 @@ export async function assignGuestToTableAction(
       .eq("table_id", tableId);
 
     if ((count ?? 0) >= table.capacity) {
-      return { error: "Capacitatea mesei este atinsă." };
+      return {
+        error: "Capacitatea mesei este atinsă.",
+        errorCode: "validation_failed",
+      };
     }
 
     const { error } = await supabase.from("table_assignments").insert({
@@ -191,7 +216,12 @@ export async function assignGuestToTableAction(
       table_id: tableId,
       guest_id: guestId,
     });
-    if (error) return { error: "Nu am putut aloca invitatul." };
+    if (error) {
+      return {
+        error: "Nu am putut aloca invitatul.",
+        errorCode: "seating_save_failed",
+      };
+    }
   }
 
   await supabase

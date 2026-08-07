@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useState } from "react";
 
+import { useI18n } from "@/components/providers/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +27,8 @@ const initialState: SignupResult = {
 
 export function RegisterForm({ nextPath, claimToken }: RegisterFormProps) {
   const router = useRouter();
+  const { dict } = useI18n();
+  const { auth, common } = dict;
   const [password, setPassword] = useState("");
   const [state, formAction, pending] = useActionState(
     registerAction,
@@ -58,32 +61,32 @@ export function RegisterForm({ nextPath, claimToken }: RegisterFormProps) {
       ) : null}
 
       <div className="space-y-2">
-        <Label htmlFor="full_name">Nume complet</Label>
+        <Label htmlFor="full_name">{common.fullName}</Label>
         <Input
           id="full_name"
           name="full_name"
           autoComplete="name"
           required
-          placeholder="Ana Popescu"
+          placeholder={auth.namePlaceholder}
           disabled={pending}
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">{common.email}</Label>
         <Input
           id="email"
           name="email"
           type="email"
           autoComplete="email"
           required
-          placeholder="tu@email.com"
+          placeholder={auth.emailPlaceholder}
           disabled={pending}
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="password">Parolă</Label>
+        <Label htmlFor="password">{common.password}</Label>
         <Input
           id="password"
           name="password"
@@ -93,7 +96,7 @@ export function RegisterForm({ nextPath, claimToken }: RegisterFormProps) {
           minLength={8}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Minim 8 caractere, literă mare + cifră"
+          placeholder={auth.passwordPlaceholder}
           disabled={pending}
           aria-describedby="register-password-rules"
         />
@@ -102,16 +105,16 @@ export function RegisterForm({ nextPath, claimToken }: RegisterFormProps) {
           className="space-y-1 text-xs text-muted-foreground"
         >
           <li className={cn(checks.minLength && "text-foreground")}>
-            {checks.minLength ? "✓" : "○"} Minim 8 caractere
+            {checks.minLength ? "✓" : "○"} {auth.passwordRuleMin}
           </li>
           <li className={cn(checks.uppercase && "text-foreground")}>
-            {checks.uppercase ? "✓" : "○"} Cel puțin o literă mare
+            {checks.uppercase ? "✓" : "○"} {auth.passwordRuleUpper}
           </li>
           <li className={cn(checks.lowercase && "text-foreground")}>
-            {checks.lowercase ? "✓" : "○"} Cel puțin o literă mică
+            {checks.lowercase ? "✓" : "○"} {auth.passwordRuleLower}
           </li>
           <li className={cn(checks.number && "text-foreground")}>
-            {checks.number ? "✓" : "○"} Cel puțin o cifră
+            {checks.number ? "✓" : "○"} {auth.passwordRuleNumber}
           </li>
         </ul>
       </div>
@@ -126,9 +129,9 @@ export function RegisterForm({ nextPath, claimToken }: RegisterFormProps) {
             className="mt-1 size-4 accent-[var(--champagne)]"
           />
           <span>
-            Accept{" "}
+            {auth.acceptTerms}{" "}
             <Link href="/terms" className="underline underline-offset-4">
-              Termenii și condițiile
+              {auth.termsLink}
             </Link>
           </span>
         </label>
@@ -141,9 +144,9 @@ export function RegisterForm({ nextPath, claimToken }: RegisterFormProps) {
             className="mt-1 size-4 accent-[var(--champagne)]"
           />
           <span>
-            Accept{" "}
+            {auth.acceptPrivacy}{" "}
             <Link href="/privacy" className="underline underline-offset-4">
-              Politica de confidențialitate
+              {auth.privacyLink}
             </Link>
           </span>
         </label>
@@ -154,7 +157,7 @@ export function RegisterForm({ nextPath, claimToken }: RegisterFormProps) {
             disabled={pending}
             className="mt-1 size-4 accent-[var(--champagne)]"
           />
-          <span>Vreau să primesc noutăți și oferte (opțional)</span>
+          <span>{auth.marketingOptIn}</span>
         </label>
         <label className="flex items-start gap-3 text-sm text-muted-foreground">
           <input
@@ -163,9 +166,7 @@ export function RegisterForm({ nextPath, claimToken }: RegisterFormProps) {
             disabled={pending}
             className="mt-1 size-4 accent-[var(--champagne)]"
           />
-          <span>
-            Permite analytics pentru îmbunătățirea produsului (opțional)
-          </span>
+          <span>{auth.analyticsOptIn}</span>
         </label>
       </div>
 
@@ -183,23 +184,22 @@ export function RegisterForm({ nextPath, claimToken }: RegisterFormProps) {
         className="w-full"
         disabled={pending || !allStrong}
       >
-        {pending ? "Se creează contul…" : "Creează cont"}
+        {pending ? auth.processing : auth.submitRegister}
       </Button>
 
       <p className="text-center text-xs text-muted-foreground">
-        După înregistrare vei primi un email de confirmare. Verifică și folderul
-        Spam dacă nu apare în Inbox.
+        {auth.checkEmailBody}
       </p>
 
       <p className="text-center text-sm text-muted-foreground">
-        Ai deja cont?{" "}
+        {auth.hasAccount}{" "}
         <Link
           href={
             nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : "/login"
           }
           className="text-foreground underline underline-offset-4"
         >
-          Autentifică-te
+          {auth.loginLink}
         </Link>
       </p>
     </form>

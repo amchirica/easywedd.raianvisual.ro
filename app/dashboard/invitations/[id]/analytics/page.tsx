@@ -3,17 +3,30 @@ import type { Metadata } from "next";
 import { AnalyticsCards } from "@/components/invitations/analytics-cards";
 import { EmptyState } from "@/components/planner/empty-state";
 import { getProjectAnalyticsAction } from "@/lib/actions/invitations";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { loadInvitationProject } from "@/lib/invitations/load-project";
 
-export const metadata: Metadata = { title: "Analytics invitație" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.invitations.analyticsMetaTitle };
+}
 
 type PageProps = { params: Promise<{ id: string }> };
 
 export default async function InvitationAnalyticsPage({ params }: PageProps) {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const { id } = await params;
   const loaded = await loadInvitationProject(id);
   if (loaded.error || !loaded.data) {
-    return <EmptyState title="Proiect indisponibil" description={loaded.error ?? ""} />;
+    return (
+      <EmptyState
+        title={dict.invitations.projectUnavailable}
+        description={loaded.error ?? ""}
+      />
+    );
   }
 
   const { project, limits, ctx } = loaded.data;
@@ -38,16 +51,16 @@ export default async function InvitationAnalyticsPage({ params }: PageProps) {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="font-heading text-4xl">Analytics</h1>
+        <h1 className="font-heading text-4xl">{dict.invitations.analytics}</h1>
         <p className="mt-2 text-sm text-muted-foreground">{project.name}</p>
       </header>
       <AnalyticsCards stats={stats} advanced={limits.allowAdvancedAnalytics} />
       {limits.allowAdvancedAnalytics ? (
         <section className="space-y-2">
-          <h2 className="font-heading text-2xl">Deschideri pe device</h2>
+          <h2 className="font-heading text-2xl">{dict.invitations.opensByDevice}</h2>
           <div className="flex flex-wrap gap-4 text-sm">
             {Object.entries(deviceCounts).length === 0 ? (
-              <p className="text-muted-foreground">Nicio deschidere încă.</p>
+              <p className="text-muted-foreground">{dict.invitations.noOpensYet}</p>
             ) : (
               Object.entries(deviceCounts).map(([device, count]) => (
                 <p key={device}>

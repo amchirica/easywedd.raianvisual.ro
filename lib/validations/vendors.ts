@@ -10,11 +10,11 @@ const vendorCategoryEnum = z.enum(
 );
 
 export const vendorSchema = z.object({
-  company_name: z.string().min(1, "Numele companiei este obligatoriu"),
+  company_name: z.string().min(1, "validation.companyNameRequired"),
   category: vendorCategoryEnum.default("other"),
   contact_name: z.string().optional(),
   phone: z.string().optional(),
-  email: z.email("Email invalid").optional().or(z.literal("")),
+  email: z.email("validation.invalidEmail").optional().or(z.literal("")),
   website: z.string().optional(),
   social_url: z.string().optional(),
   quoted_price: z.coerce.number().nonnegative().optional(),

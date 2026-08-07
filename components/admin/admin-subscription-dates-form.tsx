@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { useI18n } from "@/components/providers/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { adminUpdateSubscriptionDatesFormAction } from "@/lib/actions/admin-billing";
@@ -16,6 +17,7 @@ export function AdminSubscriptionDatesForm({
   accessEndsAt: string | null;
   adminNotes: string | null;
 }) {
+  const { dict } = useI18n();
   const [ends, setEnds] = useState(
     accessEndsAt ? accessEndsAt.slice(0, 10) : "",
   );
@@ -28,7 +30,7 @@ export function AdminSubscriptionDatesForm({
     >
       <input type="hidden" name="workspace_id" value={workspaceId} />
       <div className="space-y-1">
-        <Label htmlFor={`ends-${workspaceId}`}>Data expirării</Label>
+        <Label htmlFor={`ends-${workspaceId}`}>{dict.admin.endDate}</Label>
         <input
           id={`ends-${workspaceId}`}
           type="date"
@@ -39,7 +41,7 @@ export function AdminSubscriptionDatesForm({
         />
       </div>
       <div className="space-y-1">
-        <Label htmlFor={`notes-${workspaceId}`}>Motiv administrativ</Label>
+        <Label htmlFor={`notes-${workspaceId}`}>{dict.admin.adminReason}</Label>
         <input
           id={`notes-${workspaceId}`}
           name="admin_notes"
@@ -49,7 +51,7 @@ export function AdminSubscriptionDatesForm({
         />
       </div>
       <Button type="submit" size="sm" variant="outline">
-        Actualizează
+        {dict.admin.update}
       </Button>
     </form>
   );

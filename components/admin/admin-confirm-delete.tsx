@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 
+import { useI18n } from "@/components/providers/i18n-provider";
 import { Button } from "@/components/ui/button";
 
 type Props = {
@@ -16,16 +17,19 @@ export function AdminConfirmDelete({
   workspaceId,
   id,
   action,
-  label = "Șterge",
-  confirmLabel = "Confirmă",
+  label,
+  confirmLabel,
 }: Props) {
+  const { dict } = useI18n();
+  const resolvedLabel = label ?? dict.dialog.delete;
+  const resolvedConfirm = confirmLabel ?? dict.dialog.confirm;
   const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
 
   if (!confirming) {
     return (
       <Button type="button" variant="outline" size="sm" onClick={() => setConfirming(true)}>
-        {label}
+        {resolvedLabel}
       </Button>
     );
   }
@@ -43,7 +47,7 @@ export function AdminConfirmDelete({
           })
         }
       >
-        {pending ? "..." : confirmLabel}
+        {pending ? "..." : resolvedConfirm}
       </Button>
       <Button
         type="button"
@@ -52,7 +56,7 @@ export function AdminConfirmDelete({
         disabled={pending}
         onClick={() => setConfirming(false)}
       >
-        Anulează
+        {dict.dialog.cancel}
       </Button>
     </div>
   );

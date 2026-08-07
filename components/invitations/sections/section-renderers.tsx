@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 
+import { useI18n } from "@/components/providers/i18n-provider";
 import {
   normalizeSectionPresentation,
   paddingYClass,
@@ -648,6 +649,7 @@ function GallerySection({
   data: SectionContentMap["gallery"];
   theme: Theme;
 }) {
+  const { dict } = useI18n();
   const { style } = usePresentation();
   const layout = style.galleryLayout ?? "grid-3";
   const gridClass =
@@ -671,7 +673,7 @@ function GallerySection({
     <Shell>
       <SectionHeader theme={theme}>{data.title || "Galerie"}</SectionHeader>
       {data.items.length === 0 ? (
-        <p className="text-center text-sm opacity-50">Imaginile vor apărea aici</p>
+        <p className="text-center text-sm opacity-50">{dict.invitations.editor.imagesPlaceholder}</p>
       ) : (
         <div className={`grid gap-2 ${gridClass}`}>
           {data.items.map((item) => (
@@ -711,6 +713,7 @@ function DressCodeSection({
   data: SectionContentMap["dress_code"];
   theme: Theme;
 }) {
+  const { dict } = useI18n();
   return (
     <Shell>
       <SectionHeader theme={theme}>{data.title || "Dress code"}</SectionHeader>
@@ -721,7 +724,7 @@ function DressCodeSection({
             {data.description ? (
               <p className="text-sm leading-relaxed opacity-85">{data.description}</p>
             ) : (
-              <p className="text-sm opacity-50">Detalii ținută</p>
+              <p className="text-sm opacity-50">{dict.invitations.editor.dressCodeDetails}</p>
             )}
           </div>
         }

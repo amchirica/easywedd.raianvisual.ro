@@ -79,7 +79,7 @@ export async function loginAction(
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Date invalide" };
+    return { error: parsed.error.issues[0]?.message ?? "validation.invalid" };
   }
 
   const supabase = await createClient();
@@ -156,7 +156,7 @@ export async function registerAction(
     }
     return {
       success: false,
-      message: parsed.error.issues[0]?.message ?? "Date invalide",
+      message: parsed.error.issues[0]?.message ?? "validation.invalid",
       fieldErrors,
     };
   }
@@ -376,7 +376,7 @@ export async function forgotPasswordAction(
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Date invalide" };
+    return { error: parsed.error.issues[0]?.message ?? "validation.invalid" };
   }
 
   const siteUrl = getSiteUrl();
@@ -425,7 +425,7 @@ export async function resetPasswordAction(
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Date invalide" };
+    return { error: parsed.error.issues[0]?.message ?? "validation.invalid" };
   }
 
   const supabase = await createClient();

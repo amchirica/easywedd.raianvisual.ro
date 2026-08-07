@@ -3,11 +3,15 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { acceptInviteAction } from "@/lib/actions/invite";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = {
-  title: "Acceptă invitația",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.publicUi.inviteMetaTitle };
+}
 
 type InvitePageProps = {
   params: Promise<{ token: string }>;
@@ -22,6 +26,9 @@ function maskEmail(email: string | null | undefined): string | null {
 }
 
 export default async function InvitePage({ params }: InvitePageProps) {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  const { publicUi } = dict;
   const { token } = await params;
   const supabase = await createClient();
   const {
@@ -66,57 +73,65 @@ export default async function InvitePage({ params }: InvitePageProps) {
   return (
     <div className="flex min-h-[100svh] items-center justify-center bg-[linear-gradient(160deg,#f7f4ef_0%,#fffdf9_50%,#efe8dc_100%)] px-6">
       <div className="w-full max-w-md border border-border bg-card p-8">
-        <h1 className="font-heading text-3xl">Invitație EasyWedd</h1>
+        <h1 className="font-heading text-3xl">{publicUi.inviteTitle}</h1>
 
         {!preview && !legacyInvite ? (
           <p className="mt-4 text-sm text-muted-foreground">
-            Invitația nu este validă sau a fost deja folosită.
+            {publicUi.inviteInvalid}
           </p>
-        ) : isExpired || (preview && preview.status !== "pending" && !legacyInvite) ? (
+        ) : isExpired ||
+          (preview && preview.status !== "pending" && !legacyInvite) ? (
           <p className="mt-4 text-sm text-muted-foreground">
             {preview?.status === "accepted"
-              ? "Invitația a fost deja acceptată."
-              : "Invitația a expirat sau nu mai este activă. Solicită o invitație nouă."}
+              ? publicUi.inviteAlreadyAccepted
+              : publicUi.inviteExpired}
           </p>
         ) : !user ? (
           <>
             <p className="mt-4 text-sm text-muted-foreground">
-              Autentifică-te sau creează un cont pentru a accepta invitația
-              {masked ? ` trimisă către ${masked}` : ""}.
+              {masked
+                ? publicUi.inviteAuthPromptWithEmail.replace("{email}", masked)
+                : publicUi.inviteAuthPrompt}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
-              Detaliile complete ale spațiului apar după autentificare.
+              {publicUi.inviteDetailsAfterAuth}
             </p>
             <div className="mt-6 flex flex-wrap gap-4">
               <Link
                 href={`/login?next=${encodeURIComponent(`/invite/${token}`)}`}
                 className="text-sm underline underline-offset-4"
               >
-                Autentificare
+                {publicUi.inviteLogin}
               </Link>
               <Link
                 href={`/register?next=${encodeURIComponent(`/invite/${token}`)}`}
                 className="text-sm underline underline-offset-4"
               >
-                Înregistrare
+                {publicUi.inviteRegister}
               </Link>
             </div>
           </>
         ) : isPending ? (
           <>
             <p className="mt-4 text-sm text-muted-foreground">
-              Vei deveni membru cu rolul <strong>{role}</strong>
-              {masked ? ` (invitație pentru ${masked})` : ""}.
+              {masked
+                ? publicUi.inviteWillJoinWithEmail
+                    .replace("{role}", String(role ?? ""))
+                    .replace("{email}", masked)
+                : publicUi.inviteWillJoin.replace(
+                    "{role}",
+                    String(role ?? ""),
+                  )}
             </p>
             <form action={accept} className="mt-6">
               <Button type="submit" className="w-full">
-                Acceptă invitația
+                {publicUi.inviteAccept}
               </Button>
             </form>
           </>
         ) : (
           <p className="mt-4 text-sm text-muted-foreground">
-            Invitația nu poate fi acceptată în starea curentă.
+            {publicUi.inviteCannotAccept}
           </p>
         )}
       </div>

@@ -10,28 +10,36 @@ import {
   deleteContactAction,
 } from "@/lib/actions/contacts";
 import { canManagePlanner } from "@/lib/planner/access";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { requireWeddingContext } from "@/lib/planner/context";
 
-export const metadata: Metadata = { title: "Contacte" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.contacts.title };
+}
 
-const CONTACT_TYPES = [
-  ["parents", "Părinți"],
-  ["godparents", "Nași"],
-  ["bridesmaids", "Domnișoare de onoare"],
-  ["groomsmen", "Cavaleri"],
-  ["restaurant", "Restaurant"],
-  ["dj", "DJ"],
-  ["photo_video", "Foto-video"],
-  ["transport", "Transport"],
-  ["accommodation", "Cazare"],
-  ["emergency", "Urgențe"],
-  ["other", "Altele"],
+const CONTACT_TYPE_KEYS = [
+  "parents",
+  "godparents",
+  "bridesmaids",
+  "groomsmen",
+  "restaurant",
+  "dj",
+  "photo_video",
+  "transport",
+  "accommodation",
+  "emergency",
+  "other",
 ] as const;
 
 export default async function ContactsPage() {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) {
-    return <EmptyState title="Workspace incomplet" description={ctx.error ?? ""} />;
+    return <EmptyState title={dict.shell.workspaceIncomplete} description={ctx.error ?? ""} />;
   }
 
   const canWrite = canManagePlanner(ctx.context.role);
@@ -41,19 +49,20 @@ export default async function ContactsPage() {
     .eq("wedding_id", ctx.context.weddingId)
     .order("contact_type");
 
-  const grouped = CONTACT_TYPES.map(([value, label]) => ({
+  const typeLabel = (value: (typeof CONTACT_TYPE_KEYS)[number]) =>
+    dict.contacts.types[value];
+
+  const grouped = CONTACT_TYPE_KEYS.map((value) => ({
     value,
-    label,
+    label: typeLabel(value),
     items: (contacts ?? []).filter((c) => c.contact_type === value),
   })).filter((g) => g.items.length > 0 || canWrite);
 
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="font-heading text-4xl">Agenda de contacte</h1>
-        <p className="mt-2 text-muted-foreground">
-          Părinți, nași, restaurant, foto-video, urgențe și restul echipei.
-        </p>
+        <h1 className="font-heading text-4xl">{dict.contacts.title}</h1>
+        <p className="mt-2 text-muted-foreground">{dict.contacts.subtitle}</p>
       </header>
 
       {canWrite ? (
@@ -62,47 +71,47 @@ export default async function ContactsPage() {
           className="grid gap-3 border border-border bg-card p-4 sm:grid-cols-2 lg:grid-cols-3"
         >
           <div className="space-y-1">
-            <Label>Tip</Label>
+            <Label>{dict.contacts.type}</Label>
             <select
               name="contact_type"
               className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
               defaultValue="other"
             >
-              {CONTACT_TYPES.map(([value, label]) => (
+              {CONTACT_TYPE_KEYS.map((value) => (
                 <option key={value} value={value}>
-                  {label}
+                  {typeLabel(value)}
                 </option>
               ))}
             </select>
           </div>
           <div className="space-y-1">
-            <Label>Nume</Label>
+            <Label>{dict.contacts.name}</Label>
             <Input name="name" required />
           </div>
           <div className="space-y-1">
-            <Label>Rol</Label>
+            <Label>{dict.contacts.role}</Label>
             <Input name="role_label" />
           </div>
           <div className="space-y-1">
-            <Label>Telefon</Label>
+            <Label>{dict.contacts.phone}</Label>
             <Input name="phone" />
           </div>
           <div className="space-y-1">
-            <Label>Email</Label>
+            <Label>{dict.contacts.email}</Label>
             <Input name="email" type="email" />
           </div>
           <div className="space-y-1">
-            <Label>Notițe</Label>
+            <Label>{dict.contacts.notes}</Label>
             <Input name="notes" />
           </div>
-          <Button type="submit">Adaugă contact</Button>
+          <Button type="submit">{dict.contacts.add}</Button>
         </form>
       ) : null}
 
       {(contacts ?? []).length === 0 ? (
         <EmptyState
-          title="Niciun contact"
-          description="Adaugă persoanele importante pentru ziua nunții."
+          title={dict.contacts.emptyTitle}
+          description={dict.contacts.emptyDescription}
         />
       ) : (
         <div className="space-y-6">

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 
+import { useI18n } from "@/components/providers/i18n-provider";
 import { Button } from "@/components/ui/button";
 
 type ConfirmDeleteButtonProps = {
@@ -14,11 +15,14 @@ type ConfirmDeleteButtonProps = {
 };
 
 export function ConfirmDeleteButton({
-  label = "Șterge",
-  confirmLabel = "Confirmă ștergerea",
+  label,
+  confirmLabel,
   id,
   action,
 }: ConfirmDeleteButtonProps) {
+  const { dict } = useI18n();
+  const resolvedLabel = label ?? dict.dialog.delete;
+  const resolvedConfirm = confirmLabel ?? dict.dialog.confirmDelete;
   const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +38,7 @@ export function ConfirmDeleteButton({
           setConfirming(true);
         }}
       >
-        {label}
+        {resolvedLabel}
       </Button>
     );
   }
@@ -55,13 +59,13 @@ export function ConfirmDeleteButton({
                   setConfirming(false);
                   setError(null);
                 } catch {
-                  setError("Operația a eșuat. Încearcă din nou.");
+                  setError(dict.dialog.operationFailed);
                 }
               })();
             })
           }
         >
-          {pending ? "..." : confirmLabel}
+          {pending ? "..." : resolvedConfirm}
         </Button>
         <Button
           type="button"
@@ -70,7 +74,7 @@ export function ConfirmDeleteButton({
           disabled={pending}
           onClick={() => setConfirming(false)}
         >
-          Anulează
+          {dict.dialog.cancel}
         </Button>
       </div>
       {error ? <p className="text-xs text-destructive">{error}</p> : null}

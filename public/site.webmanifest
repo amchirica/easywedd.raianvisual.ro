@@ -1,7 +1,7 @@
 {
   "name": "EasyWedd",
   "short_name": "EasyWedd",
-  "description": "Planner, invitații și website de nuntă",
+  "description": "Wedding planner, invitations, and wedding website",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F7F4EF",

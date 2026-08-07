@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { useI18n } from "@/components/providers/i18n-provider";
+
 type AuthAutoRedirectProps = {
   href: string;
   seconds?: number;
@@ -13,6 +15,7 @@ export function AuthAutoRedirect({
   seconds = 3,
 }: AuthAutoRedirectProps) {
   const router = useRouter();
+  const { dict } = useI18n();
   const [left, setLeft] = useState(seconds);
 
   useEffect(() => {
@@ -26,7 +29,7 @@ export function AuthAutoRedirect({
 
   return (
     <p className="text-xs text-muted-foreground" aria-live="polite">
-      Te redirecționăm automat în {left}s…
+      {dict.auth.autoRedirect.replace("{n}", String(left))}
     </p>
   );
 }

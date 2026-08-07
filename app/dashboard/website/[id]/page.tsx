@@ -5,19 +5,32 @@ import { EmptyState } from "@/components/planner/empty-state";
 import { buttonVariants } from "@/components/ui/button";
 import { SiteDeleteControls } from "@/components/website/site-delete-controls";
 import { duplicateWeddingSiteAction } from "@/lib/actions/website";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { canManagePlanner } from "@/lib/planner/access";
 import { requireWeddingContext } from "@/lib/planner/context";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Website nuntă" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.website.metaTitle };
+}
 
 type PageProps = { params: Promise<{ id: string }> };
 
 export default async function WebsiteOverviewPage({ params }: PageProps) {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const { id } = await params;
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) {
-    return <EmptyState title="Workspace incomplet" description={ctx.error ?? ""} />;
+    return (
+      <EmptyState
+        title={dict.shell.workspaceIncomplete}
+        description={ctx.error ?? ""}
+      />
+    );
   }
 
   const { data: site } = await ctx.context.supabase
@@ -28,7 +41,7 @@ export default async function WebsiteOverviewPage({ params }: PageProps) {
     .maybeSingle();
 
   if (!site) {
-    return <EmptyState title="Site negăsit" description="" />;
+    return <EmptyState title={dict.website.notFound} description="" />;
   }
 
   const canWrite = canManagePlanner(ctx.context.role);
@@ -37,11 +50,11 @@ export default async function WebsiteOverviewPage({ params }: PageProps) {
     Boolean((site as { soft_deleted_at?: string | null }).soft_deleted_at);
 
   const links = [
-    { href: `/dashboard/website/${id}/edit`, label: "Editor" },
-    { href: `/dashboard/website/${id}/preview`, label: "Preview" },
-    { href: `/dashboard/website/${id}/settings`, label: "Setări / SEO" },
-    { href: `/dashboard/website/${id}/analytics`, label: "Analytics" },
-    { href: `/w/${site.slug}`, label: "Vezi public" },
+    { href: `/dashboard/website/${id}/edit`, label: dict.website.editor },
+    { href: `/dashboard/website/${id}/preview`, label: dict.website.preview },
+    { href: `/dashboard/website/${id}/settings`, label: dict.website.settingsSeo },
+    { href: `/dashboard/website/${id}/analytics`, label: dict.website.analytics },
+    { href: `/w/${site.slug}`, label: dict.website.viewPublic },
   ];
 
   return (
@@ -60,7 +73,7 @@ export default async function WebsiteOverviewPage({ params }: PageProps) {
                 type="submit"
                 className={cn(buttonVariants({ variant: "outline" }))}
               >
-                Duplică
+                {dict.website.duplicate}
               </button>
             </form>
           ) : null}

@@ -2,15 +2,17 @@
 
 import { useTransition } from "react";
 
+import { useI18n } from "@/components/providers/i18n-provider";
 import { Button } from "@/components/ui/button";
+import { getStatusLabel } from "@/lib/i18n/status-labels";
 import type { VendorStatus } from "@/types/planner";
 
-const STATUSES: { value: VendorStatus; label: string }[] = [
-  { value: "offered", label: "Ofertat" },
-  { value: "contacted", label: "Contactat" },
-  { value: "shortlist", label: "Shortlist" },
-  { value: "contracted", label: "Contractat" },
-  { value: "rejected", label: "Refuzat" },
+const STATUSES: VendorStatus[] = [
+  "offered",
+  "contacted",
+  "shortlist",
+  "contracted",
+  "rejected",
 ];
 
 type VendorStatusButtonsProps = {
@@ -24,22 +26,23 @@ export function VendorStatusButtons({
   current,
   onChange,
 }: VendorStatusButtonsProps) {
+  const { locale } = useI18n();
   const [, startTransition] = useTransition();
 
   return (
     <div className="flex flex-wrap gap-1">
       {STATUSES.map((status) => (
         <Button
-          key={status.value}
+          key={status}
           size="xs"
-          variant={current === status.value ? "default" : "outline"}
+          variant={current === status ? "default" : "outline"}
           onClick={() =>
             startTransition(() => {
-              void onChange(vendorId, status.value);
+              void onChange(vendorId, status);
             })
           }
         >
-          {status.label}
+          {getStatusLabel("vendor", status, locale)}
         </Button>
       ))}
     </div>

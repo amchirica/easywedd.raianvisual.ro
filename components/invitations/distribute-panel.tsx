@@ -4,6 +4,7 @@ import { startTransition, useState } from "react";
 
 import { InvitationQrCode } from "@/components/invitations/qr-code";
 import { RecipientTable } from "@/components/invitations/recipient-table";
+import { useI18n } from "@/components/providers/i18n-provider";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,6 +44,7 @@ export function DistributePanel({
   recipients,
   baseUrl,
 }: DistributePanelProps) {
+  const { dict } = useI18n();
   const [copied, setCopied] = useState(false);
   const [recipientId, setRecipientId] = useState(recipients[0]?.id ?? "");
   const [email, setEmail] = useState("");
@@ -52,7 +54,7 @@ export function DistributePanel({
   return (
     <div className="space-y-10">
       <section className="space-y-3">
-        <h2 className="font-heading text-2xl">Link preview cuplu</h2>
+        <h2 className="font-heading text-2xl">{dict.invitations.couplePreviewLink}</h2>
         <p className="break-all text-sm text-muted-foreground">{previewUrl}</p>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -64,7 +66,7 @@ export function DistributePanel({
               setTimeout(() => setCopied(false), 1500);
             }}
           >
-            {copied ? "Copiat" : "Copiază link"}
+            {copied ? dict.invitations.copied : dict.invitations.copyLink}
           </Button>
           <a
             href={wa}
@@ -72,20 +74,20 @@ export function DistributePanel({
             rel="noreferrer"
             className={cn(buttonVariants({ variant: "outline" }))}
           >
-            WhatsApp (manual)
+            {dict.invitations.whatsappManual}
           </a>
         </div>
         <InvitationQrCode value={previewUrl} />
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-heading text-2xl">Email 1:1</h2>
+        <h2 className="font-heading text-2xl">{dict.invitations.emailOneToOne}</h2>
         <p className="text-sm text-muted-foreground">
-          Trimite transactional după ce ai generat token-ul destinatarului.
+          {dict.invitations.emailOneToOneHint}
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1">
-            <Label>Destinatar</Label>
+            <Label>{dict.invitations.recipient}</Label>
             <select
               className="h-9 w-full rounded-lg border border-input bg-background px-2 text-sm"
               value={recipientId}
@@ -99,16 +101,16 @@ export function DistributePanel({
             </select>
           </div>
           <div className="space-y-1">
-            <Label>Email</Label>
+            <Label>{dict.common.email}</Label>
             <Input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="invitat@email.com"
+              placeholder={dict.invitations.emailPlaceholder}
             />
           </div>
           <div className="space-y-1 sm:col-span-2">
-            <Label>URL invitație (/i/token)</Label>
+            <Label>{dict.invitations.inviteUrlLabel}</Label>
             <Input
               value={inviteUrl}
               onChange={(e) => setInviteUrl(e.target.value)}
@@ -130,7 +132,7 @@ export function DistributePanel({
             });
           }}
         >
-          Trimite email
+          {dict.invitations.sendEmail}
         </Button>
       </section>
 

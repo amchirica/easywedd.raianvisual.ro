@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
+import { useI18n } from "@/components/providers/i18n-provider";
 import { cn } from "@/lib/utils";
 
 export type SearchableOption = {
@@ -30,15 +31,18 @@ export function AdminSearchableSelect({
   id: idProp,
   name,
   label,
-  placeholder = "Caută…",
+  placeholder,
   options,
   value,
   onChange,
   disabled,
   required,
-  emptyText = "Niciun rezultat",
+  emptyText,
   loading,
 }: Props) {
+  const { dict } = useI18n();
+  const resolvedPlaceholder = placeholder ?? dict.admin.searchPlaceholder;
+  const resolvedEmpty = emptyText ?? dict.admin.noResults;
   const autoId = useId();
   const id = idProp ?? autoId;
   const [open, setOpen] = useState(false);
@@ -85,7 +89,7 @@ export function AdminSearchableSelect({
         )}
       >
         <span className={cn(!selected && "text-muted-foreground")}>
-          {selected ? selected.label : placeholder}
+          {selected ? selected.label : resolvedPlaceholder}
         </span>
         <span className="text-muted-foreground">▾</span>
       </button>
@@ -100,18 +104,18 @@ export function AdminSearchableSelect({
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={placeholder}
+              placeholder={resolvedPlaceholder}
               className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
             />
           </div>
           <ul className="max-h-56 overflow-y-auto py-1">
             {loading ? (
               <li className="px-3 py-2 text-sm text-muted-foreground">
-                Se încarcă…
+                {dict.dialog.loading}
               </li>
             ) : filtered.length === 0 ? (
               <li className="px-3 py-2 text-sm text-muted-foreground">
-                {emptyText}
+                {resolvedEmpty}
               </li>
             ) : (
               filtered.map((opt) => (

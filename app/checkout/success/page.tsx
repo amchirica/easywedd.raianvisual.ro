@@ -2,14 +2,22 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Plată înregistrată" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.billing.checkoutRecordedTitle };
+}
 
 type PageProps = { searchParams: Promise<{ claim?: string }> };
 
 export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const { claim } = await searchParams;
   let email: string | null = null;
   let status = "pending";
@@ -31,18 +39,16 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
 
   return (
     <div className="mx-auto flex min-h-[100svh] max-w-lg flex-col justify-center px-6 py-16">
-      <h1 className="font-heading text-4xl">Mulțumim!</h1>
+      <h1 className="font-heading text-4xl">{dict.billing.checkoutThanks}</h1>
       <p className="mt-4 text-muted-foreground">
-        Plata a fost înregistrată. Accesul se activează după confirmarea
-        webhook-ului Stripe
+        {dict.billing.checkoutRecordedBody}
         {status === "paid" || status === "fulfilled"
-          ? " (confirmată)."
-          : " (poate dura câteva secunde)."}
+          ? dict.billing.checkoutConfirmed
+          : dict.billing.checkoutPendingHint}
       </p>
       {email ? (
         <p className="mt-2 text-sm">
-          Folosește <strong>{email}</strong> pentru a-ți crea sau conecta
-          contul.
+          {dict.billing.checkoutUseEmail.replace("{email}", email)}
         </p>
       ) : null}
       <div className="mt-8 flex flex-wrap gap-3">
@@ -54,7 +60,7 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
           }
           className={cn(buttonVariants())}
         >
-          Creează cont
+          {dict.billing.createAccount}
         </Link>
         <Link
           href={
@@ -62,7 +68,7 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
           }
           className={cn(buttonVariants({ variant: "outline" }))}
         >
-          Autentificare
+          {dict.billing.login}
         </Link>
       </div>
     </div>

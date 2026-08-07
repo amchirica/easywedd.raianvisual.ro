@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import Link from "next/link";
 
 import { AdminTemplateDeleteButton } from "@/components/admin/admin-deletion-controls";
@@ -14,9 +17,15 @@ import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { TEMPLATE_CATEGORIES } from "@/types/invitations";
 
-export const metadata: Metadata = { title: "Admin Templates" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.admin.templatesMetaTitle };
+}
 
 export default async function AdminTemplatesPage() {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const supabase = await createClient();
   const [{ data: templates }, { data: siteTemplates }] = await Promise.all([
     supabase
@@ -36,7 +45,7 @@ export default async function AdminTemplatesPage() {
   return (
     <div className="space-y-10">
       <header>
-        <h1 className="font-heading text-4xl">Invitation templates</h1>
+        <h1 className="font-heading text-4xl">{dict.admin.invitationTemplates}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           CRUD catalog global · thumbnail ca URL în V1
         </p>
@@ -100,7 +109,7 @@ export default async function AdminTemplatesPage() {
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="is_active" defaultChecked /> Activ
         </label>
-        <Button type="submit">Creează</Button>
+        <Button type="submit">{dict.admin.create}</Button>
       </form>
 
       <div className="divide-y divide-border border-y border-border">

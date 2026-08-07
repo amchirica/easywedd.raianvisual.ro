@@ -8,6 +8,7 @@ import { useState } from "react";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import type { NavItem } from "@/components/dashboard/nav-config";
 import { LockIcon, NavIcon } from "@/components/dashboard/nav-icons";
+import { useI18n } from "@/components/providers/i18n-provider";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Sheet,
@@ -20,6 +21,7 @@ import { cn } from "@/lib/utils";
 
 export function MobileNav({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
+  const { dict } = useI18n();
   const [open, setOpen] = useState(false);
 
   return (
@@ -36,7 +38,12 @@ export function MobileNav({ items }: { items: NavItem[] }) {
       <SheetContent side="left" className="w-72 bg-sidebar p-0">
         <SheetHeader className="border-b border-sidebar-border px-6 py-5 text-left">
           <SheetTitle className="sr-only">Meniu EasyWedd</SheetTitle>
-          <BrandLogo href="/dashboard" size={24} wordmarkClassName="text-2xl" />
+          <BrandLogo
+            href="/dashboard"
+            size={24}
+            lightPad
+            wordmarkClassName="text-2xl text-foreground"
+          />
         </SheetHeader>
         <nav className="flex flex-col gap-1 p-3">
           {items.map((item) => {
@@ -59,7 +66,7 @@ export function MobileNav({ items }: { items: NavItem[] }) {
                 )}
               >
                 <NavIcon iconKey={item.iconKey} className="size-4" />
-                <span className="flex-1">{item.label}</span>
+                <span className="flex-1">{dict.nav[item.labelKey]}</span>
                 {item.locked ? <LockIcon className="size-3.5" /> : null}
               </Link>
             );

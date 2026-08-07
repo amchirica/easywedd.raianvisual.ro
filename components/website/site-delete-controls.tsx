@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 
+import { useI18n } from "@/components/providers/i18n-provider";
 import { DeleteConfirmDialog } from "@/components/shared/delete-confirm-dialog";
 import {
   getWeddingSiteDeleteImpact,
@@ -20,10 +21,11 @@ type Props = {
 };
 
 export function SiteDeleteControls({ siteId, siteSlug, isArchived }: Props) {
+  const { dict } = useI18n();
   const router = useRouter();
   const [impact, setImpact] = useState<DeleteImpact>(
     emptyImpact({
-      resourceLabel: "website",
+      resourceLabel: dict.website.resourceLabel,
       resourceName: `/w/${siteSlug}`,
       canRestore: Boolean(isArchived),
       canSoftDelete: !isArchived,
@@ -41,7 +43,9 @@ export function SiteDeleteControls({ siteId, siteSlug, isArchived }: Props) {
 
   return (
     <DeleteConfirmDialog
-      triggerLabel={isArchived ? "Gestionează ștergerea" : "Șterge site"}
+      triggerLabel={
+        isArchived ? dict.website.manageDelete : dict.website.deleteSite
+      }
       impact={impact}
       onSoftDelete={async () => softDeleteWeddingSiteAction(siteId)}
       onHardDelete={async () => {

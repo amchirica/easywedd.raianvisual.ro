@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 
+import { useI18n } from "@/components/providers/i18n-provider";
 import { DeleteConfirmDialog } from "@/components/shared/delete-confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,7 @@ import {
   adminTransferWorkspaceOwnershipAction,
 } from "@/lib/actions/admin-deletion";
 import { emptyImpact } from "@/lib/deletion/types";
+import { t } from "@/lib/i18n/t";
 
 export function AdminUserDeleteControls({
   userId,
@@ -30,8 +32,9 @@ export function AdminUserDeleteControls({
   label: string;
   softDeleted?: boolean;
 }) {
+  const { dict } = useI18n();
   const impact = emptyImpact({
-    resourceLabel: "utilizator",
+    resourceLabel: dict.admin.resourceUser,
     resourceName: label,
     canSoftDelete: !softDeleted,
     canHardDelete: true,
@@ -39,8 +42,8 @@ export function AdminUserDeleteControls({
     requiresTypedConfirm: true,
     typedConfirmPhrase: "STERGE",
     warnings: [
-      "Workspace-urile deținute se arhivează automat.",
-      "Ștergerea permanentă anonimizează profilul și blochează autentificarea.",
+      dict.admin.userDeleteWarningArchive,
+      dict.admin.userDeleteWarningHard,
     ],
   });
 
@@ -54,10 +57,10 @@ export function AdminUserDeleteControls({
             size="sm"
             onClick={() => void adminDeactivateUserAction(userId)}
           >
-            Dezactivează
+            {dict.admin.deactivate}
           </Button>
           <DeleteConfirmDialog
-            triggerLabel="Șterge"
+            triggerLabel={dict.dialog.delete}
             impact={impact}
             defaultMode="hard"
             onSoftDelete={async () => adminSoftDeleteUserAction(userId)}
@@ -66,7 +69,7 @@ export function AdminUserDeleteControls({
         </>
       ) : (
         <DeleteConfirmDialog
-          triggerLabel="Restaurează / șterge"
+          triggerLabel={dict.admin.restoreOrDelete}
           impact={impact}
           defaultMode="hard"
           onRestore={async () => adminRestoreUserAction(userId)}
@@ -83,6 +86,7 @@ export function AdminTransferOwnershipForm({
 }: {
   workspaceId: string;
 }) {
+  const { dict } = useI18n();
   const [ownerId, setOwnerId] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -90,11 +94,13 @@ export function AdminTransferOwnershipForm({
   return (
     <div className="flex flex-wrap items-end gap-2">
       <div className="space-y-1">
-        <p className="text-xs text-muted-foreground">Transfer ownership (user id)</p>
+        <p className="text-xs text-muted-foreground">
+          {dict.admin.transferOwnershipHint}
+        </p>
         <Input
           value={ownerId}
           onChange={(e) => setOwnerId(e.target.value)}
-          placeholder="uuid utilizator"
+          placeholder={dict.admin.userIdPlaceholder}
           className="min-w-[260px]"
         />
       </div>
@@ -105,12 +111,17 @@ export function AdminTransferOwnershipForm({
         onClick={() =>
           startTransition(() => {
             void adminTransferWorkspaceOwnershipAction(workspaceId, ownerId).then(
-              (r) => setMsg(r.ok ? "Ownership transferat." : r.error ?? "Eroare"),
+              (r) =>
+                setMsg(
+                  r.ok
+                    ? dict.admin.ownershipTransferred
+                    : r.error ?? dict.common.error,
+                ),
             );
           })
         }
       >
-        Transferă
+        {dict.admin.transfer}
       </Button>
       {msg ? <p className="text-xs text-muted-foreground">{msg}</p> : null}
     </div>
@@ -126,21 +137,20 @@ export function AdminTemplateDeleteButton({
   name: string;
   kind: "invitation" | "website";
 }) {
+  const { dict } = useI18n();
   const impact = emptyImpact({
-    resourceLabel: "template",
+    resourceLabel: dict.admin.resourceTemplate,
     resourceName: name,
     canSoftDelete: true,
     canHardDelete: true,
-    warnings: [
-      "Dacă template-ul e folosit, arhivarea (dezactivare) e preferată. Ștergerea permanentă necesită force.",
-    ],
+    warnings: [dict.admin.templateDeleteWarning],
     requiresTypedConfirm: true,
     typedConfirmPhrase: "STERGE",
   });
 
   return (
     <DeleteConfirmDialog
-      triggerLabel="Șterge"
+      triggerLabel={dict.dialog.delete}
       impact={impact}
       onSoftDelete={async () =>
         kind === "invitation"
@@ -161,11 +171,12 @@ export function AdminGrantDeleteButton({
 }: {
   grantId: string;
 }) {
+  const { dict } = useI18n();
   return (
     <DeleteConfirmDialog
-      triggerLabel="Șterge grant"
+      triggerLabel={dict.admin.deleteGrant}
       impact={emptyImpact({
-        resourceLabel: "access grant",
+        resourceLabel: dict.admin.resourceGrant,
         resourceName: grantId.slice(0, 8),
         canSoftDelete: false,
         canHardDelete: true,
@@ -185,11 +196,12 @@ export function AdminSubscriptionDeleteButton({
   subscriptionId: string;
   label: string;
 }) {
+  const { dict } = useI18n();
   return (
     <DeleteConfirmDialog
-      triggerLabel="Șterge abonament"
+      triggerLabel={dict.admin.deleteSubscription}
       impact={emptyImpact({
-        resourceLabel: "abonament",
+        resourceLabel: dict.admin.resourceSubscription,
         resourceName: label,
         canSoftDelete: true,
         canHardDelete: true,
@@ -215,6 +227,7 @@ export function AdminGdprControls({
   status: string;
   isDeleteRequest: boolean;
 }) {
+  const { dict } = useI18n();
   return (
     <div className="flex flex-wrap gap-2">
       {isDeleteRequest && status === "pending" ? (
@@ -224,13 +237,13 @@ export function AdminGdprControls({
           variant="outline"
           onClick={() => void adminFulfillGdprDeleteAction(requestId)}
         >
-          Îndeplinește (soft-delete)
+          {dict.admin.fulfillSoftDelete}
         </Button>
       ) : null}
       <DeleteConfirmDialog
-        triggerLabel="Șterge cererea"
+        triggerLabel={dict.admin.deleteRequest}
         impact={emptyImpact({
-          resourceLabel: "cerere GDPR",
+          resourceLabel: dict.admin.resourceGdpr,
           resourceName: requestId.slice(0, 8),
           canSoftDelete: false,
           canHardDelete: true,
@@ -251,6 +264,7 @@ export function AdminBulkWorkspaceDelete({
   selectedIds: string[];
   onDone?: () => void;
 }) {
+  const { dict, locale } = useI18n();
   const [pending, startTransition] = useTransition();
   if (!selectedIds.length) return null;
 
@@ -268,7 +282,10 @@ export function AdminBulkWorkspaceDelete({
         })
       }
     >
-      Arhivează {selectedIds.length} selectate
+      {t(dict as never, "admin.archiveSelected", {
+        locale,
+        params: { count: selectedIds.length },
+      })}
     </Button>
   );
 }

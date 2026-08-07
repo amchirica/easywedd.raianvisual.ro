@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 
 import { UpdatePasswordForm } from "@/components/auth/update-password-form";
+import { useI18n } from "@/components/providers/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +15,8 @@ import {
   updateWorkspaceSettingsAction,
   type SettingsActionResult,
 } from "@/lib/actions/settings";
+import { translateActionError } from "@/lib/i18n/errors";
+import { getStatusLabel } from "@/lib/i18n/status-labels";
 import {
   LOCALE_OPTIONS,
   TIMEZONE_OPTIONS,
@@ -26,10 +29,12 @@ import type { Profile, Wedding, Workspace } from "@/types/database";
 import type { z } from "zod";
 
 function Feedback({ state }: { state: SettingsActionResult }) {
-  if (state.error) {
+  const { locale } = useI18n();
+  if (state.error || state.errorCode) {
+    const message = translateActionError(state.error, state.errorCode, locale);
     return (
       <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-        {state.error}
+        {message}
       </p>
     );
   }
@@ -44,6 +49,7 @@ function Feedback({ state }: { state: SettingsActionResult }) {
 }
 
 export function ProfileSettingsForm({ profile }: { profile: Profile }) {
+  const { dict } = useI18n();
   const [state, action, pending] = useActionState(
     updateProfileSettingsAction,
     {} as SettingsActionResult,
@@ -53,7 +59,7 @@ export function ProfileSettingsForm({ profile }: { profile: Profile }) {
     <form action={action} className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1">
-          <Label htmlFor="full_name">Nume</Label>
+          <Label htmlFor="full_name">{dict.settings.name}</Label>
           <Input
             id="full_name"
             name="full_name"
@@ -62,11 +68,11 @@ export function ProfileSettingsForm({ profile }: { profile: Profile }) {
           />
         </div>
         <div className="space-y-1">
-          <Label>Email</Label>
+          <Label>{dict.common.email}</Label>
           <Input value={profile.email} disabled readOnly />
         </div>
         <div className="space-y-1">
-          <Label htmlFor="locale">Limbă</Label>
+          <Label htmlFor="locale">{dict.settings.language}</Label>
           <select
             id="locale"
             name="locale"
@@ -81,7 +87,7 @@ export function ProfileSettingsForm({ profile }: { profile: Profile }) {
           </select>
         </div>
         <div className="space-y-1">
-          <Label htmlFor="timezone">Fus orar</Label>
+          <Label htmlFor="timezone">{dict.settings.timezone}</Label>
           <select
             id="timezone"
             name="timezone"
@@ -98,7 +104,7 @@ export function ProfileSettingsForm({ profile }: { profile: Profile }) {
       </div>
       <Feedback state={state} />
       <Button type="submit" disabled={pending}>
-        {pending ? "Se salvează..." : "Salvează profilul"}
+        {pending ? dict.settings.saving : dict.settings.saveProfile}
       </Button>
     </form>
   );
@@ -111,6 +117,7 @@ export function WorkspaceSettingsForm({
   workspace: Workspace;
   canEdit: boolean;
 }) {
+  const { dict } = useI18n();
   const [state, action, pending] = useActionState(
     updateWorkspaceSettingsAction,
     {} as SettingsActionResult,
@@ -119,9 +126,9 @@ export function WorkspaceSettingsForm({
   if (!canEdit) {
     return (
       <p className="text-sm text-muted-foreground">
-        Nu ai permisiunea de a redenumi acest workspace.
+        {dict.settings.noRenamePermission}
         {workspace.workspace_type === "admin"
-          ? " Workspace-urile de tip admin sunt protejate."
+          ? dict.settings.adminWorkspaceProtected
           : ""}
       </p>
     );
@@ -131,7 +138,7 @@ export function WorkspaceSettingsForm({
     <form action={action} className="space-y-4">
       <input type="hidden" name="workspace_id" value={workspace.id} />
       <div className="space-y-1">
-        <Label htmlFor="workspace_name">Nume workspace</Label>
+        <Label htmlFor="workspace_name">{dict.settings.workspaceName}</Label>
         <Input
           id="workspace_name"
           name="name"
@@ -140,12 +147,14 @@ export function WorkspaceSettingsForm({
         />
       </div>
       <p className="text-xs text-muted-foreground">
-        Tipul workspace-ului ({workspace.workspace_type}) nu poate fi schimbat
-        din Setări.
+        {dict.settings.workspaceTypeImmutable.replace(
+          "{type}",
+          workspace.workspace_type,
+        )}
       </p>
       <Feedback state={state} />
       <Button type="submit" disabled={pending}>
-        {pending ? "Se salvează..." : "Salvează workspace"}
+        {pending ? dict.settings.saving : dict.settings.saveWorkspace}
       </Button>
     </form>
   );
@@ -158,6 +167,7 @@ export function WorkspaceSwitcher({
   workspaces: Workspace[];
   activeId: string | null;
 }) {
+  const { dict } = useI18n();
   const [state, action, pending] = useActionState(
     switchWorkspaceFormAction,
     {} as SettingsActionResult,
@@ -166,7 +176,7 @@ export function WorkspaceSwitcher({
   return (
     <form action={action} className="space-y-3">
       <div className="space-y-1">
-        <Label htmlFor="switch_workspace">Workspace activ</Label>
+        <Label htmlFor="switch_workspace">{dict.settings.activeWorkspace}</Label>
         <select
           id="switch_workspace"
           name="workspace_id"
@@ -176,20 +186,21 @@ export function WorkspaceSwitcher({
           {workspaces.map((ws) => (
             <option key={ws.id} value={ws.id}>
               {ws.name}
-              {ws.id === activeId ? " (activ)" : ""}
+              {ws.id === activeId ? dict.settings.activeSuffix : ""}
             </option>
           ))}
         </select>
       </div>
       <Feedback state={state} />
       <Button type="submit" variant="outline" disabled={pending}>
-        {pending ? "Se schimbă..." : "Activează workspace-ul selectat"}
+        {pending ? dict.settings.switching : dict.settings.activateWorkspace}
       </Button>
     </form>
   );
 }
 
 export function WeddingPreferencesForm({ wedding }: { wedding: Wedding }) {
+  const { dict, locale } = useI18n();
   const [state, action, pending] = useActionState(
     updateWeddingPreferencesAction,
     {} as SettingsActionResult,
@@ -197,11 +208,12 @@ export function WeddingPreferencesForm({ wedding }: { wedding: Wedding }) {
   const statuses = Object.keys(WEDDING_STATUS_LABELS) as Array<
     z.infer<typeof weddingStatusSchema>
   >;
+  const fields = dict.wedding.fields;
 
   return (
     <form action={action} className="grid gap-3 sm:grid-cols-2">
       <div className="space-y-1">
-        <Label htmlFor="couple_name_1">Partener 1</Label>
+        <Label htmlFor="couple_name_1">{fields.couple1}</Label>
         <Input
           id="couple_name_1"
           name="couple_name_1"
@@ -210,7 +222,7 @@ export function WeddingPreferencesForm({ wedding }: { wedding: Wedding }) {
         />
       </div>
       <div className="space-y-1">
-        <Label htmlFor="couple_name_2">Partener 2</Label>
+        <Label htmlFor="couple_name_2">{fields.couple2}</Label>
         <Input
           id="couple_name_2"
           name="couple_name_2"
@@ -219,7 +231,7 @@ export function WeddingPreferencesForm({ wedding }: { wedding: Wedding }) {
         />
       </div>
       <div className="space-y-1">
-        <Label htmlFor="wedding_date">Data</Label>
+        <Label htmlFor="wedding_date">{fields.date}</Label>
         <Input
           id="wedding_date"
           name="wedding_date"
@@ -228,11 +240,11 @@ export function WeddingPreferencesForm({ wedding }: { wedding: Wedding }) {
         />
       </div>
       <div className="space-y-1">
-        <Label htmlFor="city">Oraș</Label>
+        <Label htmlFor="city">{fields.city}</Label>
         <Input id="city" name="city" defaultValue={wedding.city ?? ""} />
       </div>
       <div className="space-y-1">
-        <Label htmlFor="venue_name">Locație</Label>
+        <Label htmlFor="venue_name">{fields.venue}</Label>
         <Input
           id="venue_name"
           name="venue_name"
@@ -240,7 +252,7 @@ export function WeddingPreferencesForm({ wedding }: { wedding: Wedding }) {
         />
       </div>
       <div className="space-y-1">
-        <Label htmlFor="estimated_guest_count">Invitați estimați</Label>
+        <Label htmlFor="estimated_guest_count">{fields.guestCount}</Label>
         <Input
           id="estimated_guest_count"
           name="estimated_guest_count"
@@ -250,7 +262,7 @@ export function WeddingPreferencesForm({ wedding }: { wedding: Wedding }) {
         />
       </div>
       <div className="space-y-1">
-        <Label htmlFor="currency">Monedă</Label>
+        <Label htmlFor="currency">{dict.settings.currency}</Label>
         <select
           id="currency"
           name="currency"
@@ -263,7 +275,7 @@ export function WeddingPreferencesForm({ wedding }: { wedding: Wedding }) {
         </select>
       </div>
       <div className="space-y-1">
-        <Label htmlFor="wedding_status">Status</Label>
+        <Label htmlFor="wedding_status">{fields.status}</Label>
         <select
           id="wedding_status"
           name="wedding_status"
@@ -272,7 +284,7 @@ export function WeddingPreferencesForm({ wedding }: { wedding: Wedding }) {
         >
           {statuses.map((status) => (
             <option key={status} value={status}>
-              {WEDDING_STATUS_LABELS[status]}
+              {getStatusLabel("wedding", status, locale)}
             </option>
           ))}
         </select>
@@ -280,7 +292,7 @@ export function WeddingPreferencesForm({ wedding }: { wedding: Wedding }) {
       <div className="sm:col-span-2 space-y-3">
         <Feedback state={state} />
         <Button type="submit" disabled={pending}>
-          {pending ? "Se salvează..." : "Salvează preferințele nunții"}
+          {pending ? dict.settings.saving : dict.settings.saveWeddingPrefs}
         </Button>
       </div>
     </form>
@@ -296,6 +308,7 @@ export function NotificationPreferencesForm({
     marketing_enabled: boolean;
   };
 }) {
+  const { dict } = useI18n();
   const [state, action, pending] = useActionState(
     updateNotificationPreferencesAction,
     {} as SettingsActionResult,
@@ -309,7 +322,7 @@ export function NotificationPreferencesForm({
           name="transactional_enabled"
           defaultChecked={prefs.transactional_enabled}
         />
-        Emailuri tranzacționale
+        {dict.settings.transactionalEmails}
       </label>
       <label className="flex items-center gap-2 text-sm">
         <input
@@ -317,7 +330,7 @@ export function NotificationPreferencesForm({
           name="reminders_enabled"
           defaultChecked={prefs.reminders_enabled}
         />
-        Reminder-e
+        {dict.settings.reminders}
       </label>
       <label className="flex items-center gap-2 text-sm">
         <input
@@ -325,11 +338,11 @@ export function NotificationPreferencesForm({
           name="marketing_enabled"
           defaultChecked={prefs.marketing_enabled}
         />
-        Marketing
+        {dict.settings.marketing}
       </label>
       <Feedback state={state} />
       <Button type="submit" variant="outline" disabled={pending}>
-        {pending ? "Se salvează..." : "Salvează notificările"}
+        {pending ? dict.settings.saving : dict.settings.saveNotifications}
       </Button>
     </form>
   );

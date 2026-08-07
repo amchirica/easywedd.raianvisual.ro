@@ -3,6 +3,7 @@
 import { useActionState, useMemo, useState, useTransition } from "react";
 
 import { AdminSearchableSelect } from "@/components/admin/admin-searchable-select";
+import { useI18n } from "@/components/providers/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +32,7 @@ type Props = {
 };
 
 export function AdminContractForm({ users, plans, contracts }: Props) {
+  const { dict } = useI18n();
   const [contractId, setContractId] = useState("");
   const [userId, setUserId] = useState("");
   const [workspaceId, setWorkspaceId] = useState("");
@@ -183,20 +185,20 @@ export function AdminContractForm({ users, plans, contracts }: Props) {
 
       <AdminSearchableSelect
         name="id"
-        label="Contract existent"
-        placeholder="Selectează contractul sau lasă gol pentru nou"
+        label={dict.admin.existingContract}
+        placeholder={dict.admin.selectContractPlaceholder}
         options={contractOptions}
         value={contractId}
         onChange={(v) => {
           void selectContract(v);
         }}
-        emptyText="Niciun contract"
+        emptyText={dict.admin.noContracts}
       />
 
       <AdminSearchableSelect
         name="user_id"
-        label="Utilizator"
-        placeholder="Selectează utilizatorul"
+        label={dict.admin.user}
+        placeholder={dict.admin.selectUser}
         options={userOptions}
         value={userId}
         onChange={(v) => {
@@ -208,8 +210,8 @@ export function AdminContractForm({ users, plans, contracts }: Props) {
 
       <AdminSearchableSelect
         name="workspace_id"
-        label="Workspace"
-        placeholder="Selectează workspace-ul"
+        label={dict.admin.workspace}
+        placeholder={dict.admin.selectWorkspaceFull}
         options={workspaceOptions}
         value={workspaceId}
         onChange={(v) => {
@@ -219,15 +221,15 @@ export function AdminContractForm({ users, plans, contracts }: Props) {
         required
         disabled={!userId}
         loading={loadingWs}
-        emptyText="Selectează utilizatorul"
+        emptyText={dict.admin.selectUser}
       />
 
       <AdminSearchableSelect
         name="subscription_id"
-        label="Abonament asociat"
-        placeholder="Opțional — selectează abonamentul"
+        label={dict.admin.linkedSubscription}
+        placeholder={dict.admin.selectSubscriptionOptional}
         options={[
-          { value: "", label: "Fără abonament legat" },
+          { value: "", label: dict.admin.noLinkedSubscription },
           ...subscriptionOptions,
         ]}
         value={subscriptionId}
@@ -237,7 +239,7 @@ export function AdminContractForm({ users, plans, contracts }: Props) {
       />
 
       <div className="space-y-1">
-        <Label htmlFor="title">Titlu contract</Label>
+        <Label htmlFor="title">{dict.admin.contractTitle}</Label>
         <Input
           id="title"
           name="title"
@@ -249,7 +251,7 @@ export function AdminContractForm({ users, plans, contracts }: Props) {
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1">
-          <Label htmlFor="plan_key">Plan</Label>
+          <Label htmlFor="plan_key">{dict.admin.plan}</Label>
           <select
             id="plan_key"
             name="plan_key"
@@ -265,7 +267,7 @@ export function AdminContractForm({ users, plans, contracts }: Props) {
           </select>
         </div>
         <div className="space-y-1">
-          <Label htmlFor="status">Status contract</Label>
+          <Label htmlFor="status">{dict.admin.contractStatus}</Label>
           <select
             id="status"
             name="status"
@@ -281,7 +283,7 @@ export function AdminContractForm({ users, plans, contracts }: Props) {
           </select>
         </div>
         <div className="space-y-1">
-          <Label htmlFor="signature_status">Status semnătură</Label>
+          <Label htmlFor="signature_status">{dict.admin.signatureStatus}</Label>
           <select
             id="signature_status"
             name="signature_status"
@@ -289,14 +291,14 @@ export function AdminContractForm({ users, plans, contracts }: Props) {
             onChange={(e) => setSignatureStatus(e.target.value)}
             className="h-10 w-full rounded-lg border border-input bg-background px-2 text-sm"
           >
-            <option value="unsigned">Nesemnat</option>
-            <option value="sent">Trimis</option>
-            <option value="signed">Semnat</option>
-            <option value="declined">Refuzat</option>
+            <option value="unsigned">Unsigned</option>
+            <option value="sent">Sent</option>
+            <option value="signed">Signed</option>
+            <option value="declined">Declined</option>
           </select>
         </div>
         <div className="space-y-1">
-          <Label htmlFor="document_url">URL document</Label>
+          <Label htmlFor="document_url">{dict.admin.documentUrl}</Label>
           <Input
             id="document_url"
             name="document_url"
@@ -307,7 +309,7 @@ export function AdminContractForm({ users, plans, contracts }: Props) {
           />
         </div>
         <div className="space-y-1">
-          <Label htmlFor="starts_at">Data început</Label>
+          <Label htmlFor="starts_at">{dict.admin.startDate}</Label>
           <Input
             id="starts_at"
             name="starts_at"
@@ -317,7 +319,7 @@ export function AdminContractForm({ users, plans, contracts }: Props) {
           />
         </div>
         <div className="space-y-1">
-          <Label htmlFor="ends_at">Data sfârșit</Label>
+          <Label htmlFor="ends_at">{dict.admin.endsAt}</Label>
           <Input
             id="ends_at"
             name="ends_at"
@@ -329,7 +331,7 @@ export function AdminContractForm({ users, plans, contracts }: Props) {
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor="internal_notes">Note interne</Label>
+        <Label htmlFor="internal_notes">{dict.admin.internalNotes}</Label>
         <Input
           id="internal_notes"
           name="internal_notes"
@@ -339,7 +341,7 @@ export function AdminContractForm({ users, plans, contracts }: Props) {
       </div>
 
       <Button type="submit" disabled={pending || !workspaceId}>
-        {pending ? "Se salvează…" : "Salvează contract"}
+        {pending ? dict.dialog.saving : dict.admin.saveContract}
       </Button>
     </form>
   );

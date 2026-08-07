@@ -4,6 +4,8 @@ import { cookies, headers } from "next/headers";
 
 import { SiteCanvas } from "@/components/website/site-canvas";
 import { deviceClassFromUa } from "@/lib/invitations/analytics";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { defaultSiteTheme, siteThemeSchema } from "@/lib/website/schema";
 import { createClient } from "@/lib/supabase/server";
 import { getSiteUrl } from "@/lib/url";
@@ -30,12 +32,17 @@ type PublicSite = {
 };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const { slug } = await params;
   const supabase = await createClient();
   const { data } = await supabase.rpc("get_public_wedding_site", { p_slug: slug });
   const site = data as PublicSite | null;
   if (!site) {
-    return { title: "Site indisponibil", robots: { index: false, follow: false } };
+    return {
+      title: dict.publicUi.siteUnavailable,
+      robots: { index: false, follow: false },
+    };
   }
 
   const appUrl = getSiteUrl();
@@ -61,6 +68,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function PublicWeddingSitePage({ params }: PageProps) {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  const { publicUi } = dict;
   const { slug } = await params;
   const supabase = await createClient();
   const { data } = await supabase.rpc("get_public_wedding_site", { p_slug: slug });
@@ -69,7 +79,7 @@ export default async function PublicWeddingSitePage({ params }: PageProps) {
   if (!site) {
     return (
       <main className="min-h-[100svh] px-6 py-16">
-        <h1 className="font-heading text-3xl">Site indisponibil</h1>
+        <h1 className="font-heading text-3xl">{publicUi.siteUnavailable}</h1>
       </main>
     );
   }
@@ -80,22 +90,24 @@ export default async function PublicWeddingSitePage({ params }: PageProps) {
     if (!unlocked) {
       return (
         <main className="min-h-[100svh] px-6 py-16">
-          <h1 className="font-heading text-3xl">Site protejat</h1>
+          <h1 className="font-heading text-3xl">{publicUi.unlockTitle}</h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            Introdu parola din invitație (formular simplu în setări cuplu).
+            {publicUi.unlockHint}
           </p>
           <form action={`/w/${slug}/unlock`} method="post" className="mt-6 max-w-sm space-y-3">
             <input
               name="password"
               type="password"
               required
+              aria-label={publicUi.password}
+              placeholder={publicUi.password}
               className="h-9 w-full rounded-lg border border-input px-3 text-sm"
             />
             <button
               type="submit"
               className="rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground"
             >
-              Intră
+              {publicUi.unlockSubmit}
             </button>
           </form>
         </main>

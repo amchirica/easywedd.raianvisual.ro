@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 
+import { useI18n } from "@/components/providers/i18n-provider";
 import { DeleteConfirmDialog } from "@/components/shared/delete-confirm-dialog";
 import {
   getInvitationProjectDeleteImpact,
@@ -24,10 +25,11 @@ export function InvitationDeleteControls({
   projectName,
   isArchived,
 }: Props) {
+  const { dict } = useI18n();
   const router = useRouter();
   const [impact, setImpact] = useState<DeleteImpact>(
     emptyImpact({
-      resourceLabel: "invitație",
+      resourceLabel: dict.invitations.resourceLabel,
       resourceName: projectName,
       canRestore: Boolean(isArchived),
       canSoftDelete: !isArchived,
@@ -45,7 +47,9 @@ export function InvitationDeleteControls({
 
   return (
     <DeleteConfirmDialog
-      triggerLabel={isArchived ? "Gestionează ștergerea" : "Șterge"}
+      triggerLabel={
+        isArchived ? dict.invitations.manageDelete : dict.dialog.delete
+      }
       impact={impact}
       onSoftDelete={async () => softDeleteInvitationProjectAction(projectId)}
       onHardDelete={async () => {

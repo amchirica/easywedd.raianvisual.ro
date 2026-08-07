@@ -4,17 +4,23 @@ import Link from "next/link";
 import { AuthAutoRedirect } from "@/components/auth/auth-auto-redirect";
 import { buttonVariants } from "@/components/ui/button";
 import { getSafeNextPath } from "@/lib/auth/callback-destination";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = {
-  title: "Cont confirmat",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.meta.confirmedTitle };
+}
 
 type PageProps = {
   searchParams: Promise<{ next?: string }>;
 };
 
 export default async function AuthConfirmedPage({ searchParams }: PageProps) {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const { next } = await searchParams;
   const safeNext = getSafeNextPath(next, "/dashboard/onboarding");
   const destination =
@@ -23,9 +29,9 @@ export default async function AuthConfirmedPage({ searchParams }: PageProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-heading text-3xl">Cont confirmat cu succes</h1>
+        <h1 className="font-heading text-3xl">{dict.auth.confirmedHeading}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Adresa ta de email a fost verificată. Contul EasyWedd este acum activ.
+          {dict.auth.confirmedBody}
         </p>
       </div>
 
@@ -35,7 +41,7 @@ export default async function AuthConfirmedPage({ searchParams }: PageProps) {
         href={destination}
         className={cn(buttonVariants(), "inline-flex w-full sm:w-auto")}
       >
-        Continuă către cont
+        {dict.auth.continueToAccount}
       </Link>
     </div>
   );

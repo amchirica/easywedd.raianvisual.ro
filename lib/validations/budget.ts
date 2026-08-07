@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const budgetItemSchema = z.object({
-  name: z.string().min(1, "Numele este obligatoriu"),
+  name: z.string().min(1, "validation.nameRequired"),
   category_id: z.string().uuid().optional().or(z.literal("")),
   vendor_id: z.string().uuid().optional().or(z.literal("")),
   estimated_amount: z.coerce.number().nonnegative().default(0),

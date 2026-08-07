@@ -13,6 +13,7 @@ import {
 } from "@/lib/entitlements/service";
 import { canManagePlanner } from "@/lib/planner/access";
 import { logAudit, requireWeddingContext } from "@/lib/planner/context";
+import type { ErrorCode } from "@/lib/i18n/errors";
 import {
   defaultSectionConfig,
   defaultSiteTheme,
@@ -23,6 +24,12 @@ import { mapWebsiteSectionType } from "@/lib/website/section-adapter";
 import { isValidSiteSlug, slugifyCoupleNames } from "@/lib/website/slug";
 import type { Json } from "@/types/database";
 import type { WeddingSiteSectionType } from "@/types/website";
+
+export type ActionState = {
+  error?: string;
+  errorCode?: ErrorCode;
+  success?: string;
+};
 
 export async function createWeddingSiteAction(formData: FormData): Promise<void> {
   const ctx = await requireWeddingContext();

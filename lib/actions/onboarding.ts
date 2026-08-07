@@ -73,7 +73,7 @@ export async function completeOnboardingAction(
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Date invalide" };
+    return { error: parsed.error.issues[0]?.message ?? "validation.invalid" };
   }
 
   const supabase = await createClient();

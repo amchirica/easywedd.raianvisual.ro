@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 
+import { useI18n } from "@/components/providers/i18n-provider";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -33,7 +34,7 @@ type DeleteConfirmDialogProps = {
 };
 
 export function DeleteConfirmDialog({
-  triggerLabel = "Șterge",
+  triggerLabel,
   title,
   impact,
   onSoftDelete,
@@ -44,6 +45,8 @@ export function DeleteConfirmDialog({
   size = "sm",
   disabled,
 }: DeleteConfirmDialogProps) {
+  const { dict } = useI18n();
+  const resolvedTrigger = triggerLabel ?? dict.dialog.delete;
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<DeleteMode>(
     impact.canSoftDelete ? defaultMode : "hard",
@@ -66,18 +69,18 @@ export function DeleteConfirmDialog({
         try {
           const fn = mode === "hard" ? onHardDelete : onSoftDelete;
           if (!fn) {
-            setError("Acțiunea nu este disponibilă.");
+            setError(dict.dialog.actionUnavailable);
             return;
           }
           const result = await fn();
           if (result && !result.ok) {
-            setError(result.error ?? "Operația a eșuat.");
+            setError(result.error ?? dict.dialog.operationFailed);
             return;
           }
           setOpen(false);
           setTyped("");
         } catch {
-          setError("Operația a eșuat. Încearcă din nou.");
+          setError(dict.dialog.operationFailed);
         }
       })();
     });
@@ -91,12 +94,12 @@ export function DeleteConfirmDialog({
         try {
           const result = await onRestore();
           if (result && !result.ok) {
-            setError(result.error ?? "Restaurarea a eșuat.");
+            setError(result.error ?? dict.dialog.restoreFailed);
             return;
           }
           setOpen(false);
         } catch {
-          setError("Restaurarea a eșuat.");
+          setError(dict.dialog.restoreFailed);
         }
       })();
     });
@@ -111,12 +114,16 @@ export function DeleteConfirmDialog({
         disabled={disabled}
         onClick={() => setOpen(true)}
       >
-        {triggerLabel}
+        {resolvedTrigger}
       </Button>
       <DialogContent className="sm:max-w-md" showCloseButton>
         <DialogHeader>
           <DialogTitle>
-            {title ?? `Șterge ${impact.resourceLabel}`}
+            {title ??
+              dict.dialog.deleteResource.replace(
+                "{label}",
+                impact.resourceLabel,
+              )}
           </DialogTitle>
           <DialogDescription>
             {impact.resourceName}
@@ -126,7 +133,7 @@ export function DeleteConfirmDialog({
         {impact.items.length > 0 ? (
           <div className="space-y-2">
             <p className="text-xs tracking-wide text-muted-foreground uppercase">
-              Resurse afectate
+              {dict.dialog.affectedResources}
             </p>
             <ul className="space-y-1 text-sm">
               {impact.items.map((item) => (
@@ -172,7 +179,7 @@ export function DeleteConfirmDialog({
               variant={mode === "soft" ? "default" : "outline"}
               onClick={() => setMode("soft")}
             >
-              Arhivare (recuperabil)
+              {dict.dialog.archiveRecoverable}
             </Button>
             <Button
               type="button"
@@ -180,27 +187,28 @@ export function DeleteConfirmDialog({
               variant={mode === "hard" ? "destructive" : "outline"}
               onClick={() => setMode("hard")}
             >
-              Ștergere permanentă
+              {dict.dialog.permanentDelete}
             </Button>
           </div>
         ) : null}
 
         {mode === "soft" ? (
           <p className="text-xs text-muted-foreground">
-            Resursa va fi arhivată și poate fi restaurată ulterior.
+            {dict.dialog.archiveHint}
           </p>
         ) : (
           <p className="text-xs text-destructive">
-            Ștergerea permanentă nu poate fi anulată. Datele dependente vor fi
-            eliminate (cascade).
+            {dict.dialog.hardDeleteHint}
           </p>
         )}
 
         {needsTyped ? (
           <div className="space-y-1">
             <Label>
-              Tastează <span className="font-mono">{impact.typedConfirmPhrase}</span>{" "}
-              pentru confirmare
+              {dict.dialog.typeToConfirm.replace(
+                "{phrase}",
+                impact.typedConfirmPhrase,
+              )}
             </Label>
             <Input
               value={typed}
@@ -221,7 +229,7 @@ export function DeleteConfirmDialog({
               disabled={pending}
               onClick={runRestore}
             >
-              Restaurează
+              {dict.dialog.restore}
             </Button>
           ) : null}
           <Button
@@ -230,7 +238,7 @@ export function DeleteConfirmDialog({
             disabled={pending}
             onClick={() => setOpen(false)}
           >
-            Anulează
+            {dict.dialog.cancel}
           </Button>
           <Button
             type="button"
@@ -241,8 +249,8 @@ export function DeleteConfirmDialog({
             {pending
               ? "…"
               : mode === "hard"
-                ? "Șterge permanent"
-                : "Arhivează"}
+                ? dict.dialog.deletePermanently
+                : dict.dialog.archive}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,26 +1,14 @@
 import { z } from "zod";
 
 export const profileSettingsSchema = z.object({
-  full_name: z
-    .string()
-    .trim()
-    .min(2, "Numele trebuie să aibă cel puțin 2 caractere")
-    .max(120),
+  full_name: z.string().trim().min(2, "validation.nameMin").max(120),
   locale: z.enum(["ro", "en"]).default("ro"),
-  timezone: z
-    .string()
-    .trim()
-    .min(1, "Selectează un fus orar")
-    .max(80),
+  timezone: z.string().trim().min(1, "validation.timezoneRequired").max(80),
 });
 
 export const workspaceSettingsSchema = z.object({
   workspace_id: z.string().uuid(),
-  name: z
-    .string()
-    .trim()
-    .min(2, "Numele workspace-ului trebuie să aibă cel puțin 2 caractere")
-    .max(120),
+  name: z.string().trim().min(2, "validation.workspaceNameMin").max(120),
 });
 
 export const notificationPreferencesSchema = z.object({
@@ -31,13 +19,11 @@ export const notificationPreferencesSchema = z.object({
 
 export const updatePasswordSchema = z
   .object({
-    password: z
-      .string()
-      .min(8, "Parola trebuie să aibă cel puțin 8 caractere"),
-    confirm_password: z.string().min(8, "Confirmă parola"),
+    password: z.string().min(8, "validation.passwordMin"),
+    confirm_password: z.string().min(8, "validation.confirmPassword"),
   })
   .refine((data) => data.password === data.confirm_password, {
-    message: "Parolele nu coincid",
+    message: "validation.passwordMismatch",
     path: ["confirm_password"],
   });
 

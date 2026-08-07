@@ -8,6 +8,7 @@ import {
   type BuilderSectionItem,
 } from "@/components/builder/visual-builder";
 import { InvitationCanvas } from "@/components/invitations/invitation-canvas";
+import { useI18n } from "@/components/providers/i18n-provider";
 import { uiSectionRegistry } from "@/components/invitations/sections/registry";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -291,15 +292,24 @@ function SaveStatusLabel({
   state: SaveState;
   savedAt: string | null;
 }) {
+  const { dict } = useI18n();
   if (state === "saving") {
-    return <p className="mt-2 text-xs text-muted-foreground">Se salvează…</p>;
+    return (
+      <p className="mt-2 text-xs text-muted-foreground">{dict.dialog.saving}</p>
+    );
   }
   if (state === "error") {
-    return <p className="mt-2 text-xs text-destructive">Eroare la salvare</p>;
+    return (
+      <p className="mt-2 text-xs text-destructive">
+        {dict.invitations.editor.saveError}
+      </p>
+    );
   }
   if (state === "saved" && savedAt) {
     return (
-      <p className="mt-2 text-xs text-muted-foreground">Salvat la {savedAt}</p>
+      <p className="mt-2 text-xs text-muted-foreground">
+        {dict.invitations.editor.savedAt.replace("{time}", savedAt)}
+      </p>
     );
   }
   return null;

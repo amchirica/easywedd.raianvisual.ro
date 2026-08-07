@@ -65,7 +65,7 @@ export async function adminGrantAccessAction(
     allow_duplicate_plan: formData.get("allow_duplicate_plan") === "on",
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Date invalide" };
+    return { error: parsed.error.issues[0]?.message ?? "validation.invalid" };
   }
 
   const admin = createAdminClient();
@@ -337,7 +337,7 @@ export async function adminUpdateSubscriptionDatesAction(
       admin_notes: String(formData.get("admin_notes") || ""),
     });
 
-  if (!parsed.success) return { error: "Date invalide" };
+  if (!parsed.success) return { error: "validation.invalid" };
 
   const admin = createAdminClient();
   const ends = parsed.data.access_ends_at
@@ -534,7 +534,7 @@ export async function adminUpsertContractAction(
     });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Date invalide" };
+    return { error: parsed.error.issues[0]?.message ?? "validation.invalid" };
   }
 
   const admin = createAdminClient();

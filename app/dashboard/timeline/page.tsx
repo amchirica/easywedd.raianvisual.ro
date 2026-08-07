@@ -7,15 +7,28 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createTimelineItemAction } from "@/lib/actions/timeline";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { canManagePlanner } from "@/lib/planner/access";
 import { requireWeddingContext } from "@/lib/planner/context";
 
-export const metadata: Metadata = { title: "Timeline" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.dayTimeline.title };
+}
 
 export default async function TimelinePage() {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) {
-    return <EmptyState title="Workspace incomplet" description={ctx.error ?? ""} />;
+    return (
+      <EmptyState
+        title={dict.shell.workspaceIncomplete}
+        description={ctx.error ?? ""}
+      />
+    );
   }
 
   const canWrite = canManagePlanner(ctx.context.role);
@@ -29,10 +42,8 @@ export default async function TimelinePage() {
     <div className="space-y-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-heading text-4xl">Programul zilei</h1>
-          <p className="mt-2 text-muted-foreground">
-            Ordonare, vizibilitate pe roluri și versiune printabilă pentru colaboratori.
-          </p>
+          <h1 className="font-heading text-4xl">{dict.dayTimeline.title}</h1>
+          <p className="mt-2 text-muted-foreground">{dict.dayTimeline.subtitle}</p>
         </div>
         <PrintButton />
       </header>
@@ -43,54 +54,54 @@ export default async function TimelinePage() {
           className="grid gap-3 border border-border bg-card p-4 print:hidden sm:grid-cols-2 lg:grid-cols-3"
         >
           <div className="space-y-1 sm:col-span-2">
-            <Label>Titlu</Label>
-            <Input name="title" required placeholder="Sosirea mirilor" />
+            <Label>{dict.dayTimeline.columns.title}</Label>
+            <Input name="title" required />
           </div>
           <div className="space-y-1">
-            <Label>Locație</Label>
+            <Label>Location</Label>
             <Input name="location" />
           </div>
           <div className="space-y-1">
-            <Label>Început</Label>
+            <Label>{dict.dayTimeline.columns.time}</Label>
             <Input name="start_time" type="datetime-local" />
           </div>
           <div className="space-y-1">
-            <Label>Sfârșit</Label>
+            <Label>{dict.dayTimeline.columns.time}</Label>
             <Input name="end_time" type="datetime-local" />
           </div>
           <div className="space-y-1">
-            <Label>Responsabil</Label>
+            <Label>Owner</Label>
             <Input name="responsible_person" />
           </div>
           <div className="space-y-1">
-            <Label>Telefon</Label>
+            <Label>Phone</Label>
             <Input name="contact_phone" />
           </div>
           <div className="space-y-1">
-            <Label>Vizibilitate</Label>
+            <Label>Visibility</Label>
             <select
               name="visibility"
               className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
               defaultValue="couple"
             >
-              <option value="couple">Cuplu</option>
-              <option value="photo_team">Echipa foto-video</option>
-              <option value="guests">Invitați</option>
-              <option value="private">Privat</option>
+              <option value="couple">couple</option>
+              <option value="photo_team">photo_team</option>
+              <option value="guests">guests</option>
+              <option value="private">private</option>
             </select>
           </div>
           <div className="space-y-1 sm:col-span-2">
-            <Label>Notițe</Label>
+            <Label>{dict.dayTimeline.columns.notes}</Label>
             <Input name="notes" />
           </div>
-          <Button type="submit">Adaugă în program</Button>
+          <Button type="submit">{dict.dayTimeline.add}</Button>
         </form>
       ) : null}
 
       {(items ?? []).length === 0 ? (
         <EmptyState
-          title="Program gol"
-          description="Adaugă primul moment din ziua nunții."
+          title={dict.dayTimeline.emptyTitle}
+          description={dict.dayTimeline.emptyDescription}
         />
       ) : (
         <TimelineList items={items ?? []} />

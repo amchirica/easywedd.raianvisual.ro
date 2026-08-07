@@ -6,15 +6,22 @@ import { usePathname } from "next/navigation";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import type { NavItem } from "@/components/dashboard/nav-config";
 import { LockIcon, NavIcon } from "@/components/dashboard/nav-icons";
+import { useI18n } from "@/components/providers/i18n-provider";
 import { cn } from "@/lib/utils";
 
 export function DashboardSidebar({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
+  const { dict } = useI18n();
 
   return (
     <aside className="hidden w-64 shrink-0 border-r border-sidebar-border bg-sidebar lg:flex lg:flex-col">
       <div className="border-b border-sidebar-border px-6 py-5">
-        <BrandLogo href="/dashboard" size={26} wordmarkClassName="text-2xl" />
+        <BrandLogo
+          href="/dashboard"
+          size={26}
+          lightPad
+          wordmarkClassName="text-2xl text-foreground"
+        />
       </div>
       <nav className="flex flex-1 flex-col gap-1 p-3">
         {items.map((item) => {
@@ -41,7 +48,7 @@ export function DashboardSidebar({ items }: { items: NavItem[] }) {
               )}
             >
               <NavIcon iconKey={item.iconKey} className="size-4" />
-              <span className="flex-1">{item.label}</span>
+              <span className="flex-1">{dict.nav[item.labelKey]}</span>
               {item.locked ? <LockIcon className="size-3.5 opacity-70" /> : null}
             </Link>
           );

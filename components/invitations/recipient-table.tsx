@@ -2,8 +2,10 @@
 
 import { startTransition, useState } from "react";
 
+import { useI18n } from "@/components/providers/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { addRecipientsFromGuestsAction } from "@/lib/actions/invitations";
+import { t } from "@/lib/i18n/t";
 
 type GuestOption = {
   id: string;
@@ -33,6 +35,7 @@ export function RecipientTable({
   recipients,
   baseUrl,
 }: RecipientTableProps) {
+  const { dict, locale } = useI18n();
   const linked = new Set(recipients.map((r) => r.guest_id));
   const available = guests.filter((g) => !linked.has(g.id));
   const [selected, setSelected] = useState<string[]>([]);
@@ -42,10 +45,10 @@ export function RecipientTable({
   return (
     <div className="space-y-6">
       <div className="space-y-3">
-        <h2 className="font-heading text-2xl">Adaugă invitați</h2>
+        <h2 className="font-heading text-2xl">{dict.invitations.addGuests}</h2>
         {available.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Toți invitații din listă au deja un link, sau lista e goală.
+            {dict.invitations.allGuestsLinked}
           </p>
         ) : (
           <>
@@ -84,7 +87,10 @@ export function RecipientTable({
                 });
               }}
             >
-              Generează linkuri ({selected.length})
+              {t(dict as never, "invitations.generateLinks", {
+                locale,
+                params: { count: selected.length },
+              })}
             </Button>
           </>
         )}
@@ -92,22 +98,22 @@ export function RecipientTable({
 
       {tokens.length > 0 ? (
         <div className="space-y-2 border border-champagne/40 bg-secondary/40 p-4">
-          <p className="text-sm font-medium">
-            Token-uri noi (afișate o singură dată — copiază acum):
-          </p>
-          {tokens.map((t) => (
-            <p key={t.token} className="break-all text-xs">
-              {baseUrl}/i/{t.token}
+          <p className="text-sm font-medium">{dict.invitations.newTokensOnce}</p>
+          {tokens.map((tok) => (
+            <p key={tok.token} className="break-all text-xs">
+              {baseUrl}/i/{tok.token}
             </p>
           ))}
         </div>
       ) : null}
 
       <div className="space-y-2">
-        <h2 className="font-heading text-2xl">Destinatari</h2>
+        <h2 className="font-heading text-2xl">{dict.invitations.recipients}</h2>
         <div className="divide-y divide-border border-y border-border">
           {recipients.length === 0 ? (
-            <p className="py-4 text-sm text-muted-foreground">Niciun destinatar încă.</p>
+            <p className="py-4 text-sm text-muted-foreground">
+              {dict.invitations.noRecipients}
+            </p>
           ) : (
             recipients.map((r) => (
               <div
@@ -119,10 +125,10 @@ export function RecipientTable({
                 </span>
                 <span className="text-muted-foreground">
                   {r.rsvp_completed_at
-                    ? "RSVP complet"
+                    ? dict.invitations.rsvpComplete
                     : r.opened_at
-                      ? "Deschis"
-                      : "Neopened"}
+                      ? dict.invitations.opened
+                      : dict.invitations.notOpened}
                 </span>
               </div>
             ))

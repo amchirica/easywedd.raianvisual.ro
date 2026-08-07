@@ -7,12 +7,18 @@ import {
   parseContentConfig,
   parseThemeConfig,
 } from "@/lib/invitations/renderer-defaults";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = {
-  title: "Invitație",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return {
+    title: dict.publicUi.invitationMetaTitle,
+    robots: { index: false, follow: false },
+  };
+}
 
 type PageProps = { params: Promise<{ token: string }> };
 
@@ -32,6 +38,9 @@ type InvitationPayload = {
 };
 
 export default async function PublicInvitationPage({ params }: PageProps) {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  const { publicUi } = dict;
   const { token } = await params;
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("get_invitation_by_recipient_token", {
@@ -43,9 +52,11 @@ export default async function PublicInvitationPage({ params }: PageProps) {
   if (error || !payload || payload.error === "not_published") {
     return (
       <Shell>
-        <h1 className="font-heading text-3xl">Invitație indisponibilă</h1>
+        <h1 className="font-heading text-3xl">
+          {publicUi.invitationUnavailable}
+        </h1>
         <p className="mt-3 text-sm text-muted-foreground">
-          Link invalid sau invitația nu este încă publicată.
+          {publicUi.invitationUnavailableBody}
         </p>
       </Shell>
     );
@@ -67,7 +78,10 @@ export default async function PublicInvitationPage({ params }: PageProps) {
       <div className="mx-auto mt-8 max-w-xl">
         {payload.rsvp_completed ? (
           <p className="rounded-md border border-champagne/40 bg-secondary px-3 py-3 text-sm">
-            Mulțumim, {payload.first_name}. Răspunsul tău este deja înregistrat.
+            {publicUi.invitationAlreadyResponded.replace(
+              "{name}",
+              String(payload.first_name ?? ""),
+            )}
           </p>
         ) : (
           <InvitationRsvpForm

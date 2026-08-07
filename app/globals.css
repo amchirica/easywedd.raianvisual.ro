@@ -40,7 +40,13 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
   --color-champagne: var(--champagne);
+  --color-champagne-soft: var(--champagne-soft);
   --color-ivory: var(--ivory);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-background-secondary: var(--background-secondary);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -71,7 +77,13 @@
   --input: #e4dcd0;
   --ring: #c4a574;
   --champagne: #c4a574;
+  --champagne-soft: #d4b896;
   --ivory: #f7f4ef;
+  --success: #62b58c;
+  --warning: #d7a958;
+  --surface: #fffdf9;
+  --surface-elevated: #fffdf9;
+  --background-secondary: #efe8dc;
   --chart-1: #c4a574;
   --chart-2: #8a7a66;
   --chart-3: #2a2420;
@@ -86,6 +98,68 @@
   --sidebar-accent-foreground: #2a2420;
   --sidebar-border: #e4dcd0;
   --sidebar-ring: #c4a574;
+}
+
+/* Warm dark — champagne accents (app + marketing) */
+.dark {
+  --background: #0f0e0d;
+  --background-secondary: #161412;
+  --foreground: #f5f2ec;
+  --card: #1a1816;
+  --card-foreground: #f5f2ec;
+  --popover: #1f1c19;
+  --popover-foreground: #f5f2ec;
+  --primary: #c6a76a;
+  --primary-foreground: #0f0e0d;
+  --secondary: #1f1c19;
+  --secondary-foreground: #f5f2ec;
+  --muted: #1c1916;
+  --muted-foreground: #aaa7a0;
+  --accent: #c6a76a;
+  --accent-foreground: #0f0e0d;
+  --destructive: #d56f6f;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.12);
+  --ring: #c6a76a;
+  --champagne: #c6a76a;
+  --champagne-soft: #e0c995;
+  --ivory: #f7f4ef;
+  --success: #62b58c;
+  --warning: #d7a958;
+  --surface: #1a1816;
+  --surface-elevated: #1f1c19;
+  --chart-1: #c6a76a;
+  --chart-2: #8a7a66;
+  --chart-3: #e0c995;
+  --chart-4: #5a534c;
+  --chart-5: #aaa7a0;
+  --sidebar: #1a1816;
+  --sidebar-foreground: #f5f2ec;
+  --sidebar-primary: #c6a76a;
+  --sidebar-primary-foreground: #0f0e0d;
+  --sidebar-accent: #1f1c19;
+  --sidebar-accent-foreground: #f5f2ec;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-ring: #c6a76a;
+}
+
+.dark .surface-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
+}
+
+.dark .surface-elevated {
+  background: var(--surface-elevated);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dark .glow-accent {
+  box-shadow: 0 0 40px rgba(198, 167, 106, 0.14);
+}
+
+.dark .text-muted-soft {
+  color: #77746e;
 }
 
 @layer base {
@@ -117,6 +191,80 @@
 
   .text-balance {
     text-wrap: balance;
+  }
+
+  .text-muted-soft {
+    color: color-mix(in srgb, var(--muted-foreground) 85%, transparent);
+  }
+
+  .surface-card {
+    background: color-mix(in srgb, var(--card) 92%, transparent);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    box-shadow: 0 18px 60px rgba(42, 36, 32, 0.06);
+  }
+
+  .surface-elevated {
+    background: var(--surface-elevated);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+  }
+
+  .glow-accent {
+    box-shadow: 0 0 40px color-mix(in srgb, var(--champagne) 18%, transparent);
+  }
+
+  .animate-fade-up {
+    animation: ew-fade-up 0.6s ease-out both;
+  }
+
+  .animate-fade-in {
+    animation: ew-fade-in 0.5s ease-out both;
+  }
+}
+
+/* Marketing shell — layout only; colors follow :root / .dark */
+.marketing-theme {
+  color: var(--foreground);
+  background-color: var(--background);
+  background-image:
+    radial-gradient(
+      ellipse 80% 50% at 50% -20%,
+      color-mix(in srgb, var(--champagne) 12%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 100% 0%,
+      color-mix(in srgb, var(--foreground) 4%, transparent),
+      transparent
+    );
+  background-attachment: fixed;
+  min-height: 100%;
+}
+
+.dark .marketing-theme {
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(198, 167, 106, 0.08), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(255, 255, 255, 0.03), transparent);
+}
+
+@keyframes ew-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ew-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 

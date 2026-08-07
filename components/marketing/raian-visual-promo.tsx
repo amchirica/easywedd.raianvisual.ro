@@ -215,23 +215,25 @@ export function RaianVisualPromo({
     );
   }
 
-  // full-section — landing
+  // full-section — landing (inherits marketing-theme tokens)
   return (
     <section
       className={cn(
-        "relative overflow-hidden px-6 py-20",
+        "relative overflow-hidden border-t border-border px-6 py-20",
         className,
       )}
     >
-      <div className="absolute inset-0 bg-[linear-gradient(155deg,#f7f4ef_0%,#fffdf9_45%,#efe6d8_100%)]" />
-      <div className="absolute inset-0 opacity-50 [background-image:radial-gradient(circle_at_15%_20%,rgba(196,165,116,0.22),transparent_40%),radial-gradient(circle_at_85%_75%,rgba(42,36,32,0.06),transparent_36%)]" />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-70 [background-image:radial-gradient(ellipse_50%_40%_at_15%_20%,rgba(198,167,106,0.12),transparent),radial-gradient(ellipse_40%_35%_at_85%_80%,rgba(198,167,106,0.06),transparent)]"
+      />
       <div className="relative mx-auto max-w-6xl">
         {resolvedEyebrow ? (
-          <p className="text-xs tracking-[0.28em] text-muted-foreground uppercase">
+          <span className="inline-flex rounded-full border border-champagne/25 bg-champagne/10 px-3 py-1 text-[0.7rem] font-medium tracking-wide text-champagne-soft">
             {resolvedEyebrow}
-          </p>
+          </span>
         ) : null}
-        <h2 className="mt-3 max-w-2xl font-heading text-4xl tracking-tight sm:text-5xl">
+        <h2 className="mt-4 max-w-2xl font-heading text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
           {resolvedTitle}
         </h2>
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
@@ -248,8 +250,8 @@ export function RaianVisualPromo({
               className={cn(
                 "inline-flex h-10 items-center justify-center rounded-lg px-4 text-sm font-medium transition-colors",
                 link.primary
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                  : "border border-border bg-card/80 hover:bg-muted",
+                  ? "bg-champagne text-primary-foreground hover:bg-champagne/90"
+                  : "border border-border bg-background/40 text-foreground hover:bg-muted",
               )}
             >
               {link.label}

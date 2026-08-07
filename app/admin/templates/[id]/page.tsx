@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { notFound } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -8,11 +11,17 @@ import { updateAdminTemplateAction } from "@/lib/actions/admin-templates";
 import { createClient } from "@/lib/supabase/server";
 import { TEMPLATE_CATEGORIES } from "@/types/invitations";
 
-export const metadata: Metadata = { title: "Edit template" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.admin.editTemplateMetaTitle };
+}
 
 type PageProps = { params: Promise<{ id: string }> };
 
 export default async function AdminTemplateEditPage({ params }: PageProps) {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const { id } = await params;
   const supabase = await createClient();
   const { data: template } = await supabase
@@ -88,7 +97,7 @@ export default async function AdminTemplateEditPage({ params }: PageProps) {
           />{" "}
           Activ
         </label>
-        <Button type="submit">Salvează</Button>
+        <Button type="submit">{dict.dialog.save}</Button>
       </form>
     </div>
   );

@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import Link from "next/link";
 
 import { AdminConfirmDelete } from "@/components/admin/admin-confirm-delete";
@@ -10,7 +13,11 @@ import {
 import { listAdminUsersDirectory } from "@/lib/admin/admin-directory";
 import { listPublicBillingPlans } from "@/lib/billing/plan-catalog";
 
-export const metadata: Metadata = { title: "Utilizatori · Admin" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
+  return { title: dict.admin.usersMetaTitle };
+}
 
 type PageProps = {
   searchParams: Promise<{
@@ -28,6 +35,8 @@ function formatDate(iso: string | null | undefined) {
 }
 
 export default async function AdminUsersPage({ searchParams }: PageProps) {
+  const locale = await getRequestLocale();
+  const dict = await getDictionary(locale);
   const params = await searchParams;
   const page = Math.max(1, Number(params.page || 1) || 1);
   const [plans, directory] = await Promise.all([
@@ -58,7 +67,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-heading text-4xl">Utilizatori</h1>
+        <h1 className="font-heading text-4xl">{dict.admin.users}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Caută, filtrează și gestionează conturile înregistrate.
         </p>
@@ -78,7 +87,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
         >
           <option value="all">Toate statusurile</option>
           <option value="active">Activi</option>
-          <option value="suspended">Suspendați</option>
+          <option value="suspended">{dict.admin.suspendedPlural}</option>
         </select>
         <select
           name="plan"
@@ -123,12 +132,12 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
               <tr>
                 <th className="px-4 py-3 font-medium">Nume</th>
                 <th className="px-4 py-3 font-medium">Email</th>
-                <th className="px-4 py-3 font-medium">Înregistrat</th>
+                <th className="px-4 py-3 font-medium">{dict.admin.registered}</th>
                 <th className="px-4 py-3 font-medium">Ultima autentificare</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Workspace-uri</th>
                 <th className="px-4 py-3 font-medium">Abonament</th>
-                <th className="px-4 py-3 font-medium">Acțiuni</th>
+                <th className="px-4 py-3 font-medium">{dict.admin.actions}</th>
               </tr>
             </thead>
             <tbody>
@@ -158,7 +167,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
                         <AdminConfirmDelete
                           workspaceId={user.id}
                           id={user.id}
-                          label="Reactivează"
+                          label={dict.admin.reactivate}
                           confirmLabel="Confirmă reactivarea"
                           action={adminReactivateUserBound}
                         />
@@ -166,7 +175,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
                         <AdminConfirmDelete
                           workspaceId={user.id}
                           id={user.id}
-                          label="Suspendă"
+                          label={dict.admin.suspend}
                           confirmLabel="Confirmă suspendarea"
                           action={adminSuspendUserBound}
                         />

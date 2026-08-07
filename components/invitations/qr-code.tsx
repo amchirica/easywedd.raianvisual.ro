@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 
+import { useI18n } from "@/components/providers/i18n-provider";
 import { Button } from "@/components/ui/button";
 
 type QrCodeProps = {
@@ -11,6 +12,7 @@ type QrCodeProps = {
 };
 
 export function InvitationQrCode({ value, filename = "invitation-qr.png" }: QrCodeProps) {
+  const { dict } = useI18n();
   const [src, setSrc] = useState<string>("");
 
   useEffect(() => {
@@ -18,13 +20,21 @@ export function InvitationQrCode({ value, filename = "invitation-qr.png" }: QrCo
   }, [value]);
 
   if (!src) {
-    return <p className="text-sm text-muted-foreground">Se generează QR…</p>;
+    return (
+      <p className="text-sm text-muted-foreground">
+        {dict.invitations.editor.generatingQr}
+      </p>
+    );
   }
 
   return (
     <div className="space-y-3">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt="QR invitație" className="h-40 w-40 border border-border bg-white p-2" />
+      <img
+        src={src}
+        alt={dict.invitations.editor.qrAlt}
+        className="h-40 w-40 border border-border bg-white p-2"
+      />
       <Button
         type="button"
         variant="outline"
@@ -36,7 +46,7 @@ export function InvitationQrCode({ value, filename = "invitation-qr.png" }: QrCo
           a.click();
         }}
       >
-        Descarcă QR PNG
+        {dict.invitations.editor.downloadQr}
       </Button>
     </div>
   );

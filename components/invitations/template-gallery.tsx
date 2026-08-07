@@ -2,11 +2,16 @@
 
 import { useMemo, useState } from "react";
 
+import { useI18n } from "@/components/providers/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createInvitationProjectAction } from "@/lib/actions/invitations";
-import { TEMPLATE_CATEGORIES, type InvitationTemplate } from "@/types/invitations";
+import {
+  TEMPLATE_CATEGORIES,
+  type InvitationTemplate,
+  type InvitationTemplateCategory,
+} from "@/types/invitations";
 
 type TemplateGalleryProps = {
   templates: InvitationTemplate[];
@@ -19,6 +24,7 @@ export function TemplateGallery({
   allowPremium,
   canCreate,
 }: TemplateGalleryProps) {
+  const { dict } = useI18n();
   const [category, setCategory] = useState<string>("all");
   const [selected, setSelected] = useState<string | null>(
     templates[0]?.id ?? null,
@@ -31,6 +37,11 @@ export function TemplateGallery({
     });
   }, [templates, category]);
 
+  function categoryLabel(value: InvitationTemplateCategory | string) {
+    const key = value as InvitationTemplateCategory;
+    return dict.invitations.categories[key] ?? value.replaceAll("_", " ");
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2">
@@ -39,7 +50,7 @@ export function TemplateGallery({
           onClick={() => setCategory("all")}
           className={`text-sm ${category === "all" ? "text-foreground" : "text-muted-foreground"}`}
         >
-          Toate
+          {dict.invitations.allCategories}
         </button>
         {TEMPLATE_CATEGORIES.map((c) => (
           <button
@@ -48,7 +59,7 @@ export function TemplateGallery({
             onClick={() => setCategory(c.value)}
             className={`text-sm ${category === c.value ? "text-foreground" : "text-muted-foreground"}`}
           >
-            {c.label}
+            {categoryLabel(c.value)}
           </button>
         ))}
       </div>
@@ -79,12 +90,12 @@ export function TemplateGallery({
                 <p className="font-heading text-xl">{template.name}</p>
                 {template.is_premium ? (
                   <span className="text-[10px] tracking-wide uppercase text-champagne">
-                    Premium
+                    {dict.invitations.premium}
                   </span>
                 ) : null}
               </div>
               <p className="mt-1 text-xs text-muted-foreground capitalize">
-                {template.category.replaceAll("_", " ")}
+                {categoryLabel(template.category)}
               </p>
             </button>
           );
@@ -95,14 +106,19 @@ export function TemplateGallery({
         <form action={createInvitationProjectAction} className="max-w-md space-y-3">
           <input type="hidden" name="template_id" value={selected} />
           <div className="space-y-2">
-            <Label htmlFor="name">Nume proiect</Label>
-            <Input id="name" name="name" required defaultValue="Invitația noastră" />
+            <Label htmlFor="name">{dict.invitations.projectName}</Label>
+            <Input
+              id="name"
+              name="name"
+              required
+              defaultValue={dict.invitations.defaultProjectName}
+            />
           </div>
-          <Button type="submit">Creează invitația</Button>
+          <Button type="submit">{dict.invitations.createProject}</Button>
         </form>
       ) : (
         <p className="text-sm text-muted-foreground">
-          Ai atins limita de proiecte pentru planul curent.
+          {dict.invitations.projectLimitReached}
         </p>
       )}
     </div>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useState } from "react";
 
+import { useI18n } from "@/components/providers/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,11 +13,14 @@ import {
   type ActionResult,
 } from "@/lib/actions/auth";
 import { FORGOT_PASSWORD_PATH } from "@/lib/auth/callback-destination";
+import { translateValidationMessage } from "@/lib/i18n/errors";
 import { passwordStrengthChecks } from "@/lib/validations/auth";
 import { cn } from "@/lib/utils";
 
 export function ResetPasswordForm() {
   const router = useRouter();
+  const { dict, locale } = useI18n();
+  const { auth } = dict;
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [password, setPassword] = useState("");
@@ -39,7 +43,7 @@ export function ResetPasswordForm() {
   return (
     <form action={formAction} className="space-y-5">
       <div className="space-y-2">
-        <Label htmlFor="password">Parolă nouă</Label>
+        <Label htmlFor="password">{auth.newPassword}</Label>
         <div className="relative">
           <Input
             id="password"
@@ -56,15 +60,17 @@ export function ResetPasswordForm() {
             type="button"
             className="absolute top-1/2 right-2 -translate-y-1/2 text-xs text-muted-foreground underline-offset-2 hover:underline"
             onClick={() => setShowPassword((v) => !v)}
-            aria-label={showPassword ? "Ascunde parola" : "Arată parola"}
+            aria-label={
+              showPassword ? auth.hidePasswordAria : auth.showPasswordAria
+            }
           >
-            {showPassword ? "Ascunde" : "Arată"}
+            {showPassword ? auth.hide : auth.show}
           </button>
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="confirm_password">Confirmă parola</Label>
+        <Label htmlFor="confirm_password">{auth.confirmPassword}</Label>
         <div className="relative">
           <Input
             id="confirm_password"
@@ -79,10 +85,10 @@ export function ResetPasswordForm() {
             className="absolute top-1/2 right-2 -translate-y-1/2 text-xs text-muted-foreground underline-offset-2 hover:underline"
             onClick={() => setShowConfirm((v) => !v)}
             aria-label={
-              showConfirm ? "Ascunde confirmarea" : "Arată confirmarea"
+              showConfirm ? auth.hideConfirmAria : auth.showConfirmAria
             }
           >
-            {showConfirm ? "Ascunde" : "Arată"}
+            {showConfirm ? auth.hide : auth.show}
           </button>
         </div>
       </div>
@@ -91,10 +97,10 @@ export function ResetPasswordForm() {
         id="password-rules"
         className="space-y-1 text-xs text-muted-foreground"
       >
-        <Rule ok={checks.minLength}>Minim 8 caractere</Rule>
-        <Rule ok={checks.uppercase}>Cel puțin o literă mare</Rule>
-        <Rule ok={checks.lowercase}>Cel puțin o literă mică</Rule>
-        <Rule ok={checks.number}>Cel puțin o cifră</Rule>
+        <Rule ok={checks.minLength}>{auth.passwordRuleMin}</Rule>
+        <Rule ok={checks.uppercase}>{auth.passwordRuleUpper}</Rule>
+        <Rule ok={checks.lowercase}>{auth.passwordRuleLower}</Rule>
+        <Rule ok={checks.number}>{auth.passwordRuleNumber}</Rule>
       </ul>
 
       {state.error ? (
@@ -102,7 +108,7 @@ export function ResetPasswordForm() {
           className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
           role="alert"
         >
-          {state.error}
+          {translateValidationMessage(state.error, locale)}
         </p>
       ) : null}
 
@@ -120,16 +126,16 @@ export function ResetPasswordForm() {
         className="w-full"
         disabled={pending || !allStrong || Boolean(state.success)}
       >
-        {pending ? "Se salvează…" : "Salvează parola nouă"}
+        {pending ? dict.common.saving : auth.saveNewPassword}
       </Button>
 
       <p className="text-center text-sm text-muted-foreground">
-        Link expirat?{" "}
+        {auth.linkExpiredPrompt}{" "}
         <Link
           href={FORGOT_PASSWORD_PATH}
           className="text-foreground underline underline-offset-4"
         >
-          Solicită un link nou
+          {auth.requestNewLink}
         </Link>
       </p>
     </form>
