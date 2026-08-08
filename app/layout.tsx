@@ -117,7 +117,7 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={`${sourceSans.variable} ${cormorant.variable} h-full antialiased`}
+      className={`${sourceSans.variable} ${cormorant.variable} h-full antialiased${theme === "dark" ? " dark" : ""}`}
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col font-sans">

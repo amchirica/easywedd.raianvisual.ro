@@ -14,7 +14,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useEffect, useId, useState } from "react";
+import { useId, useState, useSyncExternalStore } from "react";
 
 import { SchemaForm } from "@/components/builder/schema-form";
 import { SectionEditorPanel } from "@/components/invitations/sections/section-editors";
@@ -88,19 +88,21 @@ export function VisualBuilder({
   sidebarFooter,
   settingsHeader,
 }: VisualBuilderProps) {
+  const { dict } = useI18n();
+  const w = dict.website;
   const [tab, setTab] = useState<SettingsTab>("content");
   /** Avoid SSR/client DnD accessibility id mismatches (DndDescribedBy-N). */
-  const [dndReady, setDndReady] = useState(false);
+  const dndReady = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const dndId = useId();
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
   );
   const active = sections.find((s) => s.id === activeId) ?? sections[0];
   const sectionKey = active?.key ?? "hero";
-
-  useEffect(() => {
-    setDndReady(true);
-  }, []);
 
   function onDragEnd(event: DragEndEvent) {
     const { active: a, over } = event;
@@ -112,7 +114,7 @@ export function VisualBuilder({
     <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)_minmax(280px,380px)]">
       <aside className="space-y-3 rounded-lg border border-border bg-card/40 p-3">
         <p className="text-xs tracking-wide text-muted-foreground uppercase">
-          Secțiuni
+          {dict.invitations.editor.sections}
         </p>
         {dndReady ? (
           <DndContext
@@ -161,9 +163,9 @@ export function VisualBuilder({
         <div className="flex flex-wrap gap-1 border-b border-border pb-2">
           {(
             [
-              ["content", "Conținut"],
-              ["presentation", "Prezentare"],
-              ["theme", "Temă pagină"],
+              ["content", w.tabContent],
+              ["presentation", w.tabPresentation],
+              ["theme", w.tabTheme],
             ] as const
           ).map(([id, label]) => (
             <button

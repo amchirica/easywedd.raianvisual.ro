@@ -8,6 +8,7 @@ import { MobileNav } from "@/components/dashboard/mobile-nav";
 import type { NavItem } from "@/components/dashboard/nav-config";
 import { useI18n } from "@/components/providers/i18n-provider";
 import { PreferenceControls } from "@/components/shared/preference-controls";
+import { WorkspaceSearch } from "@/components/dashboard/workspace-search";
 import { logoutAction } from "@/lib/actions/auth";
 import type { Profile, Workspace } from "@/types/database";
 
@@ -49,6 +50,7 @@ export function DashboardTopbar({
         </div>
       </div>
       <div className="flex items-center gap-3">
+        <WorkspaceSearch />
         <PreferenceControls compact className="hidden sm:flex" />
         {isPlatformAdmin ? (
           <Link

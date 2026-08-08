@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 
+import { useI18n } from "@/components/providers/i18n-provider";
 import {
   VisualBuilder,
   type BuilderSectionItem,
@@ -56,6 +57,8 @@ export function SiteSectionEditor({
   canPublish,
   showBranding,
 }: EditorProps) {
+  const { dict } = useI18n();
+  const w = dict.website;
   const [theme, setTheme] = useState(() =>
     normalizeThemePresentation(initialTheme),
   );
@@ -254,11 +257,11 @@ export function SiteSectionEditor({
                 })
               }
             >
-              Publică
+              {w.publish}
             </Button>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Publish necesită plan cu website_publish.
+              {w.publishRequiresPlan}
             </p>
           )}
           {status === "published" ? (
@@ -272,17 +275,17 @@ export function SiteSectionEditor({
                 })
               }
             >
-              Unpublish
+              {w.unpublish}
             </Button>
           ) : null}
           <p className="text-xs text-muted-foreground">
             {saveState === "saving"
-              ? "Se salvează…"
+              ? w.autosaveSaving
               : saveState === "error"
-                ? "Eroare la salvare"
+                ? w.autosaveError
                 : savedAt
-                  ? `Salvat la ${savedAt}`
-                  : "Modificările se salvează automat"}
+                  ? w.autosaveSavedAt.replace("{time}", savedAt)
+                  : w.autosaveHint}
           </p>
         </div>
       }

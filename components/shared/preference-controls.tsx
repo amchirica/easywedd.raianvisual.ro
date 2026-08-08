@@ -82,7 +82,7 @@ export function ThemeSwitcher({ className }: { className?: string }) {
       )}
     >
       {options.map((opt) => {
-        const active = mounted ? current === opt.value : opt.value === "light";
+        const active = mounted && current === opt.value;
         return (
           <button
             key={opt.value}

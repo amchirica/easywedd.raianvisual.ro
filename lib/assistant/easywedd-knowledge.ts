@@ -78,8 +78,28 @@ export const EASYWEDD_KNOWLEDGE: KnowledgeEntry[] = [
     route: "/dashboard/planner",
     featureKey: "planner",
     keywords: {
-      ro: ["planner", "task", "checklist", "sarcină", "deadline", "responsabil"],
-      en: ["planner", "task", "checklist", "todo", "deadline", "owner"],
+      ro: [
+        "planner",
+        "task",
+        "tasks",
+        "checklist",
+        "sarcină",
+        "sarcini",
+        "deadline",
+        "responsabil",
+        "de făcut",
+        "todo",
+      ],
+      en: [
+        "planner",
+        "task",
+        "tasks",
+        "checklist",
+        "todo",
+        "deadline",
+        "owner",
+        "to do",
+      ],
     },
     title: { ro: "Planner", en: "Planner" },
     description: {
@@ -105,8 +125,73 @@ export const EASYWEDD_KNOWLEDGE: KnowledgeEntry[] = [
       ],
     },
     limitations: {
-      ro: ["Nu este un calendar complet — pentru programul zilei folosește Timeline."],
-      en: ["Not a full calendar — use Timeline for the day-of schedule."],
+      ro: [
+        "Vizualizarea Calendar din Planner arată task-uri după termen (due date), nu un calendar de evenimente separat.",
+        "Pentru programul zilei nunții folosește Timeline.",
+      ],
+      en: [
+        "Planner Calendar view shows tasks by due date — not a separate event calendar.",
+        "Use Timeline for the wedding-day schedule.",
+      ],
+    },
+  },
+  {
+    key: "calendar",
+    route: "/dashboard/planner",
+    featureKey: "planner",
+    keywords: {
+      ro: [
+        "calendar",
+        "vederea calendar",
+        "view calendar",
+        "due date",
+        "termen",
+        "unde e calendarul",
+        "program pe zile",
+      ],
+      en: [
+        "calendar",
+        "calendar view",
+        "due date",
+        "deadline view",
+        "where is calendar",
+        "schedule by day",
+      ],
+    },
+    title: { ro: "Calendar (Planner)", en: "Calendar (Planner)" },
+    description: {
+      ro: "În EasyWedd, „Calendar” este vizualizarea Planner pe termenele task-urilor (`/dashboard/planner?view=calendar`). Programul zilei evenimentului este în Timeline.",
+      en: "In EasyWedd, “Calendar” is the Planner due-date view (`/dashboard/planner?view=calendar`). The wedding-day schedule lives in Timeline.",
+    },
+    actions: {
+      ro: [
+        "Deschide Planner → Calendar",
+        "Adaugă task cu termen",
+        "Vezi Timeline pentru programul zilei",
+      ],
+      en: [
+        "Open Planner → Calendar",
+        "Add a task with a due date",
+        "Open Timeline for the day-of schedule",
+      ],
+    },
+    steps: {
+      ro: [
+        "Mergi la Planner.",
+        "Alege vizualizarea Calendar.",
+        "Adaugă sau editează task-uri cu due date.",
+        "Pentru orele ceremoniei/petrecerii, folosește Timeline.",
+      ],
+      en: [
+        "Go to Planner.",
+        "Switch to Calendar view.",
+        "Add or edit tasks with due dates.",
+        "For ceremony/party times, use Timeline.",
+      ],
+    },
+    limitations: {
+      ro: ["Nu există un modul Calendar separat de tip Google Calendar."],
+      en: ["There is no separate Google Calendar–style module."],
     },
   },
   {
@@ -548,39 +633,79 @@ export const EASYWEDD_KNOWLEDGE: KnowledgeEntry[] = [
     route: "/dashboard/vendors",
     featureKey: "vendors",
     keywords: {
-      ro: ["documente", "contracte", "oferte", "facturi", "unde găsesc documentele"],
-      en: ["documents", "contracts", "quotes", "invoices", "where are documents"],
+      ro: [
+        "documente",
+        "contracte",
+        "oferte",
+        "facturi",
+        "unde găsesc documentele",
+        "atasamente furnizor",
+        "fișiere furnizor",
+        "URL document",
+      ],
+      en: [
+        "documents",
+        "contracts",
+        "quotes",
+        "invoices",
+        "where are documents",
+        "vendor attachments",
+        "vendor files",
+        "document URL",
+      ],
     },
     title: { ro: "Documente", en: "Documents" },
     description: {
-      ro: "În EasyWedd, documentele legate de furnizori (oferte, contracte, note) se gestionează în zona Furnizori, nu într-un modul separat de tip drive.",
-      en: "In EasyWedd, vendor-related documents (quotes, contracts, notes) live under Vendors — there is no separate drive module.",
+      ro: "Documentele (oferte, contracte, link-uri) se adaugă pe fiecare furnizor în Furnizori — nu există un drive general.",
+      en: "Documents (quotes, contracts, links) are attached per vendor under Vendors — there is no general drive.",
     },
     actions: {
-      ro: ["Adaugă note la furnizor", "Salvează detalii contract/ofertă"],
-      en: ["Add vendor notes", "Save contract/quote details"],
+      ro: [
+        "Deschide Furnizori",
+        "Adaugă document (titlu + URL)",
+        "Notează oferta/contractul la furnizor",
+      ],
+      en: [
+        "Open Vendors",
+        "Add a document (title + URL)",
+        "Note quote/contract on the vendor",
+      ],
     },
     steps: {
       ro: [
         "Deschide Furnizori.",
-        "Selectează furnizorul.",
-        "Completează informațiile și notele despre ofertă/contract.",
+        "Selectează sau creează furnizorul.",
+        "Folosește formularul „Adaugă document” cu titlu și URL.",
+        "Completează și notele despre ofertă/contract.",
       ],
       en: [
         "Open Vendors.",
-        "Select the vendor.",
-        "Fill in quote/contract details and notes.",
+        "Select or create the vendor.",
+        "Use “Add document” with a title and URL.",
+        "Also fill quote/contract notes.",
       ],
     },
     limitations: {
-      ro: ["Nu există un cloud drive general pentru orice tip de fișier."],
-      en: ["There is no general cloud drive for arbitrary files."],
+      ro: [
+        "Nu există un cloud drive general pentru orice tip de fișier.",
+        "Documentele sunt legate de furnizori (vendor_documents).",
+      ],
+      en: [
+        "There is no general cloud drive for arbitrary files.",
+        "Documents are tied to vendors (vendor_documents).",
+      ],
     },
   },
 ];
 
 export function getKnowledgeByRoute(route: string): KnowledgeEntry | undefined {
-  return EASYWEDD_KNOWLEDGE.find((e) => e.route === route && e.key !== "rsvp" && e.key !== "documents");
+  return EASYWEDD_KNOWLEDGE.find(
+    (e) =>
+      e.route === route &&
+      e.key !== "rsvp" &&
+      e.key !== "documents" &&
+      e.key !== "calendar",
+  );
 }
 
 export function getKnowledgeByKey(key: string): KnowledgeEntry | undefined {

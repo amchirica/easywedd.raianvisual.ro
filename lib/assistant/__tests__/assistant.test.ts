@@ -52,6 +52,18 @@ describe("assistant knowledge search", () => {
     expect(hits[0]?.entry.key).toBe("budget");
   });
 
+  it("finds calendar and documents", () => {
+    expect(searchKnowledge("unde e calendarul", "ro")[0]?.entry.key).toBe(
+      "calendar",
+    );
+    expect(searchKnowledge("where are documents", "en")[0]?.entry.key).toBe(
+      "documents",
+    );
+    expect(searchKnowledge("adaugă un task", "ro")[0]?.entry.key).toBe(
+      "planner",
+    );
+  });
+
   it("maps current pathname to knowledge", () => {
     expect(findKnowledgeForPathname("/dashboard/budget")?.key).toBe("budget");
   });

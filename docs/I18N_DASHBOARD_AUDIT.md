@@ -1,7 +1,7 @@
 # I18N Dashboard Audit
 
-Generated: 2026-08-07T18:56:20.110Z
-Files scanned: 310
+Generated: 2026-08-08T14:08:02.827Z
+Files scanned: 314
 Findings: 74
 Remaining (RO heuristics): 0
 

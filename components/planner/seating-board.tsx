@@ -513,7 +513,7 @@ export function SeatingBoard({
 
         <div
           ref={canvasRef}
-          className="relative h-[min(70vh,560px)] min-h-[360px] overflow-hidden border border-border bg-[radial-gradient(circle_at_1px_1px,#e8e0d4_1px,transparent_0)] [background-size:24px_24px] sm:h-[560px] print:h-auto print:overflow-visible print:bg-none"
+          className="relative h-[min(70vh,560px)] min-h-[360px] overflow-hidden border border-border bg-[radial-gradient(circle_at_1px_1px,var(--border)_1px,transparent_0)] [background-size:24px_24px] sm:h-[560px] print:h-auto print:overflow-visible print:bg-none"
         >
           {tables.map((table) => (
             <TableNode
