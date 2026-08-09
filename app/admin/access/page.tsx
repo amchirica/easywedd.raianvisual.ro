@@ -6,7 +6,7 @@ import { FEATURE_LABELS_RO } from "@/lib/entitlements/policy";
 import { ENTITLEMENT_KEYS } from "@/lib/entitlements/keys";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { getRequestLocale } from "@/lib/i18n/locale";
-import { createAdminClientAsync } from "@/lib/supabase/admin";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
@@ -18,7 +18,7 @@ export default async function AdminAccessPage() {
   const locale = await getRequestLocale();
   const dict = await getDictionary(locale);
   const { users } = await listAdminUsersDirectory({ pageSize: 100, status: "all" });
-  const admin = await createAdminClientAsync();
+  const admin = createAdminClient();
 
   const { data: grants } = await admin
     .from("access_grants")

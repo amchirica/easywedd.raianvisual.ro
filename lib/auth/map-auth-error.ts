@@ -3,8 +3,6 @@
  * Never log passwords, tokens, or secret keys.
  */
 
-import { getRuntimeEnv } from "@/lib/runtime-env";
-
 export type AuthFlow =
   | "signup"
   | "login"
@@ -68,10 +66,9 @@ export function logSupabaseAuthError(options: {
     },
     redirectUrl: redirectUrl ?? null,
     siteUrlConfigured: Boolean(
-      getRuntimeEnv("NEXT_PUBLIC_SITE_URL") ||
-        getRuntimeEnv("NEXT_PUBLIC_APP_URL"),
+      process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL,
     ),
-    supabaseUrlConfigured: Boolean(getRuntimeEnv("NEXT_PUBLIC_SUPABASE_URL")),
+    supabaseUrlConfigured: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
   });
 }
 

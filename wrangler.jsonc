@@ -7,13 +7,7 @@
   "name": "easywedd-raianvisual",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-07-30",
-  // Required for OpenNext / Node APIs. Explicitly populate process.env from
-  // Worker secrets & vars (also default after 2025-04-01 with nodejs_compat).
-  "compatibility_flags": [
-    "nodejs_compat",
-    "nodejs_compat_populate_process_env",
-    "global_fetch_strictly_public"
-  ],
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"

@@ -8,7 +8,7 @@ import {
   resolveCheckoutPriceForPlan,
 } from "@/lib/billing/plan-catalog";
 import { INVALID_STRIPE_PRICE_MESSAGE } from "@/lib/billing/stripe-ids";
-import { createAdminClientAsync } from "@/lib/supabase/admin";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
 import { getSiteUrl } from "@/lib/url";
 
@@ -24,12 +24,6 @@ export async function startPublicCheckoutAction(
   _prev: PublicCheckoutResult,
   formData: FormData,
 ): Promise<PublicCheckoutResult> {
-  const { hydrateRuntimeEnvAsync, hydrateStripeRuntimeEnv } = await import(
-    "@/lib/runtime-env"
-  );
-  await hydrateRuntimeEnvAsync();
-  hydrateStripeRuntimeEnv();
-
   const parsed = z
     .object({
       email: z.string().email("Email invalid"),
@@ -70,7 +64,7 @@ export async function startPublicCheckoutAction(
   }
 
   const claimToken = crypto.randomUUID();
-  const admin = await createAdminClientAsync();
+  const admin = createAdminClient();
 
   const { data: pending, error: pendingError } = await admin
     .from("pending_checkouts")

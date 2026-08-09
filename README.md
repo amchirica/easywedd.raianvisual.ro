@@ -88,12 +88,9 @@ Deploy Cloudflare: vezi [`docs/CLOUDFLARE.md`](docs/CLOUDFLARE.md). Build comman
 
 ## Admin
 
-Accesul `/admin/*` necesită `public.is_platform_admin()` = true:
-membership `accepted` cu rol `admin` **sau** `owner` pe un workspace
-`workspace_type = 'admin'` și `status = 'active'` (sau `owner_id` pe acel workspace).
+Accesul `/admin/*` necesită membership `accepted` cu rol `admin` pe un workspace cu `workspace_type = 'admin'`.
 
-Creează manual în SQL (după ce ai un user) — folosește **UUID-ul contului
-cu care te autentifici**, nu un alt user:
+Creează manual în SQL (după ce ai un user):
 
 ```sql
 insert into public.workspaces (name, slug, workspace_type, owner_id, status)

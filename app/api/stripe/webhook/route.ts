@@ -1,5 +1,3 @@
-import "server-only";
-
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 
@@ -8,45 +6,21 @@ import {
   BILLING_PRODUCTS,
   type BillingProductKey,
 } from "@/lib/billing/catalog";
-import { createAdminClientAsync } from "@/lib/supabase/admin";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
 import type { AccessSource, Json, SubscriptionPlan } from "@/types/database";
 
-async function serviceClient() {
+function serviceClient() {
   try {
-    return await createAdminClientAsync();
+    return createAdminClient();
   } catch {
     return null;
   }
 }
 
-function mapSubscriptionStatus(
-  status: Stripe.Subscription.Status,
-): "active" | "trialing" | "past_due" | "canceled" | "incomplete" {
-  switch (status) {
-    case "active":
-      return "active";
-    case "trialing":
-      return "trialing";
-    case "past_due":
-    case "unpaid":
-      return "past_due";
-    case "canceled":
-    case "incomplete_expired":
-      return "canceled";
-    default:
-      return "incomplete";
-  }
-}
-
 export async function POST(request: Request) {
-  const { hydrateRuntimeEnvAsync, hydrateStripeRuntimeEnv, getRuntimeEnv } =
-    await import("@/lib/runtime-env");
-  await hydrateRuntimeEnvAsync();
-  hydrateStripeRuntimeEnv();
-
   const stripe = getStripe();
-  const webhookSecret = getRuntimeEnv("STRIPE_WEBHOOK_SECRET");
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!stripe || !webhookSecret) {
     return NextResponse.json(
       { error: "Stripe webhook not configured" },
@@ -63,52 +37,33 @@ export async function POST(request: Request) {
   let event: Stripe.Event;
   try {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-  } catch {
+  } catch (error) {
+    console.error("[stripe:webhook]", error);
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  const supabase = await serviceClient();
+  const supabase = serviceClient();
   if (!supabase) {
     return NextResponse.json({ error: "Service role missing" }, { status: 503 });
   }
 
   const { data: existing } = await supabase
     .from("stripe_events")
-    .select("id, processing_ok")
+    .select("id")
     .eq("id", event.id)
     .maybeSingle();
-
-  if (existing?.processing_ok) {
+  if (existing) {
     return NextResponse.json({ received: true, duplicate: true });
   }
 
-  if (!existing) {
-    const { error: insertError } = await supabase.from("stripe_events").insert({
-      id: event.id,
-      event_type: event.type,
-      payload: event as unknown as Json,
-      processing_ok: false,
-    });
-    // Race: another worker inserted first — continue only if we can claim processing.
-    if (insertError) {
-      const { data: raced } = await supabase
-        .from("stripe_events")
-        .select("id, processing_ok")
-        .eq("id", event.id)
-        .maybeSingle();
-      if (raced?.processing_ok) {
-        return NextResponse.json({ received: true, duplicate: true });
-      }
-      if (!raced) {
-        console.error("[stripe:webhook] event insert failed");
-        return NextResponse.json({ error: "Event persist failed" }, { status: 500 });
-      }
-    }
-  }
+  await supabase.from("stripe_events").insert({
+    id: event.id,
+    event_type: event.type,
+    payload: event as unknown as Json,
+  });
 
   const handled = new Set([
     "checkout.session.completed",
-    "customer.subscription.created",
     "customer.subscription.updated",
     "customer.subscription.deleted",
     "invoice.paid",
@@ -116,44 +71,21 @@ export async function POST(request: Request) {
     "charge.refunded",
   ]);
 
-  try {
-    if (handled.has(event.type)) {
-      await handleEvent(supabase, event);
-    }
-    await supabase
-      .from("stripe_events")
-      .update({ processing_ok: true })
-      .eq("id", event.id);
-  } catch (err) {
-    console.error("[stripe:webhook] handler failed", {
-      type: event.type,
-      message: err instanceof Error ? err.message : "unknown",
-    });
-    // 500 → Stripe retries; processing_ok stays false
-    return NextResponse.json({ error: "Handler failed" }, { status: 500 });
+  if (handled.has(event.type)) {
+    await handleEvent(supabase, event);
   }
 
   return NextResponse.json({ received: true });
 }
 
-type AdminDb = NonNullable<Awaited<ReturnType<typeof serviceClient>>>;
+type AdminDb = NonNullable<ReturnType<typeof serviceClient>>;
 
 async function handleEvent(supabase: AdminDb, event: Stripe.Event) {
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
-    if (
-      session.payment_status !== "paid" &&
-      session.payment_status !== "no_payment_required"
-    ) {
-      return;
-    }
-
     const isPublic = session.metadata?.public_checkout === "1";
     const planKey =
-      session.metadata?.plan ||
-      session.metadata?.plan_key ||
-      session.metadata?.product_key ||
-      "";
+      session.metadata?.plan_key || session.metadata?.product_key || "";
 
     if (isPublic) {
       await fulfillPublicCheckout(supabase, session, planKey);
@@ -162,7 +94,6 @@ async function handleEvent(supabase: AdminDb, event: Stripe.Event) {
 
     const workspaceId = session.metadata?.workspace_id;
     const productKey = (session.metadata?.product_key ||
-      session.metadata?.plan ||
       planKey) as BillingProductKey;
     if (!workspaceId || !productKey) return;
 
@@ -218,62 +149,34 @@ async function handleEvent(supabase: AdminDb, event: Stripe.Event) {
     return;
   }
 
-  if (
-    event.type === "customer.subscription.created" ||
-    event.type === "customer.subscription.updated"
-  ) {
+  if (event.type === "customer.subscription.updated") {
     const sub = event.data.object as Stripe.Subscription;
     const customer = customerId(sub.customer);
-    const workspaceFromMeta = sub.metadata?.workspace_id || null;
-    const planFromMeta =
-      sub.metadata?.plan ||
-      sub.metadata?.plan_key ||
-      sub.metadata?.product_key ||
-      null;
-    const productFromMeta = (sub.metadata?.product_key ||
-      planFromMeta) as BillingProductKey | null;
-    const catalogProduct = productFromMeta
-      ? BILLING_PRODUCTS[productFromMeta]
-      : undefined;
-
-    let workspaceId = workspaceFromMeta;
-    if (!workspaceId && customer) {
-      const { data: row } = await supabase
-        .from("subscriptions")
-        .select("workspace_id")
-        .eq("stripe_customer_id", customer)
-        .maybeSingle();
-      workspaceId = row?.workspace_id ?? null;
-    }
-    if (!workspaceId) return;
+    if (!customer) return;
+    const { data: row } = await supabase
+      .from("subscriptions")
+      .select("workspace_id")
+      .eq("stripe_customer_id", customer)
+      .maybeSingle();
+    if (!row) return;
 
     const periodEnd = (sub as { current_period_end?: number }).current_period_end;
-    const status = mapSubscriptionStatus(sub.status);
     await supabase
       .from("subscriptions")
       .update({
-        ...(catalogProduct
-          ? {
-              plan: catalogProduct.mapsToPlan as SubscriptionPlan,
-              product_key: catalogProduct.key,
-              plan_key: planFromMeta || catalogProduct.key,
-              billing_interval: catalogProduct.interval,
-            }
-          : {}),
-        status,
+        status: sub.status === "active" ? "active" : sub.status === "past_due" ? "past_due" : "incomplete",
         cancel_at_period_end: Boolean(sub.cancel_at_period_end),
         stripe_subscription_id: sub.id,
-        stripe_customer_id: customer,
         current_period_ends_at: periodEnd
           ? new Date(periodEnd * 1000).toISOString()
           : null,
         access_source: "stripe_subscription",
         updated_at: new Date().toISOString(),
       })
-      .eq("workspace_id", workspaceId);
+      .eq("workspace_id", row.workspace_id);
 
     await supabase.rpc("sync_workspace_entitlements", {
-      p_workspace_id: workspaceId,
+      p_workspace_id: row.workspace_id,
     });
     return;
   }
@@ -350,14 +253,6 @@ async function handleEvent(supabase: AdminDb, event: Stripe.Event) {
       .from("subscriptions")
       .update({ status: "past_due", updated_at: new Date().toISOString() })
       .eq("workspace_id", row.workspace_id);
-    await supabase.rpc("sync_workspace_entitlements", {
-      p_workspace_id: row.workspace_id,
-    });
-    await supabase.from("product_events").insert({
-      workspace_id: row.workspace_id,
-      event_name: "payment_failed",
-      properties: { via: "webhook", invoice_id: invoice.id },
-    });
     return;
   }
 
@@ -416,6 +311,8 @@ async function fulfillPublicCheckout(
       .eq("id", pendingId);
   }
 
+  // Entitlement attaches when user registers/logs in with same email (claim flow).
+  // Mark paid — do not invent a workspace here without user consent.
   await supabase.from("product_events").insert({
     workspace_id: null,
     event_name: "public_checkout_paid",

@@ -13,40 +13,19 @@
 ## Cloudflare Worker (producție)
 
 Setează în **Workers & Pages → easywedd-raianvisual → Settings → Variables and Secrets**
-(nu în `.env.local` din repo).
-
-**Important:** deploy-ul folosește `wrangler deploy --keep-vars` ca să nu șteargă
-variabilele setate din Dashboard. Fără `--keep-vars`, Wrangler șterge plain Variables
-care nu sunt în `wrangler.jsonc`.
-
-### Secrets (Encrypted)
-
-```text
-STRIPE_SECRET_KEY
-STRIPE_WEBHOOK_SECRET
-SUPABASE_SERVICE_ROLE_KEY
-RESEND_API_KEY
-OPENAI_API_KEY                 (opțional)
-```
-
-### Variables (plain text, runtime)
+(nu în `.env.local` din repo):
 
 ```text
 NEXT_PUBLIC_SITE_URL=https://easywedd.raianvisual.ro
 NEXT_PUBLIC_APP_URL=https://easywedd.raianvisual.ro
 NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_...
-STRIPE_PRICE_STARTER_MONTHLY=price_...
-STRIPE_PRICE_PRO_MONTHLY=price_...
-STRIPE_PRICE_PREMIUM_PASS_12=price_...
-STRIPE_PRICE_PREMIUM_PASS_18=price_...
-RESEND_FROM_EMAIL=...
-RESEND_FROM_NAME=EasyWedd
+SUPABASE_SERVICE_ROLE_KEY=...   (Secret)
 ```
 
-Diagnostic admin (doar platform admin): `/admin/diagnostics/stripe`
-— afișează true/false pentru prezența env Stripe, niciodată valorile.
+Opțional: Stripe / Resend keys ca Secrets.
+
+`getSiteUrl()` în producție **ignoră localhost** și folosește `https://easywedd.raianvisual.ro` dacă SITE/APP URL lipsește sau e greșit — altfel Supabase blochează emailurile Auth.
 
 ## Billing (Stripe)
 
@@ -64,14 +43,6 @@ Diagnostic admin (doar platform admin): `/admin/diagnostics/stripe`
 |-----------|-----------|
 | `RESEND_API_KEY` | Outbox tranzacțional |
 | `RESEND_FROM_EMAIL` / `RESEND_FROM_NAME` | Expeditor |
-
-## Assistant AI (opțional)
-
-| Variabilă | Descriere |
-|-----------|-----------|
-| `OPENAI_API_KEY` | Secret — doar server; fără el asistentul rămâne pe knowledge base |
-| `OPENAI_BASE_URL` | Opțional (gateway compatibil) |
-| `OPENAI_ASSISTANT_MODEL` | Opțional |
 
 Confirmarea de cont o trimite **Supabase Auth**, nu Resend.
 

@@ -1,7 +1,6 @@
 import "server-only";
 
 import { resolveStripePriceId } from "@/lib/billing/stripe-ids";
-import { getRuntimeEnv } from "@/lib/runtime-env";
 import { createClient } from "@/lib/supabase/server";
 import type { BillingInterval, SubscriptionPlan } from "@/types/database";
 
@@ -231,14 +230,14 @@ export async function getBillingPlan(
 }
 
 /**
- * Checkout-ready Price ID. Prefers runtime/CF env via stripe_price_env, then DB.
+ * Checkout-ready Price ID. Prefers DB stripe_price_id, then env via stripe_price_env.
  * Never returns Product IDs.
  */
 export function getStripePriceIdForPlan(plan: BillingPlanRow): string | null {
   const envValue = plan.stripe_price_env
-    ? getRuntimeEnv(plan.stripe_price_env)
+    ? process.env[plan.stripe_price_env]
     : null;
-  const resolved = resolveStripePriceId([envValue, plan.stripe_price_id]);
+  const resolved = resolveStripePriceId([plan.stripe_price_id, envValue]);
   return "priceId" in resolved ? resolved.priceId : null;
 }
 
@@ -247,10 +246,9 @@ export function getStripePriceIdForPlan(plan: BillingPlanRow): string | null {
  */
 export function resolveCheckoutPriceForPlan(plan: BillingPlanRow) {
   const envValue = plan.stripe_price_env
-    ? getRuntimeEnv(plan.stripe_price_env)
+    ? process.env[plan.stripe_price_env]
     : null;
-  // Prefer runtime/CF env Price ID over DB override.
-  return resolveStripePriceId([envValue, plan.stripe_price_id]);
+  return resolveStripePriceId([plan.stripe_price_id, envValue]);
 }
 
 export {

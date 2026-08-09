@@ -3,8 +3,6 @@
  * API keys stay server-side via env.
  */
 
-import "server-only";
-
 export type AssistantCompletionRequest = {
   system: string;
   user: string;

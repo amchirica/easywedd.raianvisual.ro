@@ -8,7 +8,6 @@ import {
   PASSWORD_RESET_PATH,
   getSafeNextPath,
 } from "@/lib/auth/callback-destination";
-import { getRuntimeEnv } from "@/lib/runtime-env";
 
 export {
   FORGOT_PASSWORD_PATH,
@@ -56,8 +55,8 @@ function isProductionRuntime(): boolean {
  */
 export function getSiteUrl(): string {
   const candidates = [
-    getRuntimeEnv("NEXT_PUBLIC_APP_URL"),
-    getRuntimeEnv("NEXT_PUBLIC_SITE_URL"),
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.NEXT_PUBLIC_SITE_URL,
   ];
 
   const resolved: string[] = [];

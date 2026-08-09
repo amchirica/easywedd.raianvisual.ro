@@ -12,13 +12,9 @@ import {
   FALLBACK_BILLING_PLANS,
   listPublicBillingPlans,
 } from "@/lib/billing/plan-catalog";
-import {
-  isLocalBillingBypassAllowed,
-  isStripeConfigured,
-} from "@/lib/billing/plans";
-import { hydrateStripeRuntimeEnv } from "@/lib/runtime-env";
 import { featureFlagsForUi } from "@/lib/entitlements/ui";
 import { getWorkspaceEntitlementSnapshot } from "@/lib/entitlements/service";
+import { isStripeConfigured } from "@/lib/billing/plans";
 import { formatDateShort } from "@/lib/i18n/format";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { getRequestLocale } from "@/lib/i18n/locale";
@@ -31,19 +27,15 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: dict.billing.title };
 }
 
-const CHECKOUTABLE_KEYS = [
+const CHECKOUTABLE_KEYS = new Set([
   "starter",
-  "pro",
   "premium_pass_12",
   "premium_pass_18",
-] as const;
+  "pro",
+]);
 
 type PageProps = {
-  searchParams?: Promise<{
-    checkout_error?: string;
-    checkout?: string;
-    session_id?: string;
-  }>;
+  searchParams?: Promise<{ checkout_error?: string }>;
 };
 
 export default async function BillingPage({ searchParams }: PageProps) {
@@ -53,7 +45,6 @@ export default async function BillingPage({ searchParams }: PageProps) {
   const checkoutError = params.checkout_error
     ? decodeURIComponent(params.checkout_error)
     : null;
-  const checkoutState = params.checkout ?? null;
 
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) {
@@ -69,7 +60,7 @@ export default async function BillingPage({ searchParams }: PageProps) {
     ctx.context.supabase
       .from("subscriptions")
       .select(
-        "id, workspace_id, plan_key, product_key, plan, status, access_source, access_ends_at, current_period_ends_at, stripe_customer_id, soft_deleted_at",
+        "id, workspace_id, plan_key, product_key, plan, status, access_source, access_ends_at, soft_deleted_at",
       )
       .eq("workspace_id", ctx.context.workspaceId)
       .is("soft_deleted_at", null)
@@ -78,7 +69,6 @@ export default async function BillingPage({ searchParams }: PageProps) {
     getWorkspaceEntitlementSnapshot(ctx.context.workspaceId),
   ]);
   const flags = featureFlagsForUi(snapshot.rows);
-  hydrateStripeRuntimeEnv();
   const planKey =
     subscription?.plan_key ??
     subscription?.product_key ??
@@ -89,17 +79,7 @@ export default async function BillingPage({ searchParams }: PageProps) {
     FALLBACK_BILLING_PLANS.find((p) => p.key === planKey) ??
     plans[0];
   const stripeReady = isStripeConfigured();
-  const localBypass = isLocalBillingBypassAllowed();
-  const hasStripeCustomer = Boolean(subscription?.stripe_customer_id);
-  const renewsAt =
-    subscription?.current_period_ends_at ?? subscription?.access_ends_at ?? null;
-
-  const checkoutable = CHECKOUTABLE_KEYS.map((key) => {
-    return (
-      plans.find((p) => p.key === key) ??
-      FALLBACK_BILLING_PLANS.find((p) => p.key === key)
-    );
-  }).filter(Boolean);
+  const checkoutable = plans.filter((p) => CHECKOUTABLE_KEYS.has(p.key));
 
   return (
     <div className="space-y-8">
@@ -117,53 +97,15 @@ export default async function BillingPage({ searchParams }: PageProps) {
         </div>
       ) : null}
 
-      {checkoutState === "success" ? (
-        <div
-          role="status"
-          className="border border-border bg-card px-4 py-3 text-sm text-muted-foreground"
-        >
-          {dict.billing.successBanner}
-        </div>
-      ) : null}
-
-      {checkoutState === "canceled" ? (
-        <div
-          role="status"
-          className="border border-border bg-card px-4 py-3 text-sm text-muted-foreground"
-        >
-          {dict.billing.canceledBanner}
-        </div>
-      ) : null}
-
-      {checkoutState === "local" ? (
-        <div
-          role="status"
-          className="border border-border bg-card px-4 py-3 text-sm text-muted-foreground"
-        >
-          {dict.billing.localBanner}
-        </div>
-      ) : null}
-
       <section className="border border-border bg-card p-6">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">
-          {dict.billing.currentPlan}
-        </p>
-        <h2 className="mt-1 font-heading text-2xl">{plan?.name ?? planKey}</h2>
+        <h2 className="font-heading text-2xl">{plan?.name ?? planKey}</h2>
         <p className="mt-2 text-sm text-muted-foreground">
           {plan?.description ?? ""}
         </p>
         <dl className="mt-6 grid gap-3 text-sm sm:grid-cols-2">
           <div>
             <dt className="text-muted-foreground">Status</dt>
-            <dd>
-              {getStatusLabel(
-                "billing",
-                subscription?.status ?? "trialing",
-                locale,
-              ) ||
-                subscription?.status ||
-                "trialing"}
-            </dd>
+            <dd>{getStatusLabel("billing", subscription?.status ?? "trialing", locale) || (subscription?.status ?? "trialing")}</dd>
           </div>
           <div>
             <dt className="text-muted-foreground">{dict.billing.accessSource}</dt>
@@ -186,18 +128,8 @@ export default async function BillingPage({ searchParams }: PageProps) {
             </dd>
           </div>
           <div>
-            <dt className="text-muted-foreground">{dict.billing.renewsAt}</dt>
-            <dd>
-              {renewsAt ? formatDateShort(renewsAt, locale) : "—"}
-            </dd>
-          </div>
-          <div>
             <dt className="text-muted-foreground">Stripe</dt>
-            <dd>
-              {stripeReady
-                ? dict.billing.stripeReady
-                : dict.billing.stripeNotReady}
-            </dd>
+            <dd>{stripeReady ? "Configurat" : "Neconfigurat (mod local)"}</dd>
           </div>
         </dl>
         <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
@@ -205,7 +137,7 @@ export default async function BillingPage({ searchParams }: PageProps) {
           <span>· pdf: {flags.canExportPdf ? "da" : "nu"}</span>
           <span>· guests: {flags.guestLimit ?? "∞"}</span>
         </div>
-        {stripeReady && hasStripeCustomer ? (
+        {stripeReady ? (
           <form action={openBillingPortalAction} className="mt-6">
             <Button type="submit" variant="outline">
               {dict.billing.manage}
@@ -216,53 +148,45 @@ export default async function BillingPage({ searchParams }: PageProps) {
 
       <section className="space-y-4">
         <h2 className="font-heading text-2xl">{dict.billing.upgrade}</h2>
-        {!stripeReady && !localBypass ? (
-          <p className="text-sm text-muted-foreground">
-            {dict.billing.stripeUnavailable}
-          </p>
-        ) : null}
         <div className="grid gap-4 md:grid-cols-2">
-          {checkoutable.map((product) => {
-            if (!product) return null;
-            return (
-              <div key={product.key} className="border border-border p-4">
-                <h3 className="font-heading text-xl">{product.name}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {product.description}
-                </p>
-                <p className="mt-3 text-sm text-muted-foreground">
-                  {product.billing_type === "subscription"
-                    ? "Abonament lunar"
-                    : product.access_months
-                      ? `${product.access_months} luni · plată unică`
-                      : "Plată unică"}
-                </p>
-                {stripeReady ? (
-                  <form
-                    action={startCheckoutAction.bind(
-                      null,
-                      product.key as BillingProductKey,
-                    )}
-                    className="mt-4"
-                  >
-                    <Button type="submit">{dict.billing.startCheckout}</Button>
-                  </form>
-                ) : localBypass ? (
-                  <form
-                    action={grantLocalPassAction.bind(
-                      null,
-                      product.key as BillingProductKey,
-                    )}
-                    className="mt-4"
-                  >
-                    <Button type="submit" variant="outline">
-                      {dict.billing.activateLocalDev}
-                    </Button>
-                  </form>
-                ) : null}
-              </div>
-            );
-          })}
+          {checkoutable.map((product) => (
+            <div key={product.key} className="border border-border p-4">
+              <h3 className="font-heading text-xl">{product.name}</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {product.description}
+              </p>
+              <p className="mt-3 text-sm text-muted-foreground">
+                {product.billing_type === "subscription"
+                  ? "Abonament lunar"
+                  : product.access_months
+                    ? `${product.access_months} luni · plată unică`
+                    : "Plată unică"}
+              </p>
+              {stripeReady ? (
+                <form
+                  action={startCheckoutAction.bind(
+                    null,
+                    product.key as BillingProductKey,
+                  )}
+                  className="mt-4"
+                >
+                  <Button type="submit">Checkout</Button>
+                </form>
+              ) : (
+                <form
+                  action={grantLocalPassAction.bind(
+                    null,
+                    product.key as BillingProductKey,
+                  )}
+                  className="mt-4"
+                >
+                  <Button type="submit" variant="outline">
+                    Activează local (dev)
+                  </Button>
+                </form>
+              )}
+            </div>
+          ))}
         </div>
       </section>
     </div>

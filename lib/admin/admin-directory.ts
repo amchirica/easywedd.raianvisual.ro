@@ -1,7 +1,7 @@
 import "server-only";
 
 import { requirePlatformAdmin } from "@/lib/admin/auth";
-import { createAdminClientAsync } from "@/lib/supabase/admin";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type {
   AdminContractOption,
   AdminSubscriptionOption,
@@ -39,7 +39,7 @@ export async function listAdminUsersDirectory(options?: {
   pageSize: number;
 }> {
   await assertAdminOrThrow();
-  const admin = await createAdminClientAsync();
+  const admin = createAdminClient();
   const page = Math.max(1, options?.page ?? 1);
   const pageSize = Math.min(100, Math.max(10, options?.pageSize ?? 25));
   const from = (page - 1) * pageSize;
@@ -123,7 +123,6 @@ export async function listAdminUsersDirectory(options?: {
       fullName: p.full_name?.trim() || "Fără nume",
       email: p.email,
       suspended: Boolean(p.suspended_at),
-      softDeleted: Boolean(p.soft_deleted_at),
       workspaceCount: userWs.length,
       createdAt: p.created_at,
       lastSignInAt: lastSignIns.get(p.id) ?? null,
@@ -166,7 +165,7 @@ export async function listWorkspacesForUser(
   userId: string,
 ): Promise<AdminWorkspaceOption[]> {
   await assertAdminOrThrow();
-  const admin = await createAdminClientAsync();
+  const admin = createAdminClient();
 
   const { data: memberships } = await admin
     .from("workspace_members")
@@ -234,7 +233,7 @@ export async function listContractsDirectory(options?: {
   status?: string;
 }): Promise<AdminContractOption[]> {
   await assertAdminOrThrow();
-  const admin = await createAdminClientAsync();
+  const admin = createAdminClient();
 
   let query = admin
     .from("contracts")
@@ -306,7 +305,7 @@ export async function listSubscriptionsForWorkspace(
   workspaceId: string,
 ): Promise<AdminSubscriptionOption[]> {
   await assertAdminOrThrow();
-  const admin = await createAdminClientAsync();
+  const admin = createAdminClient();
   const { data: rows } = await admin
     .from("subscriptions")
     .select("id, workspace_id, plan_key, plan, status, access_ends_at")

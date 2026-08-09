@@ -2,13 +2,7 @@ import {
   isValidStripePriceId,
   isValidStripeProductId,
 } from "@/lib/billing/stripe-ids";
-import { getRuntimeEnv } from "@/lib/runtime-env";
 import type { BillingInterval, SubscriptionPlan } from "@/types/database";
-
-function readEnv(name: string): string | null {
-  if (!name) return null;
-  return getRuntimeEnv(name) ?? null;
-}
 
 export type BillingProductKey =
   | "starter"
@@ -114,14 +108,14 @@ export const BILLING_PRODUCTS: Record<BillingProductKey, BillingProduct> = {
  */
 export function getStripePriceId(product: BillingProduct): string | null {
   if (!product.envPriceId) return null;
-  const value = readEnv(product.envPriceId);
+  const value = process.env[product.envPriceId]?.trim() || null;
   return isValidStripePriceId(value) ? value : null;
 }
 
 /** Catalog reference only — never pass to Checkout. */
 export function getStripeProductId(product: BillingProduct): string | null {
   if (!product.envProductId) return null;
-  const value = readEnv(product.envProductId);
+  const value = process.env[product.envProductId]?.trim() || null;
   return isValidStripeProductId(value) ? value : null;
 }
 

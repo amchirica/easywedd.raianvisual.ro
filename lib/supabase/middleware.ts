@@ -1,19 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-import {
-  getSafeNextPath,
-  PASSWORD_RESET_PATH,
-} from "@/lib/auth/callback-destination";
-import { getRuntimeEnv } from "@/lib/runtime-env";
+import { PASSWORD_RESET_PATH } from "@/lib/auth/callback-destination";
 import type { Database } from "@/types/database";
 
-function supabasePublicEnv() {
-  return {
-    url: getRuntimeEnv("NEXT_PUBLIC_SUPABASE_URL"),
-    anonKey: getRuntimeEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
-  };
-}
 /** Routes where an already-signed-in user is sent to dashboard (not recovery). */
 const AUTH_ENTRY_ROUTES = [
   "/login",
@@ -133,7 +123,8 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith(`${PASSWORD_RESET_PATH}/`)
   ) {
     let supabaseResponse = NextResponse.next({ request });
-    const { url, anonKey } = supabasePublicEnv();
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (!url || !anonKey || !hasSupabaseAuthCookie(request)) {
       return supabaseResponse;
     }
@@ -159,7 +150,8 @@ export async function updateSession(request: NextRequest) {
 
   let supabaseResponse = NextResponse.next({ request });
 
-  const { url, anonKey } = supabasePublicEnv();
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !anonKey) {
     return supabaseResponse;
@@ -197,21 +189,13 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  // Signed-in users on login/register → safe next (admin/dashboard/invite).
+  // Signed-in users on login/register → dashboard (never from reset-password).
   if (user && AUTH_ENTRY_ROUTES.includes(pathname)) {
     const nextParam = request.nextUrl.searchParams.get("next");
     const redirectUrl = request.nextUrl.clone();
     if (nextParam?.startsWith("/invite/")) {
       redirectUrl.pathname = nextParam;
       redirectUrl.search = "";
-      return NextResponse.redirect(redirectUrl);
-    }
-    // Preserve allowlisted next (e.g. /admin) — do not always force /dashboard.
-    const safeNext = getSafeNextPath(nextParam, "/dashboard");
-    if (safeNext.startsWith("/")) {
-      const [path, query] = safeNext.split("?");
-      redirectUrl.pathname = path || "/dashboard";
-      redirectUrl.search = query ? `?${query}` : "";
       return NextResponse.redirect(redirectUrl);
     }
     redirectUrl.pathname = "/dashboard";
