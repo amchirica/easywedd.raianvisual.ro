@@ -123,6 +123,7 @@ export async function listAdminUsersDirectory(options?: {
       fullName: p.full_name?.trim() || "Fără nume",
       email: p.email,
       suspended: Boolean(p.suspended_at),
+      softDeleted: Boolean(p.soft_deleted_at),
       workspaceCount: userWs.length,
       createdAt: p.created_at,
       lastSignInAt: lastSignIns.get(p.id) ?? null,

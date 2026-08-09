@@ -4,6 +4,13 @@ import {
 } from "@/lib/billing/stripe-ids";
 import type { BillingInterval, SubscriptionPlan } from "@/types/database";
 
+/** Dynamic process.env read — avoids empty process.env on some CF builds. */
+function readEnv(name: string): string | null {
+  if (!name) return null;
+  const value = process.env[name]?.trim() || null;
+  return value;
+}
+
 export type BillingProductKey =
   | "starter"
   | "premium_pass_12"
@@ -108,14 +115,14 @@ export const BILLING_PRODUCTS: Record<BillingProductKey, BillingProduct> = {
  */
 export function getStripePriceId(product: BillingProduct): string | null {
   if (!product.envPriceId) return null;
-  const value = process.env[product.envPriceId]?.trim() || null;
+  const value = readEnv(product.envPriceId);
   return isValidStripePriceId(value) ? value : null;
 }
 
 /** Catalog reference only — never pass to Checkout. */
 export function getStripeProductId(product: BillingProduct): string | null {
   if (!product.envProductId) return null;
-  const value = process.env[product.envProductId]?.trim() || null;
+  const value = readEnv(product.envProductId);
   return isValidStripeProductId(value) ? value : null;
 }
 

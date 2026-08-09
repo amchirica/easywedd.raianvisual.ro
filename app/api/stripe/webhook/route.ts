@@ -10,6 +10,7 @@ import {
 } from "@/lib/billing/catalog";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
+import { getRuntimeEnv, hydrateStripeRuntimeEnv } from "@/lib/runtime-env";
 import type { AccessSource, Json, SubscriptionPlan } from "@/types/database";
 
 function serviceClient() {
@@ -40,8 +41,10 @@ function mapSubscriptionStatus(
 }
 
 export async function POST(request: Request) {
+  hydrateStripeRuntimeEnv();
+
   const stripe = getStripe();
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const webhookSecret = getRuntimeEnv("STRIPE_WEBHOOK_SECRET");
   if (!stripe || !webhookSecret) {
     return NextResponse.json(
       { error: "Stripe webhook not configured" },

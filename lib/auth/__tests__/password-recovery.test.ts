@@ -15,6 +15,8 @@ describe("getSafeNextPath", () => {
     expect(getSafeNextPath("/auth/reset-password")).toBe(PASSWORD_RESET_PATH);
     expect(getSafeNextPath("/dashboard")).toBe("/dashboard");
     expect(getSafeNextPath("/invite/abc")).toBe("/invite/abc");
+    expect(getSafeNextPath("/admin")).toBe("/admin");
+    expect(getSafeNextPath("/admin/users")).toBe("/admin/users");
   });
 
   it("rejects external and protocol-relative URLs", () => {

@@ -10,6 +10,7 @@ import {
 import { INVALID_STRIPE_PRICE_MESSAGE } from "@/lib/billing/stripe-ids";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
+import { hydrateStripeRuntimeEnv } from "@/lib/runtime-env";
 import { getSiteUrl } from "@/lib/url";
 
 export type PublicCheckoutResult = {
@@ -24,6 +25,8 @@ export async function startPublicCheckoutAction(
   _prev: PublicCheckoutResult,
   formData: FormData,
 ): Promise<PublicCheckoutResult> {
+  hydrateStripeRuntimeEnv();
+
   const parsed = z
     .object({
       email: z.string().email("Email invalid"),

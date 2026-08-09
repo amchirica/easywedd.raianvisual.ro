@@ -15,8 +15,8 @@
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "node scripts/cf-deploy.mjs",
     "cf:deploy": "node scripts/cf-deploy.mjs",
-    "cf:deploy:primary": "opennextjs-cloudflare build && wrangler deploy --config wrangler.jsonc",
-    "cf:deploy:emergency": "opennextjs-cloudflare build && wrangler deploy --config wrangler.emergency.jsonc",
+    "cf:deploy:primary": "opennextjs-cloudflare build && wrangler deploy --config wrangler.jsonc --keep-vars",
+    "cf:deploy:emergency": "opennextjs-cloudflare build && wrangler deploy --config wrangler.emergency.jsonc --keep-vars",
     "cf:size": "npx wrangler deploy --dry-run --outdir=.wrangler-size --config wrangler.jsonc",
     "brand:assets": "node scripts/generate-brand-assets.mjs",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"

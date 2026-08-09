@@ -13,33 +13,40 @@
 ## Cloudflare Worker (producție)
 
 Setează în **Workers & Pages → easywedd-raianvisual → Settings → Variables and Secrets**
-(nu în `.env.local` din repo):
+(nu în `.env.local` din repo).
+
+**Important:** deploy-ul folosește `wrangler deploy --keep-vars` ca să nu șteargă
+variabilele setate din Dashboard. Fără `--keep-vars`, Wrangler șterge plain Variables
+care nu sunt în `wrangler.jsonc`.
+
+### Secrets (Encrypted)
+
+```text
+STRIPE_SECRET_KEY
+STRIPE_WEBHOOK_SECRET
+SUPABASE_SERVICE_ROLE_KEY
+RESEND_API_KEY
+OPENAI_API_KEY                 (opțional)
+```
+
+### Variables (plain text, runtime)
 
 ```text
 NEXT_PUBLIC_SITE_URL=https://easywedd.raianvisual.ro
 NEXT_PUBLIC_APP_URL=https://easywedd.raianvisual.ro
 NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-SUPABASE_SERVICE_ROLE_KEY=...   (Secret)
-```
-
-Opțional: Stripe / Resend / OpenAI keys ca **Secrets** (nu plain Variables):
-
-```text
-STRIPE_SECRET_KEY=...          (Secret)
-STRIPE_WEBHOOK_SECRET=...      (Secret)
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_...
 STRIPE_PRICE_STARTER_MONTHLY=price_...
+STRIPE_PRICE_PRO_MONTHLY=price_...
 STRIPE_PRICE_PREMIUM_PASS_12=price_...
 STRIPE_PRICE_PREMIUM_PASS_18=price_...
-STRIPE_PRICE_PRO_MONTHLY=price_...
-RESEND_API_KEY=...             (Secret)
 RESEND_FROM_EMAIL=...
 RESEND_FROM_NAME=EasyWedd
-OPENAI_API_KEY=...             (Secret, optional)
 ```
 
-`getSiteUrl()` în producție **ignoră localhost** și folosește `https://easywedd.raianvisual.ro` dacă SITE/APP URL lipsește sau e greșit — altfel Supabase blochează emailurile Auth.
+Diagnostic admin (doar platform admin): `/admin/diagnostics/stripe`
+— afișează true/false pentru prezența env Stripe, niciodată valorile.
 
 ## Billing (Stripe)
 

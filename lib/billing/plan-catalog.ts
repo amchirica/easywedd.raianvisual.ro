@@ -1,6 +1,7 @@
 import "server-only";
 
 import { resolveStripePriceId } from "@/lib/billing/stripe-ids";
+import { getRuntimeEnv } from "@/lib/runtime-env";
 import { createClient } from "@/lib/supabase/server";
 import type { BillingInterval, SubscriptionPlan } from "@/types/database";
 
@@ -235,7 +236,7 @@ export async function getBillingPlan(
  */
 export function getStripePriceIdForPlan(plan: BillingPlanRow): string | null {
   const envValue = plan.stripe_price_env
-    ? process.env[plan.stripe_price_env]
+    ? getRuntimeEnv(plan.stripe_price_env)
     : null;
   const resolved = resolveStripePriceId([plan.stripe_price_id, envValue]);
   return "priceId" in resolved ? resolved.priceId : null;
@@ -246,7 +247,7 @@ export function getStripePriceIdForPlan(plan: BillingPlanRow): string | null {
  */
 export function resolveCheckoutPriceForPlan(plan: BillingPlanRow) {
   const envValue = plan.stripe_price_env
-    ? process.env[plan.stripe_price_env]
+    ? getRuntimeEnv(plan.stripe_price_env)
     : null;
   return resolveStripePriceId([plan.stripe_price_id, envValue]);
 }

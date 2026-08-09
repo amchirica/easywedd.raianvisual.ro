@@ -19,6 +19,7 @@ import {
 import { trackProductEvent } from "@/lib/analytics/product";
 import { syncWorkspaceEntitlements } from "@/lib/entitlements/service";
 import type { ErrorCode } from "@/lib/i18n/errors";
+import { getRuntimeEnv, hydrateStripeRuntimeEnv } from "@/lib/runtime-env";
 import { getStripe } from "@/lib/stripe";
 import { requireWeddingContext } from "@/lib/planner/context";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -63,6 +64,8 @@ function checkoutMetadata(input: {
 export async function startCheckoutAction(
   productKey: BillingProductKey,
 ): Promise<void> {
+  hydrateStripeRuntimeEnv();
+
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) {
     billingErrorRedirect(ctx.error ?? "Autentificare necesară.");
@@ -70,7 +73,7 @@ export async function startCheckoutAction(
 
   if (!isStripeConfigured()) {
     billingErrorRedirect(
-      "Stripe nu este configurat. Adaugă STRIPE_SECRET_KEY și repornește serverul.",
+      "Stripe nu este configurat pe server (STRIPE_SECRET_KEY lipsă în Cloudflare Worker).",
     );
   }
 
@@ -81,7 +84,7 @@ export async function startCheckoutAction(
 
   const plan = await getBillingPlan(productKey);
   const envPrice = product.envPriceId
-    ? process.env[product.envPriceId]
+    ? getRuntimeEnv(product.envPriceId)
     : undefined;
   const resolved = resolveStripePriceId([plan?.stripe_price_id, envPrice]);
   if ("error" in resolved) {
@@ -156,12 +159,14 @@ export async function startCheckoutAction(
 }
 
 export async function openBillingPortalAction() {
+  hydrateStripeRuntimeEnv();
+
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) {
     billingErrorRedirect(ctx.error ?? "Autentificare necesară.");
   }
   if (!isStripeConfigured()) {
-    billingErrorRedirect("Stripe nu este configurat.");
+    billingErrorRedirect("Stripe nu este configurat pe server.");
   }
 
   const stripe = getStripe();

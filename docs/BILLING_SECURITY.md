@@ -14,37 +14,33 @@ This:
 
 ## Cloudflare Worker secrets (production)
 
-Workers & Pages → your worker → Settings → Variables and Secrets:
+Workers & Pages → **easywedd-raianvisual** → Settings → Variables and Secrets:
 
 ```bash
 # Via Wrangler (from project root) — values prompted, never commit:
-npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
-npx wrangler secret put STRIPE_SECRET_KEY
-npx wrangler secret put STRIPE_WEBHOOK_SECRET
-npx wrangler secret put RESEND_API_KEY
-npx wrangler secret put OPENAI_API_KEY
+npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --config wrangler.jsonc
+npx wrangler secret put STRIPE_SECRET_KEY --config wrangler.jsonc
+npx wrangler secret put STRIPE_WEBHOOK_SECRET --config wrangler.jsonc
+npx wrangler secret put RESEND_API_KEY --config wrangler.jsonc
+npx wrangler secret put OPENAI_API_KEY --config wrangler.jsonc
 ```
 
-Plain Variables (public / non-secret):
+Plain Variables (public / non-secret) — Dashboard → Variables → Add:
 
 - `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_APP_URL`
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (optional for hosted Checkout; required if you use Stripe.js/Elements)
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
 - `STRIPE_PRICE_STARTER_MONTHLY`
 - `STRIPE_PRICE_PRO_MONTHLY`
 - `STRIPE_PRICE_PREMIUM_PASS_12`
 - `STRIPE_PRICE_PREMIUM_PASS_18`
 - `RESEND_FROM_EMAIL`, `RESEND_FROM_NAME`
 
-Secrets:
+Deploy **must** use `--keep-vars` (already in `npm run cf:deploy`) so Dashboard
+Variables are not wiped. Runtime reads secrets via `getRuntimeEnv()` /
+`getCloudflareContext().env` (not `.env.local`).
 
-- `STRIPE_SECRET_KEY` (required for Checkout + Portal + webhook)
-- `STRIPE_WEBHOOK_SECRET`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `RESEND_API_KEY`
-- `OPENAI_API_KEY` (if assistant enabled)
-
-Local dev: copy `.dev.vars.example` → `.dev.vars` with `NEXTJS_ENV=development`, keep keys in `.env.local`, then restart `next dev`.
+Admin check after deploy: `https://easywedd.raianvisual.ro/admin/diagnostics/stripe`
 
 
 ## Stripe Dashboard

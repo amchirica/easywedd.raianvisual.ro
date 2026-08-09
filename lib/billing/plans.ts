@@ -1,4 +1,5 @@
 import { BILLING_PRODUCTS } from "@/lib/billing/catalog";
+import { getRuntimeEnv } from "@/lib/runtime-env";
 import type { SubscriptionPlan } from "@/types/database";
 
 export const PLAN_CATALOG: Record<
@@ -34,10 +35,10 @@ export const PLAN_CATALOG: Record<
 
 /**
  * Hosted Checkout + Portal need only the secret key server-side.
- * Publishable key is optional (Elements / client SDKs).
+ * Reads Cloudflare Worker bindings when process.env is empty (OpenNext).
  */
 export function isStripeConfigured() {
-  return Boolean(process.env.STRIPE_SECRET_KEY?.trim());
+  return Boolean(getRuntimeEnv("STRIPE_SECRET_KEY"));
 }
 
 /** Dev-only self-grant when Stripe keys are absent. Never in production. */

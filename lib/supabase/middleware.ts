@@ -1,7 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { PASSWORD_RESET_PATH } from "@/lib/auth/callback-destination";
+import {
+  getSafeNextPath,
+  PASSWORD_RESET_PATH,
+} from "@/lib/auth/callback-destination";
 import type { Database } from "@/types/database";
 
 /** Routes where an already-signed-in user is sent to dashboard (not recovery). */
@@ -189,13 +192,21 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  // Signed-in users on login/register → dashboard (never from reset-password).
+  // Signed-in users on login/register → safe next (admin/dashboard/invite).
   if (user && AUTH_ENTRY_ROUTES.includes(pathname)) {
     const nextParam = request.nextUrl.searchParams.get("next");
     const redirectUrl = request.nextUrl.clone();
     if (nextParam?.startsWith("/invite/")) {
       redirectUrl.pathname = nextParam;
       redirectUrl.search = "";
+      return NextResponse.redirect(redirectUrl);
+    }
+    // Preserve allowlisted next (e.g. /admin) — do not always force /dashboard.
+    const safeNext = getSafeNextPath(nextParam, "/dashboard");
+    if (safeNext.startsWith("/")) {
+      const [path, query] = safeNext.split("?");
+      redirectUrl.pathname = path || "/dashboard";
+      redirectUrl.search = query ? `?${query}` : "";
       return NextResponse.redirect(redirectUrl);
     }
     redirectUrl.pathname = "/dashboard";

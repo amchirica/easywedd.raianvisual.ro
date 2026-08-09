@@ -16,6 +16,7 @@ import {
   isLocalBillingBypassAllowed,
   isStripeConfigured,
 } from "@/lib/billing/plans";
+import { hydrateStripeRuntimeEnv } from "@/lib/runtime-env";
 import { featureFlagsForUi } from "@/lib/entitlements/ui";
 import { getWorkspaceEntitlementSnapshot } from "@/lib/entitlements/service";
 import { formatDateShort } from "@/lib/i18n/format";
@@ -77,6 +78,7 @@ export default async function BillingPage({ searchParams }: PageProps) {
     getWorkspaceEntitlementSnapshot(ctx.context.workspaceId),
   ]);
   const flags = featureFlagsForUi(snapshot.rows);
+  hydrateStripeRuntimeEnv();
   const planKey =
     subscription?.plan_key ??
     subscription?.product_key ??
