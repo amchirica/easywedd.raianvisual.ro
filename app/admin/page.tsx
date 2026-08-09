@@ -1,9 +1,15 @@
 import type { Metadata } from "next";
 
 import { mrrEstimateRon } from "@/lib/billing/catalog";
+import { requirePlatformAdmin } from "@/lib/admin/auth";
+import { logAdminError } from "@/lib/admin/log";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { getRequestLocale } from "@/lib/i18n/locale";
-import { createClient } from "@/lib/supabase/server";
+import {
+  getRuntimeEnvSourceFlags,
+  getSupabaseEnvPresence,
+} from "@/lib/runtime-env";
+import { createAdminClientAsync } from "@/lib/supabase/admin";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
@@ -15,11 +21,19 @@ export default async function AdminHomePage() {
   const locale = await getRequestLocale();
   const dict = await getDictionary(locale);
   const { admin } = dict;
-  const supabase = await createClient();
+
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) {
+    throw new Error(auth.error ?? "Acces admin necesar");
+  }
+
+  const supabase = await createAdminClientAsync();
+  const envPresence = getSupabaseEnvPresence();
+  const envFlags = getRuntimeEnvSourceFlags();
 
   const [
-    { count: usersCount },
-    { count: workspacesCount },
+    { count: usersCount, error: usersErr },
+    { count: workspacesCount, error: wsErr },
     { count: consentsCount },
     { count: weddingsCount },
     { count: sitesCount },
@@ -73,7 +87,6 @@ export default async function AdminHomePage() {
       .from("subscriptions")
       .select("*", { count: "exact", head: true })
       .eq("status", "canceled"),
-    // Cap MRR sample — full table scan avoided for overview.
     supabase
       .from("subscriptions")
       .select("plan, status")
@@ -85,6 +98,19 @@ export default async function AdminHomePage() {
       .eq("status", "succeeded")
       .limit(500),
   ]);
+
+  if (usersErr) {
+    logAdminError({ route: "/admin", operation: "profiles.count" }, usersErr);
+    throw new Error(
+      `Nu am putut încărca overview (${usersErr.code ?? "unknown"}): ${usersErr.message}`,
+    );
+  }
+  if (wsErr) {
+    logAdminError({ route: "/admin", operation: "workspaces.count" }, wsErr);
+    throw new Error(
+      `Nu am putut încărca overview (${wsErr.code ?? "unknown"}): ${wsErr.message}`,
+    );
+  }
 
   const trials = trialsCount ?? 0;
   const mrr =
@@ -125,6 +151,14 @@ export default async function AdminHomePage() {
           {admin.overviewSubtitle}
         </p>
       </header>
+      <p className="text-xs text-muted-foreground">
+        Runtime env (presence): URL=
+        {envPresence.NEXT_PUBLIC_SUPABASE_URL ? "ok" : "missing"} · anon=
+        {envPresence.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "ok" : "missing"} ·
+        service_role=
+        {envPresence.SUPABASE_SERVICE_ROLE_KEY ? "ok" : "missing"} · als=
+        {envFlags.hasAlsContext ? "yes" : "no"}
+      </p>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((card) => (
           <div key={card.label} className="border-b border-border pb-3">

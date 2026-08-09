@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClientAsync } from "@/lib/supabase/admin";
 import type { AccessSource, SubscriptionPlan } from "@/types/database";
 
 export type ClaimResult = {
@@ -22,7 +22,7 @@ export async function fulfillPendingCheckoutsForUser(options: {
   const email = options.email.trim().toLowerCase();
   if (!email) return { fulfilled: 0, workspaceIds: [], error: "Email lipsă" };
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
 
   let query = admin
     .from("pending_checkouts")

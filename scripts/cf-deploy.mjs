@@ -39,8 +39,16 @@ if (!existsSync(path.join(projectRoot, ".open-next", "worker.js"))) {
 
 const primary = run(
   "npx",
-  ["wrangler", "deploy", "--config", "wrangler.jsonc"],
-  "Deploy (wrangler.jsonc + WORKER_SELF_REFERENCE)",
+  [
+    "wrangler",
+    "deploy",
+    "--config",
+    "wrangler.jsonc",
+    // Keep dashboard Secrets/Variables that are not declared in wrangler.jsonc
+    // (Stripe price IDs, NEXT_PUBLIC_*, etc.). Without this, wrangler deletes them.
+    "--keep-vars",
+  ],
+  "Deploy (wrangler.jsonc + WORKER_SELF_REFERENCE + --keep-vars)",
 );
 
 if (primary === 0) {
@@ -56,8 +64,14 @@ console.error(`
 
 const emergency = run(
   "npx",
-  ["wrangler", "deploy", "--config", "wrangler.emergency.jsonc"],
-  "Emergency deploy (wrangler.emergency.jsonc)",
+  [
+    "wrangler",
+    "deploy",
+    "--config",
+    "wrangler.emergency.jsonc",
+    "--keep-vars",
+  ],
+  "Emergency deploy (wrangler.emergency.jsonc + --keep-vars)",
 );
 
 if (emergency === 0) {

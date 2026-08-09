@@ -6,7 +6,7 @@ import { z } from "zod";
 import { requirePlatformAdmin } from "@/lib/admin/auth";
 import { isProtectedSystemWorkspace } from "@/lib/admin/auth";
 import { logAudit } from "@/lib/planner/context";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClientAsync } from "@/lib/supabase/admin";
 import type { AccessSource, ContractStatus, SubscriptionPlan } from "@/types/database";
 
 export type AdminBillingResult = { error?: string; success?: string };
@@ -68,7 +68,7 @@ export async function adminGrantAccessAction(
     return { error: parsed.error.issues[0]?.message ?? "validation.invalid" };
   }
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const { data: workspace } = await admin
     .from("workspaces")
     .select("id, workspace_type")
@@ -184,7 +184,7 @@ export async function adminReactivateAccessAction(
   const auth = await assertAdmin();
   if (!auth.ok || !auth.user) return;
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const { data: workspace } = await admin
     .from("workspaces")
     .select("workspace_type")
@@ -239,7 +239,7 @@ export async function adminExtendAccessFormAction(
     });
   if (!parsed.success) return;
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const { data: sub } = await admin
     .from("subscriptions")
     .select("access_ends_at")
@@ -286,7 +286,7 @@ export async function adminRevokeAccessAction(
   const auth = await assertAdmin();
   if (!auth.ok || !auth.user) return;
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const { data: workspace } = await admin
     .from("workspaces")
     .select("workspace_type")
@@ -339,7 +339,7 @@ export async function adminUpdateSubscriptionDatesAction(
 
   if (!parsed.success) return { error: "validation.invalid" };
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const ends = parsed.data.access_ends_at
     ? new Date(parsed.data.access_ends_at).toISOString()
     : null;
@@ -377,7 +377,7 @@ export async function adminSuspendUserAction(userId: string): Promise<void> {
   if (!auth.ok || !auth.user) return;
   if (auth.user.id === userId) return;
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   await admin
     .from("profiles")
     .update({ suspended_at: new Date().toISOString() })
@@ -391,7 +391,7 @@ export async function adminReactivateUserAction(userId: string): Promise<void> {
   const auth = await assertAdmin();
   if (!auth.ok || !auth.user) return;
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   await admin
     .from("profiles")
     .update({ suspended_at: null })
@@ -460,7 +460,7 @@ export async function adminSoftDeleteWorkspaceAction(
   const auth = await assertAdmin();
   if (!auth.ok || !auth.user) return;
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const { data: workspace } = await admin
     .from("workspaces")
     .select("workspace_type")
@@ -537,7 +537,7 @@ export async function adminUpsertContractAction(
     return { error: parsed.error.issues[0]?.message ?? "validation.invalid" };
   }
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const row = {
     workspace_id: parsed.data.workspace_id,
     user_id: parsed.data.user_id || null,
@@ -589,7 +589,7 @@ export async function adminSoftDeleteContractAction(
   const auth = await assertAdmin();
   if (!auth.ok || !auth.user) return;
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const { data: contract } = await admin
     .from("contracts")
     .select("id, workspace_id")
@@ -656,7 +656,7 @@ export async function adminUpdateBillingPlanStripeIdsAction(
     };
   }
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const { error } = await admin
     .from("billing_plans")
     .update({

@@ -1,7 +1,10 @@
 import "server-only";
 
+import { getRuntimeEnv, getRuntimeEnvSourceFlags } from "@/lib/runtime-env";
+
 /**
  * Server-side env helpers. Never log secret values.
+ * Uses Cloudflare Worker bindings when process.env is empty (OpenNext).
  */
 
 function missing(name: string): never {
@@ -11,8 +14,8 @@ function missing(name: string): never {
 }
 
 export function getPublicSiteUrlFromEnv(): string | undefined {
-  const site = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  const app = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  const site = getRuntimeEnv("NEXT_PUBLIC_SITE_URL");
+  const app = getRuntimeEnv("NEXT_PUBLIC_APP_URL");
   return site || app || undefined;
 }
 
@@ -40,15 +43,20 @@ export function assertProductionSiteUrl() {
 }
 
 export function requireSupabasePublicEnv() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const url = getRuntimeEnv("NEXT_PUBLIC_SUPABASE_URL");
+  const anon = getRuntimeEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
   if (!url) missing("NEXT_PUBLIC_SUPABASE_URL");
   if (!anon) missing("NEXT_PUBLIC_SUPABASE_ANON_KEY");
   return { url, anonKey: anon };
 }
 
 export function requireServiceRoleKey() {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!key) missing("SUPABASE_SERVICE_ROLE_KEY");
+  const key = getRuntimeEnv("SUPABASE_SERVICE_ROLE_KEY");
+  if (!key) {
+    const flags = getRuntimeEnvSourceFlags();
+    throw new Error(
+      `Variabilă de mediu lipsă: SUPABASE_SERVICE_ROLE_KEY (als=${flags.hasAlsContext} present=${flags.serviceRolePresent}). Setează secretul pe Worker easywedd-raianvisual.`,
+    );
+  }
   return key;
 }

@@ -20,7 +20,7 @@ import {
   requirePlatformAdmin,
 } from "@/lib/admin/auth";
 import { logAudit } from "@/lib/planner/context";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClientAsync } from "@/lib/supabase/admin";
 import { slugify } from "@/lib/workspace";
 import type { WorkspaceType } from "@/types/database";
 
@@ -38,7 +38,7 @@ async function assertAdmin() {
 }
 
 async function uniqueSlugAdmin(base: string) {
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const slug = slugify(base) || "workspace";
   for (let attempt = 0; attempt < 20; attempt += 1) {
     const candidate = attempt === 0 ? slug : `${slug}-${attempt + 1}`;
@@ -134,7 +134,7 @@ export async function adminCreateWorkspaceForUserAction(
     return { error: parsed.error.issues[0]?.message ?? "validation.invalid" };
   }
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const { data: profile } = await admin
     .from("profiles")
     .select("id, email")
@@ -216,7 +216,7 @@ export async function assertAdminCanMutateWorkspace(
   const auth = await assertAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const { data: workspace } = await admin
     .from("workspaces")
     .select("workspace_type")

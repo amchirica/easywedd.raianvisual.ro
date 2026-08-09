@@ -7,12 +7,14 @@ import { logoutAction } from "@/lib/actions/auth";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { getRequestLocale } from "@/lib/i18n/locale";
 import { getCurrentUserContext } from "@/lib/workspace";
+import { hydrateRuntimeEnvAsync } from "@/lib/runtime-env";
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  await hydrateRuntimeEnvAsync();
   const { user, isPlatformAdmin } = await getCurrentUserContext();
 
   if (!user) {

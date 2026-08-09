@@ -6,7 +6,7 @@ import { z } from "zod";
 import { requirePlatformAdmin } from "@/lib/admin/auth";
 import { ENTITLEMENT_KEYS } from "@/lib/entitlements/keys";
 import { logAudit } from "@/lib/planner/context";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClientAsync } from "@/lib/supabase/admin";
 
 export type AdminAccessResult = { error?: string; success?: string };
 
@@ -40,7 +40,7 @@ export async function adminUpdateAccountStatusAction(
     return { error: parsed.error.issues[0]?.message ?? "validation.invalid" };
   }
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const now = new Date().toISOString();
   const { error } = await admin
     .from("profiles")
@@ -102,7 +102,7 @@ export async function adminCreateAccessGrantAction(
     return { error: parsed.error.issues[0]?.message ?? "validation.invalid" };
   }
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const { error } = await admin.from("access_grants").insert({
     workspace_id: parsed.data.workspace_id,
     feature_key: parsed.data.feature_key,
@@ -148,7 +148,7 @@ export async function adminRevokeAccessGrantAction(
     return { error: "Grant invalid" };
   }
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const { data: grant } = await admin
     .from("access_grants")
     .select("id, workspace_id")

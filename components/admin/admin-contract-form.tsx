@@ -112,9 +112,13 @@ export function AdminContractForm({ users, plans, contracts }: Props) {
       setWorkspaces(wsRes.data ?? []);
       setLoadingWs(false);
     }
-    setWorkspaceId(c.workspaceId);
-    const subRes = await getWorkspaceSubscriptionsAction(c.workspaceId);
-    setSubscriptions(subRes.data ?? []);
+    setWorkspaceId(c.workspaceId ?? "");
+    if (c.workspaceId) {
+      const subRes = await getWorkspaceSubscriptionsAction(c.workspaceId);
+      setSubscriptions(subRes.data ?? []);
+    } else {
+      setSubscriptions([]);
+    }
     setSubscriptionId(c.subscriptionId ?? "");
   }
 

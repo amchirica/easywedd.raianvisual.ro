@@ -6,7 +6,9 @@ import { FEATURE_LABELS_RO } from "@/lib/entitlements/policy";
 import { ENTITLEMENT_KEYS } from "@/lib/entitlements/keys";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { getRequestLocale } from "@/lib/i18n/locale";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClientAsync } from "@/lib/supabase/admin";
+import { requirePlatformAdmin } from "@/lib/admin/auth";
+import { logAdminError } from "@/lib/admin/log";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
@@ -17,10 +19,20 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function AdminAccessPage() {
   const locale = await getRequestLocale();
   const dict = await getDictionary(locale);
-  const { users } = await listAdminUsersDirectory({ pageSize: 100, status: "all" });
-  const admin = createAdminClient();
 
-  const { data: grants } = await admin
+  // Auth first (layout also gates); then service role for global grants.
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) {
+    throw new Error(auth.error ?? "Acces admin necesar");
+  }
+
+  const { users } = await listAdminUsersDirectory({
+    pageSize: 100,
+    status: "all",
+  });
+  const admin = await createAdminClientAsync();
+
+  const { data: grants, error: grantsError } = await admin
     .from("access_grants")
     .select(
       "id, workspace_id, feature_key, enabled, ends_at, reason, granted_by, revoked_at, created_at",
@@ -28,6 +40,16 @@ export default async function AdminAccessPage() {
     .is("revoked_at", null)
     .order("created_at", { ascending: false })
     .limit(50);
+
+  if (grantsError) {
+    logAdminError(
+      { route: "/admin/access", operation: "access_grants.select" },
+      grantsError,
+    );
+    throw new Error(
+      `Nu am putut încărca grant-urile (${grantsError.code ?? "unknown"}): ${grantsError.message}`,
+    );
+  }
 
   const workspaceIds = [...new Set((grants ?? []).map((g) => g.workspace_id))];
   const { data: workspaces } = workspaceIds.length

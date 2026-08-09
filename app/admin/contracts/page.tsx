@@ -19,9 +19,11 @@ import {
   listAdminUserOptions,
   listContractsDirectory,
 } from "@/lib/admin/admin-directory";
+import { requirePlatformAdmin } from "@/lib/admin/auth";
+import { logAdminError } from "@/lib/admin/log";
 import { CONTRACT_STATUS_LABELS } from "@/lib/billing/labels";
 import { listPublicBillingPlans } from "@/lib/billing/plan-catalog";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClientAsync } from "@/lib/supabase/admin";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
@@ -37,7 +39,13 @@ export default async function AdminContractsPage({ searchParams }: PageProps) {
   const locale = await getRequestLocale();
   const dict = await getDictionary(locale);
   const params = await searchParams;
-  const supabase = await createClient();
+
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) {
+    throw new Error(auth.error ?? "Acces admin necesar");
+  }
+
+  const admin = await createAdminClientAsync();
   const [plans, users, contracts] = await Promise.all([
     listPublicBillingPlans(),
     listAdminUserOptions(),
@@ -47,11 +55,21 @@ export default async function AdminContractsPage({ searchParams }: PageProps) {
     }),
   ]);
 
-  const { data: legacyLinks } = await supabase
+  const { data: legacyLinks, error: legacyError } = await admin
     .from("client_contract_links")
     .select("*")
     .order("created_at", { ascending: false })
     .limit(30);
+
+  if (legacyError) {
+    logAdminError(
+      { route: "/admin/contracts", operation: "client_contract_links.select" },
+      legacyError,
+    );
+    throw new Error(
+      `Nu am putut încărca linkurile legacy (${legacyError.code ?? "unknown"}): ${legacyError.message}`,
+    );
+  }
 
   return (
     <div className="space-y-10">
@@ -113,21 +131,27 @@ export default async function AdminContractsPage({ searchParams }: PageProps) {
                 </p>
                 <p className="mt-1">
                   Workspace:{" "}
-                  <Link
-                    href={`/admin/workspaces/${c.workspaceId}`}
-                    className="underline-offset-4 hover:underline"
-                  >
-                    {c.workspaceName}
-                  </Link>
+                  {c.workspaceId ? (
+                    <Link
+                      href={`/admin/workspaces/${c.workspaceId}`}
+                      className="underline-offset-4 hover:underline"
+                    >
+                      {c.workspaceName}
+                    </Link>
+                  ) : (
+                    <span>{c.workspaceName}</span>
+                  )}
                 </p>
               </div>
-              <AdminConfirmDelete
-                workspaceId={c.workspaceId}
-                id={c.id}
-                label={dict.dialog.delete}
-                confirmLabel="Confirmă ștergerea"
-                action={adminSoftDeleteContractBound}
-              />
+              {c.workspaceId ? (
+                <AdminConfirmDelete
+                  workspaceId={c.workspaceId}
+                  id={c.id}
+                  label={dict.dialog.delete}
+                  confirmLabel="Confirmă ștergerea"
+                  action={adminSoftDeleteContractBound}
+                />
+              ) : null}
             </article>
           ))
         )}

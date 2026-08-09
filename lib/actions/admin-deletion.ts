@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { isProtectedSystemWorkspace, requirePlatformAdmin } from "@/lib/admin/auth";
 import { emptyImpact, type DeleteImpact, type DeleteResult } from "@/lib/deletion/types";
 import { logAudit } from "@/lib/planner/context";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClientAsync } from "@/lib/supabase/admin";
 
 async function assertAdmin() {
   const auth = await requirePlatformAdmin();
@@ -25,7 +25,7 @@ export async function adminSoftDeleteUserAction(
     return { ok: false, error: "Nu poți șterge propriul cont admin." };
   }
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const now = new Date().toISOString();
 
   // Archive any workspaces this user owns (skip protected admin workspaces)
@@ -70,7 +70,7 @@ export async function adminDeactivateUserAction(
     return { ok: false, error: "Nu poți dezactiva propriul cont." };
   }
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   await admin
     .from("profiles")
     .update({
@@ -90,7 +90,7 @@ export async function adminRestoreUserAction(
   const auth = await assertAdmin();
   if (!auth.ok || !auth.user) return { ok: false, error: "Neautorizat" };
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   await admin
     .from("profiles")
     .update({
@@ -119,7 +119,7 @@ export async function adminHardDeleteUserAction(
     return { ok: false, error: "Nu poți șterge propriul cont admin." };
   }
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const now = new Date().toISOString();
 
   const { data: owned } = await admin
@@ -167,7 +167,7 @@ export async function adminTransferWorkspaceOwnershipAction(
   const auth = await assertAdmin();
   if (!auth.ok || !auth.user) return { ok: false, error: "Neautorizat" };
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const { data: workspace } = await admin
     .from("workspaces")
     .select("id, owner_id, workspace_type, soft_deleted_at")
@@ -223,7 +223,7 @@ export async function getUserDeleteImpact(
   const auth = await assertAdmin();
   if (!auth.ok) return null;
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const { data: profile } = await admin
     .from("profiles")
     .select("id, email, full_name, soft_deleted_at, suspended_at")
@@ -282,7 +282,7 @@ export async function adminDeleteInvitationTemplateAction(
   const auth = await assertAdmin();
   if (!auth.ok || !auth.user) return { ok: false, error: "Neautorizat" };
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const { count } = await admin
     .from("invitation_projects")
     .select("*", { count: "exact", head: true })
@@ -344,7 +344,7 @@ export async function adminDeleteWebsiteTemplateAction(
   const auth = await assertAdmin();
   if (!auth.ok || !auth.user) return { ok: false, error: "Neautorizat" };
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const { count } = await admin
     .from("wedding_sites")
     .select("*", { count: "exact", head: true })
@@ -400,7 +400,7 @@ export async function adminHardDeleteAccessGrantAction(
   const auth = await assertAdmin();
   if (!auth.ok || !auth.user) return { ok: false, error: "Neautorizat" };
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const { error } = await admin.from("access_grants").delete().eq("id", grantId);
   if (error) return { ok: false, error: "Nu s-a putut șterge grant-ul." };
 
@@ -416,7 +416,7 @@ export async function adminDeleteSubscriptionAction(
   const auth = await assertAdmin();
   if (!auth.ok || !auth.user) return { ok: false, error: "Neautorizat" };
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   if (mode === "soft") {
     await admin
       .from("subscriptions")
@@ -451,7 +451,7 @@ export async function adminDeleteGdprRequestAction(
   const auth = await assertAdmin();
   if (!auth.ok || !auth.user) return { ok: false, error: "Neautorizat" };
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const { error } = await admin.from("gdpr_requests").delete().eq("id", requestId);
   if (error) return { ok: false, error: "Nu s-a putut șterge cererea." };
 
@@ -466,7 +466,7 @@ export async function adminFulfillGdprDeleteAction(
   const auth = await assertAdmin();
   if (!auth.ok || !auth.user) return { ok: false, error: "Neautorizat" };
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const { data: req } = await admin
     .from("gdpr_requests")
     .select("*")
@@ -521,7 +521,7 @@ export async function adminBulkSoftDeleteWorkspacesAction(
   const auth = await assertAdmin();
   if (!auth.ok || !auth.user) return { ok: false, error: "Neautorizat" };
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const now = new Date().toISOString();
   let deleted = 0;
 
@@ -560,7 +560,7 @@ export async function adminDeleteFeatureEntitlementAction(
   const auth = await assertAdmin();
   if (!auth.ok || !auth.user) return { ok: false, error: "Neautorizat" };
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const { error } = await admin
     .from("feature_entitlements")
     .delete()
@@ -588,7 +588,7 @@ export async function adminDeleteSiteVersionAction(
   const auth = await assertAdmin();
   if (!auth.ok || !auth.user) return { ok: false, error: "Neautorizat" };
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const { error } = await admin
     .from("wedding_site_versions")
     .delete()
@@ -612,7 +612,7 @@ export async function adminDeleteInvitationVersionAction(
   const auth = await assertAdmin();
   if (!auth.ok || !auth.user) return { ok: false, error: "Neautorizat" };
 
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const { error } = await admin
     .from("invitation_versions")
     .delete()

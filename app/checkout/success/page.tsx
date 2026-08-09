@@ -4,7 +4,7 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { getRequestLocale } from "@/lib/i18n/locale";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClientAsync } from "@/lib/supabase/admin";
 import { cn } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -24,7 +24,7 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
 
   if (claim) {
     try {
-      const admin = createAdminClient();
+      const admin = await createAdminClientAsync();
       const { data } = await admin
         .from("pending_checkouts")
         .select("email, status")

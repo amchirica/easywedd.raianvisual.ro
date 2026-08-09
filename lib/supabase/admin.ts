@@ -3,12 +3,18 @@ import "server-only";
 import { createClient } from "@supabase/supabase-js";
 
 import { requireServiceRoleKey, requireSupabasePublicEnv } from "@/lib/env";
+import {
+  hydrateRuntimeEnvAsync,
+  hydrateSupabaseRuntimeEnv,
+} from "@/lib/runtime-env";
 import type { Database } from "@/types/database";
 
 /**
  * Service-role client. Server-only. Never import from client components.
+ * Call only AFTER requirePlatformAdmin() / equivalent user auth check.
  */
 export function createAdminClient() {
+  hydrateSupabaseRuntimeEnv();
   const { url } = requireSupabasePublicEnv();
   const serviceRoleKey = requireServiceRoleKey();
 
@@ -18,4 +24,12 @@ export function createAdminClient() {
       persistSession: false,
     },
   });
+}
+
+/**
+ * Prefer this in RSC/actions so Cloudflare async context can populate secrets.
+ */
+export async function createAdminClientAsync() {
+  await hydrateRuntimeEnvAsync();
+  return createAdminClient();
 }

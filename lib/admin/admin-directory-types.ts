@@ -33,7 +33,7 @@ export type AdminWorkspaceOption = {
 export type AdminContractOption = {
   id: string;
   title: string;
-  workspaceId: string;
+  workspaceId: string | null;
   workspaceName: string;
   clientEmail: string;
   status: ContractStatus;

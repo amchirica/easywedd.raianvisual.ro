@@ -8,7 +8,7 @@ import {
   resolveCheckoutPriceForPlan,
 } from "@/lib/billing/plan-catalog";
 import { INVALID_STRIPE_PRICE_MESSAGE } from "@/lib/billing/stripe-ids";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClientAsync } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
 import { getSiteUrl } from "@/lib/url";
 
@@ -64,7 +64,7 @@ export async function startPublicCheckoutAction(
   }
 
   const claimToken = crypto.randomUUID();
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
 
   const { data: pending, error: pendingError } = await admin
     .from("pending_checkouts")

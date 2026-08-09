@@ -6,21 +6,23 @@ import {
   BILLING_PRODUCTS,
   type BillingProductKey,
 } from "@/lib/billing/catalog";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { getRuntimeEnv, hydrateRuntimeEnvAsync } from "@/lib/runtime-env";
+import { createAdminClientAsync } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
 import type { AccessSource, Json, SubscriptionPlan } from "@/types/database";
 
-function serviceClient() {
+async function serviceClient() {
   try {
-    return createAdminClient();
+    return await createAdminClientAsync();
   } catch {
     return null;
   }
 }
 
 export async function POST(request: Request) {
+  await hydrateRuntimeEnvAsync();
   const stripe = getStripe();
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const webhookSecret = getRuntimeEnv("STRIPE_WEBHOOK_SECRET");
   if (!stripe || !webhookSecret) {
     return NextResponse.json(
       { error: "Stripe webhook not configured" },
@@ -42,7 +44,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  const supabase = serviceClient();
+  const supabase = await serviceClient();
   if (!supabase) {
     return NextResponse.json({ error: "Service role missing" }, { status: 503 });
   }
@@ -78,7 +80,7 @@ export async function POST(request: Request) {
   return NextResponse.json({ received: true });
 }
 
-type AdminDb = NonNullable<ReturnType<typeof serviceClient>>;
+type AdminDb = NonNullable<Awaited<ReturnType<typeof serviceClient>>>;
 
 async function handleEvent(supabase: AdminDb, event: Stripe.Event) {
   if (event.type === "checkout.session.completed") {

@@ -1,4 +1,4 @@
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClientAsync } from "@/lib/supabase/admin";
 import { getSiteUrl } from "@/lib/url";
 
 export async function GET() {
@@ -6,7 +6,7 @@ export async function GET() {
   let urls: string[] = [];
 
   try {
-    const supabase = createAdminClient();
+    const supabase = await createAdminClientAsync();
     const { data } = await supabase
       .from("wedding_sites")
       .select("slug, updated_at")

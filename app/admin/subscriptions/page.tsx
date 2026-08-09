@@ -14,10 +14,12 @@ import {
   adminReactivateAccessBound,
   adminRevokeAccessBound,
 } from "@/lib/actions/admin-billing";
+import { requirePlatformAdmin } from "@/lib/admin/auth";
 import { listAdminUserOptions } from "@/lib/admin/admin-directory";
+import { logAdminError } from "@/lib/admin/log";
 import { ACCESS_SOURCE_LABELS } from "@/lib/billing/labels";
 import { listPublicBillingPlans } from "@/lib/billing/plan-catalog";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClientAsync } from "@/lib/supabase/admin";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
@@ -28,13 +30,19 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function AdminSubscriptionsPage() {
   const locale = await getRequestLocale();
   const dict = await getDictionary(locale);
-  const supabase = await createClient();
+
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) {
+    throw new Error(auth.error ?? "Acces admin necesar");
+  }
+
+  const admin = await createAdminClientAsync();
   const [plans, users] = await Promise.all([
     listPublicBillingPlans(),
     listAdminUserOptions(),
   ]);
 
-  const { data: subscriptions } = await supabase
+  const { data: subscriptions, error: subsError } = await admin
     .from("subscriptions")
     .select(
       "id, workspace_id, plan, status, product_key, plan_key, access_source, billing_interval, stripe_customer_id, stripe_subscription_id, stripe_checkout_session_id, access_ends_at, current_period_ends_at, trial_ends_at, cancel_at_period_end, last_payment_at, last_payment_stripe_id, admin_notes, created_at, soft_deleted_at",
@@ -42,31 +50,59 @@ export default async function AdminSubscriptionsPage() {
     .order("updated_at", { ascending: false })
     .limit(80);
 
+  if (subsError) {
+    logAdminError(
+      { route: "/admin/subscriptions", operation: "subscriptions.select" },
+      subsError,
+    );
+    throw new Error(
+      `Nu am putut încărca abonamentele (${subsError.code ?? "unknown"}): ${subsError.message}`,
+    );
+  }
+
   const workspaceIds = [
-    ...new Set((subscriptions ?? []).map((s) => s.workspace_id)),
+    ...new Set(
+      (subscriptions ?? [])
+        .map((s) => s.workspace_id)
+        .filter((id): id is string => Boolean(id)),
+    ),
   ];
-  const { data: workspaces } =
+  const { data: workspaces, error: wsError } =
     workspaceIds.length > 0
-      ? await supabase
+      ? await admin
           .from("workspaces")
           .select("id, name, owner_id, workspace_type")
           .in("id", workspaceIds)
-      : { data: [] };
+      : { data: [] as { id: string; name: string; owner_id: string; workspace_type: string }[], error: null };
+
+  if (wsError) {
+    logAdminError(
+      { route: "/admin/subscriptions", operation: "workspaces.select" },
+      wsError,
+    );
+    throw new Error(
+      `Nu am putut încărca workspace-urile (${wsError.code ?? "unknown"}): ${wsError.message}`,
+    );
+  }
 
   const ownerIds = [
-    ...new Set((workspaces ?? []).map((w) => w.owner_id).filter(Boolean)),
+    ...new Set(
+      (workspaces ?? [])
+        .map((w) => w.owner_id)
+        .filter((id): id is string => Boolean(id)),
+    ),
   ];
   const { data: owners } =
     ownerIds.length > 0
-      ? await supabase
+      ? await admin
           .from("profiles")
           .select("id, email, full_name")
-          .in("id", ownerIds as string[])
+          .in("id", ownerIds)
       : { data: [] };
 
   const { data: entitlements } =
     workspaceIds.length > 0
-      ? await supabase
+      ? await admin
           .from("feature_entitlements")
           .select("workspace_id, feature_key, enabled")
           .in("workspace_id", workspaceIds)
@@ -75,7 +111,7 @@ export default async function AdminSubscriptionsPage() {
 
   const { data: contracts } =
     workspaceIds.length > 0
-      ? await supabase
+      ? await admin
           .from("contracts")
           .select("id, workspace_id, title, status")
           .in("workspace_id", workspaceIds)
@@ -84,7 +120,7 @@ export default async function AdminSubscriptionsPage() {
 
   const { data: payments } =
     workspaceIds.length > 0
-      ? await supabase
+      ? await admin
           .from("one_time_payments")
           .select("workspace_id, created_at, status, product_key")
           .in("workspace_id", workspaceIds)
@@ -119,7 +155,9 @@ export default async function AdminSubscriptionsPage() {
           <p className="text-sm text-muted-foreground">Niciun abonament.</p>
         ) : (
           (subscriptions ?? []).map((sub) => {
-            const ws = wsById.get(sub.workspace_id);
+            const ws = sub.workspace_id
+              ? wsById.get(sub.workspace_id)
+              : undefined;
             const owner = ws?.owner_id ? ownerById.get(ws.owner_id) : null;
             const planKey = sub.plan_key ?? sub.product_key ?? sub.plan;
             const plan = planByKey.get(planKey ?? "");
@@ -133,6 +171,9 @@ export default async function AdminSubscriptionsPage() {
               (p) => p.workspace_id === sub.workspace_id,
             );
             const revoked = Boolean(sub.soft_deleted_at);
+            const workspaceHref = sub.workspace_id
+              ? `/admin/workspaces/${sub.workspace_id}`
+              : null;
 
             return (
               <article
@@ -147,46 +188,67 @@ export default async function AdminSubscriptionsPage() {
                     </p>
                     <p className="text-muted-foreground">
                       Workspace:{" "}
-                      <Link
-                        href={`/admin/workspaces/${sub.workspace_id}`}
-                        className="underline-offset-4 hover:underline"
-                      >
-                        {ws?.name ?? "Workspace"}
-                      </Link>
+                      {workspaceHref ? (
+                        <Link
+                          href={workspaceHref}
+                          className="underline-offset-4 hover:underline"
+                        >
+                          {ws?.name ?? "Workspace"}
+                        </Link>
+                      ) : (
+                        <span>{ws?.name ?? "—"}</span>
+                      )}
                       {ws ? ` · ${ws.workspace_type}` : null}
                       {owner
                         ? ` · ${owner.full_name || owner.email}`
                         : null}
                     </p>
+                    {(sub.stripe_customer_id ||
+                      sub.stripe_subscription_id) && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Stripe:{" "}
+                        {sub.stripe_customer_id
+                          ? `cust ${sub.stripe_customer_id.slice(0, 12)}…`
+                          : "—"}
+                        {" · "}
+                        {sub.stripe_subscription_id
+                          ? `sub ${sub.stripe_subscription_id.slice(0, 12)}…`
+                          : "—"}
+                      </p>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {revoked ? (
-                      <AdminConfirmDelete
-                        workspaceId={sub.workspace_id}
-                        id={sub.id}
-                        label={dict.admin.reactivateAccess}
-                        confirmLabel="Confirmă reactivarea"
-                        action={adminReactivateAccessBound}
-                      />
-                    ) : (
-                      <AdminConfirmDelete
-                        workspaceId={sub.workspace_id}
-                        id={sub.id}
-                        label={dict.admin.revokeAccess}
-                        confirmLabel="Confirmă revocarea"
-                        action={adminRevokeAccessBound}
-                      />
-                    )}
+                    {sub.workspace_id ? (
+                      revoked ? (
+                        <AdminConfirmDelete
+                          workspaceId={sub.workspace_id}
+                          id={sub.id}
+                          label={dict.admin.reactivateAccess}
+                          confirmLabel="Confirmă reactivarea"
+                          action={adminReactivateAccessBound}
+                        />
+                      ) : (
+                        <AdminConfirmDelete
+                          workspaceId={sub.workspace_id}
+                          id={sub.id}
+                          label={dict.admin.revokeAccess}
+                          confirmLabel="Confirmă revocarea"
+                          action={adminRevokeAccessBound}
+                        />
+                      )
+                    ) : null}
                     <AdminSubscriptionDeleteButton
                       subscriptionId={sub.id}
-                      label={`${sub.plan_key ?? sub.plan} · ${sub.workspace_id.slice(0, 8)}`}
+                      label={`${sub.plan_key ?? sub.plan} · ${(sub.workspace_id ?? "—").toString().slice(0, 8)}`}
                     />
                   </div>
                 </div>
 
                 <dl className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   <div>
-                    <dt className="text-muted-foreground">{dict.admin.accessSource}</dt>
+                    <dt className="text-muted-foreground">
+                      {dict.admin.accessSource}
+                    </dt>
                     <dd>
                       {ACCESS_SOURCE_LABELS[sub.access_source ?? "legacy"] ??
                         sub.access_source}
@@ -207,7 +269,9 @@ export default async function AdminSubscriptionsPage() {
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-muted-foreground">{dict.admin.lastPayment}</dt>
+                    <dt className="text-muted-foreground">
+                      {dict.admin.lastPayment}
+                    </dt>
                     <dd>
                       {sub.last_payment_at
                         ? new Date(sub.last_payment_at).toLocaleString("ro-RO")
@@ -237,28 +301,30 @@ export default async function AdminSubscriptionsPage() {
                   <p className="text-xs">Motiv: {sub.admin_notes}</p>
                 ) : null}
 
-                <div className="flex flex-wrap items-end gap-3">
-                  <form
-                    action={adminExtendAccessFormAction}
-                    className="flex items-end gap-2"
-                  >
-                    <input
-                      type="hidden"
-                      name="workspace_id"
-                      value={sub.workspace_id}
-                    />
-                    <input type="hidden" name="months" value="3" />
-                    <Button type="submit" size="sm" variant="outline">
-                      Prelungește accesul (+3 luni)
-                    </Button>
-                  </form>
+                {sub.workspace_id ? (
+                  <div className="flex flex-wrap items-end gap-3">
+                    <form
+                      action={adminExtendAccessFormAction}
+                      className="flex items-end gap-2"
+                    >
+                      <input
+                        type="hidden"
+                        name="workspace_id"
+                        value={sub.workspace_id}
+                      />
+                      <input type="hidden" name="months" value="3" />
+                      <Button type="submit" size="sm" variant="outline">
+                        Prelungește accesul (+3 luni)
+                      </Button>
+                    </form>
 
-                  <AdminSubscriptionDatesForm
-                    workspaceId={sub.workspace_id}
-                    accessEndsAt={sub.access_ends_at}
-                    adminNotes={sub.admin_notes}
-                  />
-                </div>
+                    <AdminSubscriptionDatesForm
+                      workspaceId={sub.workspace_id}
+                      accessEndsAt={sub.access_ends_at}
+                      adminNotes={sub.admin_notes}
+                    />
+                  </div>
+                ) : null}
               </article>
             );
           })
