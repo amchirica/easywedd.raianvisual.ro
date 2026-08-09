@@ -145,7 +145,10 @@ async function handleEvent(supabase: AdminDb, event: Stripe.Event) {
 
     const isPublic = session.metadata?.public_checkout === "1";
     const planKey =
-      session.metadata?.plan_key || session.metadata?.product_key || "";
+      session.metadata?.plan ||
+      session.metadata?.plan_key ||
+      session.metadata?.product_key ||
+      "";
 
     if (isPublic) {
       await fulfillPublicCheckout(supabase, session, planKey);
@@ -154,6 +157,7 @@ async function handleEvent(supabase: AdminDb, event: Stripe.Event) {
 
     const workspaceId = session.metadata?.workspace_id;
     const productKey = (session.metadata?.product_key ||
+      session.metadata?.plan ||
       planKey) as BillingProductKey;
     if (!workspaceId || !productKey) return;
 
@@ -215,31 +219,56 @@ async function handleEvent(supabase: AdminDb, event: Stripe.Event) {
   ) {
     const sub = event.data.object as Stripe.Subscription;
     const customer = customerId(sub.customer);
-    if (!customer) return;
-    const { data: row } = await supabase
-      .from("subscriptions")
-      .select("workspace_id")
-      .eq("stripe_customer_id", customer)
-      .maybeSingle();
-    if (!row) return;
+    const workspaceFromMeta = sub.metadata?.workspace_id || null;
+    const planFromMeta =
+      sub.metadata?.plan ||
+      sub.metadata?.plan_key ||
+      sub.metadata?.product_key ||
+      null;
+    const productFromMeta = (sub.metadata?.product_key ||
+      planFromMeta) as BillingProductKey | null;
+    const catalogProduct = productFromMeta
+      ? BILLING_PRODUCTS[productFromMeta]
+      : undefined;
+
+    let workspaceId = workspaceFromMeta;
+    if (!workspaceId && customer) {
+      const { data: row } = await supabase
+        .from("subscriptions")
+        .select("workspace_id")
+        .eq("stripe_customer_id", customer)
+        .maybeSingle();
+      workspaceId = row?.workspace_id ?? null;
+    }
+    if (!workspaceId) return;
 
     const periodEnd = (sub as { current_period_end?: number }).current_period_end;
+    const status = mapSubscriptionStatus(sub.status);
     await supabase
       .from("subscriptions")
       .update({
-        status: mapSubscriptionStatus(sub.status),
+        ...(catalogProduct
+          ? {
+              plan: catalogProduct.mapsToPlan as SubscriptionPlan,
+              product_key: catalogProduct.key,
+              plan_key: planFromMeta || catalogProduct.key,
+              billing_interval: catalogProduct.interval,
+            }
+          : {}),
+        status,
         cancel_at_period_end: Boolean(sub.cancel_at_period_end),
         stripe_subscription_id: sub.id,
+        stripe_customer_id: customer,
         current_period_ends_at: periodEnd
           ? new Date(periodEnd * 1000).toISOString()
           : null,
         access_source: "stripe_subscription",
         updated_at: new Date().toISOString(),
       })
-      .eq("workspace_id", row.workspace_id);
+      .eq("workspace_id", workspaceId);
 
     await supabase.rpc("sync_workspace_entitlements", {
-      p_workspace_id: row.workspace_id,
+      p_workspace_id: workspaceId,
     });
     return;
   }

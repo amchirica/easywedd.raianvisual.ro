@@ -18,4 +18,8 @@ export function getStripe(): Stripe | null {
   return stripeClient;
 }
 
-export { PLAN_CATALOG, isStripeConfigured } from "@/lib/billing/plans";
+export {
+  PLAN_CATALOG,
+  isLocalBillingBypassAllowed,
+  isStripeConfigured,
+} from "@/lib/billing/plans";

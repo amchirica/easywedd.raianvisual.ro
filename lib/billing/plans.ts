@@ -32,9 +32,15 @@ export const PLAN_CATALOG: Record<
   },
 };
 
+/**
+ * Hosted Checkout + Portal need only the secret key server-side.
+ * Publishable key is optional (Elements / client SDKs).
+ */
 export function isStripeConfigured() {
-  return Boolean(
-    process.env.STRIPE_SECRET_KEY &&
-      process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
-  );
+  return Boolean(process.env.STRIPE_SECRET_KEY?.trim());
+}
+
+/** Dev-only self-grant when Stripe keys are absent. Never in production. */
+export function isLocalBillingBypassAllowed() {
+  return process.env.NODE_ENV !== "production" && !isStripeConfigured();
 }

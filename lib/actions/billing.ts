@@ -9,13 +9,17 @@ import {
 } from "@/lib/billing/catalog";
 import { getBillingPlan } from "@/lib/billing/plan-catalog";
 import {
+  isLocalBillingBypassAllowed,
+  isStripeConfigured,
+} from "@/lib/billing/plans";
+import {
   INVALID_STRIPE_PRICE_MESSAGE,
   resolveStripePriceId,
 } from "@/lib/billing/stripe-ids";
 import { trackProductEvent } from "@/lib/analytics/product";
 import { syncWorkspaceEntitlements } from "@/lib/entitlements/service";
 import type { ErrorCode } from "@/lib/i18n/errors";
-import { getStripe, isStripeConfigured } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { requireWeddingContext } from "@/lib/planner/context";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSiteUrl } from "@/lib/url";
@@ -26,21 +30,53 @@ export type ActionState = {
   success?: string;
 };
 
+function billingErrorRedirect(message: string): never {
+  redirect(
+    `/dashboard/billing?checkout_error=${encodeURIComponent(message)}`,
+  );
+}
+
+function checkoutMetadata(input: {
+  userId: string;
+  workspaceId: string;
+  plan: string;
+  productKey: string;
+  planKey: string;
+  mapsToPlan: string;
+  billingInterval: string;
+}) {
+  return {
+    user_id: input.userId,
+    workspace_id: input.workspaceId,
+    plan: input.plan,
+    product_key: input.productKey,
+    plan_key: input.planKey,
+    maps_to_plan: input.mapsToPlan,
+    billing_interval: input.billingInterval,
+  };
+}
+
+/**
+ * Creates a Stripe Checkout Session for the authenticated workspace.
+ * Entitlements are granted only via webhook — never from this action.
+ */
 export async function startCheckoutAction(
   productKey: BillingProductKey,
 ): Promise<void> {
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) {
-    return;
+    billingErrorRedirect(ctx.error ?? "Autentificare necesară.");
   }
 
   if (!isStripeConfigured()) {
-    return;
+    billingErrorRedirect(
+      "Stripe nu este configurat. Adaugă STRIPE_SECRET_KEY și repornește serverul.",
+    );
   }
 
   const product = BILLING_PRODUCTS[productKey];
   if (!product || product.mode === "grant") {
-    return;
+    billingErrorRedirect("Plan indisponibil pentru checkout.");
   }
 
   const plan = await getBillingPlan(productKey);
@@ -49,22 +85,20 @@ export async function startCheckoutAction(
     : undefined;
   const resolved = resolveStripePriceId([plan?.stripe_price_id, envPrice]);
   if ("error" in resolved) {
-    redirect(
-      `/dashboard/billing?checkout_error=${encodeURIComponent(
-        resolved.error || INVALID_STRIPE_PRICE_MESSAGE,
-      )}`,
-    );
+    billingErrorRedirect(resolved.error || INVALID_STRIPE_PRICE_MESSAGE);
   }
 
   const priceId = resolved.priceId;
   const stripe = getStripe();
   if (!stripe) {
-    return;
+    billingErrorRedirect("Stripe nu este disponibil momentan.");
   }
 
   const appUrl = getSiteUrl();
   const workspaceId = ctx.context.workspaceId;
+  const userId = ctx.context.user!.id;
   const admin = createAdminClient();
+  const planSlug = plan?.key ?? product.key;
 
   const { data: sub } = await ctx.context.supabase
     .from("subscriptions")
@@ -76,7 +110,10 @@ export async function startCheckoutAction(
   if (!customerId) {
     const customer = await stripe.customers.create({
       email: ctx.context.user!.email,
-      metadata: { workspace_id: workspaceId },
+      metadata: {
+        user_id: userId,
+        workspace_id: workspaceId,
+      },
     });
     customerId = customer.id;
     // Billing writes are service-role only (RLS blocks owner updates).
@@ -86,31 +123,51 @@ export async function startCheckoutAction(
       .eq("workspace_id", workspaceId);
   }
 
-  const session = await stripe.checkout.sessions.create({
-    mode: product.mode === "payment" ? "payment" : "subscription",
-    customer: customerId,
-    line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${appUrl}/dashboard/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${appUrl}/dashboard/billing`,
-    metadata: {
-      workspace_id: workspaceId,
-      product_key: product.key,
-      plan_key: plan?.key ?? product.key,
-      maps_to_plan: product.mapsToPlan,
-      billing_interval: product.interval,
-    },
+  const metadata = checkoutMetadata({
+    userId,
+    workspaceId,
+    plan: planSlug,
+    productKey: product.key,
+    planKey: planSlug,
+    mapsToPlan: product.mapsToPlan,
+    billingInterval: product.interval,
   });
 
-  if (session.url) redirect(session.url);
+  const mode = product.mode === "payment" ? "payment" : "subscription";
+
+  const session = await stripe.checkout.sessions.create({
+    mode,
+    customer: customerId,
+    client_reference_id: workspaceId,
+    line_items: [{ price: priceId, quantity: 1 }],
+    success_url: `${appUrl}/dashboard/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${appUrl}/dashboard/billing?checkout=canceled`,
+    metadata,
+    ...(mode === "subscription"
+      ? { subscription_data: { metadata } }
+      : { payment_intent_data: { metadata } }),
+  });
+
+  if (!session.url) {
+    billingErrorRedirect("Stripe nu a returnat URL de checkout.");
+  }
+
+  redirect(session.url);
 }
 
 export async function openBillingPortalAction() {
   const ctx = await requireWeddingContext();
-  if (ctx.error || !ctx.context) return;
-  if (!isStripeConfigured()) return;
+  if (ctx.error || !ctx.context) {
+    billingErrorRedirect(ctx.error ?? "Autentificare necesară.");
+  }
+  if (!isStripeConfigured()) {
+    billingErrorRedirect("Stripe nu este configurat.");
+  }
 
   const stripe = getStripe();
-  if (!stripe) return;
+  if (!stripe) {
+    billingErrorRedirect("Stripe nu este disponibil momentan.");
+  }
 
   const { data: sub } = await ctx.context.supabase
     .from("subscriptions")
@@ -118,7 +175,11 @@ export async function openBillingPortalAction() {
     .eq("workspace_id", ctx.context.workspaceId)
     .maybeSingle();
 
-  if (!sub?.stripe_customer_id) return;
+  if (!sub?.stripe_customer_id) {
+    billingErrorRedirect(
+      "Nu există încă un client Stripe pentru acest spațiu. Fă mai întâi un Checkout.",
+    );
+  }
 
   const appUrl = getSiteUrl();
 
@@ -127,7 +188,11 @@ export async function openBillingPortalAction() {
     return_url: `${appUrl}/dashboard/billing`,
   });
 
-  if (portal.url) redirect(portal.url);
+  if (!portal.url) {
+    billingErrorRedirect("Nu am putut deschide Stripe Customer Portal.");
+  }
+
+  redirect(portal.url);
 }
 
 /**
@@ -135,11 +200,10 @@ export async function openBillingPortalAction() {
  * Hard-blocked in production — never self-grant paid access live.
  */
 export async function grantLocalPassAction(productKey: BillingProductKey) {
-  if (process.env.NODE_ENV === "production") return;
+  if (!isLocalBillingBypassAllowed()) return;
 
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) return;
-  if (isStripeConfigured()) return;
 
   const product = BILLING_PRODUCTS[productKey];
   if (!product) return;
@@ -152,7 +216,9 @@ export async function grantLocalPassAction(productKey: BillingProductKey) {
       plan: product.mapsToPlan,
       status: "active",
       product_key: product.key,
+      plan_key: product.key,
       billing_interval: product.interval,
+      access_source: "admin_grant",
       access_ends_at: ends,
     })
     .eq("workspace_id", ctx.context.workspaceId);
@@ -163,4 +229,6 @@ export async function grantLocalPassAction(productKey: BillingProductKey) {
     userId: ctx.context.user!.id,
     properties: { product_key: product.key, local: true },
   });
+
+  redirect("/dashboard/billing?checkout=local");
 }
