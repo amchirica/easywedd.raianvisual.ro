@@ -3,12 +3,14 @@ import "server-only";
 import { createClient } from "@supabase/supabase-js";
 
 import { requireServiceRoleKey, requireSupabasePublicEnv } from "@/lib/env";
-import { hydrateSupabaseRuntimeEnv } from "@/lib/runtime-env";
+import {
+  hydrateRuntimeEnvAsync,
+  hydrateSupabaseRuntimeEnv,
+} from "@/lib/runtime-env";
 import type { Database } from "@/types/database";
 
 /**
  * Service-role client. Server-only. Never import from client components.
- * Hydrates Cloudflare Worker secrets into process.env when needed.
  */
 export function createAdminClient() {
   hydrateSupabaseRuntimeEnv();
@@ -21,4 +23,12 @@ export function createAdminClient() {
       persistSession: false,
     },
   });
+}
+
+/**
+ * Prefer this in RSC/actions so Cloudflare async context can populate secrets.
+ */
+export async function createAdminClientAsync() {
+  await hydrateRuntimeEnvAsync();
+  return createAdminClient();
 }

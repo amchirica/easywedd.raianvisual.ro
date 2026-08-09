@@ -8,14 +8,13 @@ import {
   BILLING_PRODUCTS,
   type BillingProductKey,
 } from "@/lib/billing/catalog";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClientAsync } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
-import { getRuntimeEnv, hydrateStripeRuntimeEnv } from "@/lib/runtime-env";
 import type { AccessSource, Json, SubscriptionPlan } from "@/types/database";
 
-function serviceClient() {
+async function serviceClient() {
   try {
-    return createAdminClient();
+    return await createAdminClientAsync();
   } catch {
     return null;
   }
@@ -41,6 +40,9 @@ function mapSubscriptionStatus(
 }
 
 export async function POST(request: Request) {
+  const { hydrateRuntimeEnvAsync, hydrateStripeRuntimeEnv, getRuntimeEnv } =
+    await import("@/lib/runtime-env");
+  await hydrateRuntimeEnvAsync();
   hydrateStripeRuntimeEnv();
 
   const stripe = getStripe();
@@ -65,7 +67,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  const supabase = serviceClient();
+  const supabase = await serviceClient();
   if (!supabase) {
     return NextResponse.json({ error: "Service role missing" }, { status: 503 });
   }
@@ -134,7 +136,7 @@ export async function POST(request: Request) {
   return NextResponse.json({ received: true });
 }
 
-type AdminDb = NonNullable<ReturnType<typeof serviceClient>>;
+type AdminDb = NonNullable<Awaited<ReturnType<typeof serviceClient>>>;
 
 async function handleEvent(supabase: AdminDb, event: Stripe.Event) {
   if (event.type === "checkout.session.completed") {

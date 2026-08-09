@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { logoutAction } from "@/lib/actions/auth";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { getRequestLocale } from "@/lib/i18n/locale";
+import { hydrateRuntimeEnvAsync } from "@/lib/runtime-env";
 import { getCurrentUserContext } from "@/lib/workspace";
 
 export default async function AdminLayout({
@@ -13,6 +14,7 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
+  await hydrateRuntimeEnvAsync();
   const { user, isPlatformAdmin } = await getCurrentUserContext();
 
   if (!user) {
@@ -39,6 +41,7 @@ export default async function AdminLayout({
     { href: "/admin/insights", label: dict.admin.insights },
     { href: "/admin/gdpr", label: dict.admin.gdpr },
     { href: "/admin/consents", label: dict.admin.consents },
+    { href: "/admin/diagnostics/stripe", label: "Env diagnostics" },
   ];
 
   return (

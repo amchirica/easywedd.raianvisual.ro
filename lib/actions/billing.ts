@@ -22,7 +22,7 @@ import type { ErrorCode } from "@/lib/i18n/errors";
 import { getRuntimeEnv, hydrateStripeRuntimeEnv } from "@/lib/runtime-env";
 import { getStripe } from "@/lib/stripe";
 import { requireWeddingContext } from "@/lib/planner/context";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClientAsync } from "@/lib/supabase/admin";
 import { getSiteUrl } from "@/lib/url";
 
 export type ActionState = {
@@ -64,6 +64,8 @@ function checkoutMetadata(input: {
 export async function startCheckoutAction(
   productKey: BillingProductKey,
 ): Promise<void> {
+  const { hydrateRuntimeEnvAsync } = await import("@/lib/runtime-env");
+  await hydrateRuntimeEnvAsync();
   hydrateStripeRuntimeEnv();
 
   const ctx = await requireWeddingContext();
@@ -83,15 +85,24 @@ export async function startCheckoutAction(
   }
 
   const plan = await getBillingPlan(productKey);
+  // Prefer Cloudflare/runtime Price ID env; DB is fallback catalog override.
   const envPrice = product.envPriceId
     ? getRuntimeEnv(product.envPriceId)
     : undefined;
-  const resolved = resolveStripePriceId([plan?.stripe_price_id, envPrice]);
+  const resolved = resolveStripePriceId([envPrice, plan?.stripe_price_id]);
   if ("error" in resolved) {
     billingErrorRedirect(resolved.error || INVALID_STRIPE_PRICE_MESSAGE);
   }
 
   const priceId = resolved.priceId;
+  if (process.env.NODE_ENV !== "production") {
+    console.info("[billing.checkout] resolved price", {
+      productKey,
+      envVar: product.envPriceId,
+      pricePrefix: `${priceId.slice(0, 6)}…`,
+      priceLen: priceId.length,
+    });
+  }
   const stripe = getStripe();
   if (!stripe) {
     billingErrorRedirect("Stripe nu este disponibil momentan.");
@@ -100,7 +111,7 @@ export async function startCheckoutAction(
   const appUrl = getSiteUrl();
   const workspaceId = ctx.context.workspaceId;
   const userId = ctx.context.user!.id;
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   const planSlug = plan?.key ?? product.key;
 
   const { data: sub } = await ctx.context.supabase
@@ -159,6 +170,8 @@ export async function startCheckoutAction(
 }
 
 export async function openBillingPortalAction() {
+  const { hydrateRuntimeEnvAsync } = await import("@/lib/runtime-env");
+  await hydrateRuntimeEnvAsync();
   hydrateStripeRuntimeEnv();
 
   const ctx = await requireWeddingContext();
@@ -214,7 +227,7 @@ export async function grantLocalPassAction(productKey: BillingProductKey) {
   if (!product) return;
 
   const ends = accessEndsAtFromInterval(product.interval);
-  const admin = createAdminClient();
+  const admin = await createAdminClientAsync();
   await admin
     .from("subscriptions")
     .update({

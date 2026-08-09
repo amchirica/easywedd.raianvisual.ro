@@ -2,9 +2,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   getRuntimeEnv,
-  getStripeEnvPresence,
+  getRuntimeEnvDiagnostics,
   runtimeEnvPresent,
+  STRIPE_PRICE_ENV_BY_PRODUCT,
 } from "@/lib/runtime-env";
+import { BILLING_PRODUCTS } from "@/lib/billing/catalog";
 
 describe("getRuntimeEnv", () => {
   afterEach(() => {
@@ -22,12 +24,41 @@ describe("getRuntimeEnv", () => {
     expect(getRuntimeEnv("STRIPE_SECRET_KEY")).toBeUndefined();
   });
 
-  it("reports presence-only stripe diagnostics", () => {
-    vi.stubEnv("STRIPE_SECRET_KEY", "sk_test_x");
-    vi.stubEnv("STRIPE_PRICE_STARTER_MONTHLY", "price_1");
-    const presence = getStripeEnvPresence();
-    expect(presence.STRIPE_SECRET_KEY).toBe(true);
-    expect(presence.STRIPE_PRICE_STARTER_MONTHLY).toBe(true);
-    expect(presence.STRIPE_WEBHOOK_SECRET).toBe(false);
+  it("reads NEXT_PUBLIC via static member fallback", () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    expect(getRuntimeEnv("NEXT_PUBLIC_SUPABASE_URL")).toBe(
+      "https://example.supabase.co",
+    );
+  });
+
+  it("diagnostics never expose values", () => {
+    vi.stubEnv("STRIPE_SECRET_KEY", "sk_test_secret_value");
+    const rows = getRuntimeEnvDiagnostics(["STRIPE_SECRET_KEY"]);
+    expect(rows[0]).toEqual({
+      key: "STRIPE_SECRET_KEY",
+      present: true,
+      length: "sk_test_secret_value".length,
+    });
+    expect(JSON.stringify(rows)).not.toContain("sk_test_secret_value");
+  });
+});
+
+describe("STRIPE_PRICE_ENV_BY_PRODUCT", () => {
+  it("matches BILLING_PRODUCTS envPriceId for checkoutable plans", () => {
+    expect(STRIPE_PRICE_ENV_BY_PRODUCT.starter).toBe(
+      BILLING_PRODUCTS.starter.envPriceId,
+    );
+    expect(STRIPE_PRICE_ENV_BY_PRODUCT.pro).toBe(
+      BILLING_PRODUCTS.pro.envPriceId,
+    );
+    expect(STRIPE_PRICE_ENV_BY_PRODUCT.premium_pass_12).toBe(
+      BILLING_PRODUCTS.premium_pass_12.envPriceId,
+    );
+    expect(STRIPE_PRICE_ENV_BY_PRODUCT.premium_pass_18).toBe(
+      BILLING_PRODUCTS.premium_pass_18.envPriceId,
+    );
+    expect(BILLING_PRODUCTS.premium_pass_12.envPriceId).toBe(
+      "STRIPE_PRICE_PREMIUM_PASS_12",
+    );
   });
 });

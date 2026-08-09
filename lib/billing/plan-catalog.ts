@@ -231,14 +231,14 @@ export async function getBillingPlan(
 }
 
 /**
- * Checkout-ready Price ID. Prefers DB stripe_price_id, then env via stripe_price_env.
+ * Checkout-ready Price ID. Prefers runtime/CF env via stripe_price_env, then DB.
  * Never returns Product IDs.
  */
 export function getStripePriceIdForPlan(plan: BillingPlanRow): string | null {
   const envValue = plan.stripe_price_env
     ? getRuntimeEnv(plan.stripe_price_env)
     : null;
-  const resolved = resolveStripePriceId([plan.stripe_price_id, envValue]);
+  const resolved = resolveStripePriceId([envValue, plan.stripe_price_id]);
   return "priceId" in resolved ? resolved.priceId : null;
 }
 
@@ -249,7 +249,8 @@ export function resolveCheckoutPriceForPlan(plan: BillingPlanRow) {
   const envValue = plan.stripe_price_env
     ? getRuntimeEnv(plan.stripe_price_env)
     : null;
-  return resolveStripePriceId([plan.stripe_price_id, envValue]);
+  // Prefer runtime/CF env Price ID over DB override.
+  return resolveStripePriceId([envValue, plan.stripe_price_id]);
 }
 
 export {

@@ -6,6 +6,7 @@ import {
   mapConfirmOtpErrorCode,
   safeAuthNext,
 } from "@/lib/auth/confirm-helpers";
+import { getRuntimeEnv, hydrateRuntimeEnvAsync } from "@/lib/runtime-env";
 import { getSiteUrl } from "@/lib/url";
 import type { Database } from "@/types/database";
 
@@ -67,8 +68,14 @@ export async function GET(request: NextRequest) {
     return errorRedirect("missing_token");
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  await hydrateRuntimeEnvAsync([
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "NEXT_PUBLIC_APP_URL",
+    "NEXT_PUBLIC_SITE_URL",
+  ]);
+  const supabaseUrl = getRuntimeEnv("NEXT_PUBLIC_SUPABASE_URL");
+  const anonKey = getRuntimeEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
   if (!supabaseUrl || !anonKey) {
     console.error("[AUTH CONFIRM] missing supabase env");
     return errorRedirect("auth_confirmation_failed");

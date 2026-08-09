@@ -3,16 +3,19 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 import { requireSupabasePublicEnv } from "@/lib/env";
-import { hydrateSupabaseRuntimeEnv } from "@/lib/runtime-env";
+import {
+  hydrateRuntimeEnvAsync,
+  hydrateSupabaseRuntimeEnv,
+} from "@/lib/runtime-env";
 import type { Database } from "@/types/database";
 
 /**
  * Request-scoped Supabase client. React.cache dedupes within a single RSC/action render.
- * Resolves URL/anon via Cloudflare Worker bindings when process.env is empty.
  */
 export const createClient = cache(async () => {
-  const cookieStore = await cookies();
+  await hydrateRuntimeEnvAsync();
   hydrateSupabaseRuntimeEnv();
+  const cookieStore = await cookies();
   const { url, anonKey } = requireSupabasePublicEnv();
 
   return createServerClient<Database>(url, anonKey, {

@@ -5,8 +5,15 @@ import {
   getSafeNextPath,
   PASSWORD_RESET_PATH,
 } from "@/lib/auth/callback-destination";
+import { getRuntimeEnv } from "@/lib/runtime-env";
 import type { Database } from "@/types/database";
 
+function supabasePublicEnv() {
+  return {
+    url: getRuntimeEnv("NEXT_PUBLIC_SUPABASE_URL"),
+    anonKey: getRuntimeEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
+  };
+}
 /** Routes where an already-signed-in user is sent to dashboard (not recovery). */
 const AUTH_ENTRY_ROUTES = [
   "/login",
@@ -126,8 +133,7 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith(`${PASSWORD_RESET_PATH}/`)
   ) {
     let supabaseResponse = NextResponse.next({ request });
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const { url, anonKey } = supabasePublicEnv();
     if (!url || !anonKey || !hasSupabaseAuthCookie(request)) {
       return supabaseResponse;
     }
@@ -153,8 +159,7 @@ export async function updateSession(request: NextRequest) {
 
   let supabaseResponse = NextResponse.next({ request });
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const { url, anonKey } = supabasePublicEnv();
 
   if (!url || !anonKey) {
     return supabaseResponse;

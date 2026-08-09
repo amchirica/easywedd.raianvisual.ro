@@ -2,13 +2,12 @@ import {
   isValidStripePriceId,
   isValidStripeProductId,
 } from "@/lib/billing/stripe-ids";
+import { getRuntimeEnv } from "@/lib/runtime-env";
 import type { BillingInterval, SubscriptionPlan } from "@/types/database";
 
-/** Dynamic process.env read — avoids empty process.env on some CF builds. */
 function readEnv(name: string): string | null {
   if (!name) return null;
-  const value = process.env[name]?.trim() || null;
-  return value;
+  return getRuntimeEnv(name) ?? null;
 }
 
 export type BillingProductKey =
