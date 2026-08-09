@@ -11,7 +11,13 @@ import {
   adminSuspendUserBound,
 } from "@/lib/actions/admin-billing";
 import { listAdminUsersDirectory } from "@/lib/admin/admin-directory";
+import {
+  AdminDiagnosticPanel,
+  captureAdminLoadError,
+} from "@/lib/admin/diagnostic";
 import { listPublicBillingPlans } from "@/lib/billing/plan-catalog";
+
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
@@ -39,17 +45,36 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
   const dict = await getDictionary(locale);
   const params = await searchParams;
   const page = Math.max(1, Number(params.page || 1) || 1);
-  const [plans, directory] = await Promise.all([
-    listPublicBillingPlans(),
-    listAdminUsersDirectory({
-      q: params.q,
-      status: (params.status as "all" | "active" | "suspended") || "all",
-      plan: params.plan,
-      workspaceType: params.workspace_type,
-      page,
-      pageSize: 25,
-    }),
-  ]);
+
+  let plans;
+  let directory;
+  try {
+    [plans, directory] = await Promise.all([
+      listPublicBillingPlans(),
+      listAdminUsersDirectory({
+        q: params.q,
+        status: (params.status as "all" | "active" | "suspended") || "all",
+        plan: params.plan,
+        workspaceType: params.workspace_type,
+        page,
+        pageSize: 25,
+      }),
+    ]);
+  } catch (error) {
+    const captured = captureAdminLoadError(
+      "/admin/users",
+      "page.load",
+      error,
+    );
+    return (
+      <AdminDiagnosticPanel
+        route="/admin/users"
+        code={captured.code}
+        message={captured.message}
+      />
+    );
+  }
+
   const { users, total, pageSize } = directory;
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));

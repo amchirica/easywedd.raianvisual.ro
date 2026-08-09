@@ -13,17 +13,23 @@ export default function AdminError({
     console.error("[admin]", error.message, error.digest ?? "");
   }, [error]);
 
-  const message = error.message || "Eroare necunoscută pe server.";
+  const redacted =
+    /omitted in production builds|An error occurred in the Server Components/i.test(
+      error.message,
+    );
 
   return (
     <div className="space-y-4 border border-border bg-card p-6">
       <h1 className="font-heading text-2xl">Pagina admin nu s-a putut încărca</h1>
       <p className="text-sm text-muted-foreground">
-        Eroarea de mai jos e pentru diagnostic (fără secrete). Digest:{" "}
+        Digest:{" "}
         <span className="font-mono text-xs">{error.digest ?? "—"}</span>
+        {redacted
+          ? " — Next.js ascunde mesajul real în production; după redeploy vei vedea panoul de diagnostic pe pagină."
+          : null}
       </p>
       <pre className="overflow-x-auto rounded border border-border bg-background p-3 font-mono text-xs whitespace-pre-wrap">
-        {message}
+        {error.message || "Eroare necunoscută pe server."}
       </pre>
       <button
         type="button"

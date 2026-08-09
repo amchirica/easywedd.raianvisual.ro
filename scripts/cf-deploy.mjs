@@ -11,6 +11,27 @@ import { fileURLToPath } from "node:url";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
+/**
+ * OpenNext bakes .env.local into next-env.mjs. Force production public URLs
+ * so localhost from .env.local is not shipped to the Worker.
+ */
+function applyProductionPublicUrls() {
+  const prod = "https://easywedd.raianvisual.ro";
+  const app = process.env.NEXT_PUBLIC_APP_URL || "";
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "";
+  if (!app || /localhost|127\.0\.0\.1/i.test(app)) {
+    process.env.NEXT_PUBLIC_APP_URL = prod;
+  }
+  if (!site || /localhost|127\.0\.0\.1/i.test(site)) {
+    process.env.NEXT_PUBLIC_SITE_URL = prod;
+  }
+  console.log(
+    `Public URLs for build: APP=${process.env.NEXT_PUBLIC_APP_URL} SITE=${process.env.NEXT_PUBLIC_SITE_URL}`,
+  );
+}
+
+applyProductionPublicUrls();
+
 function run(command, args, label) {
   console.log(`\n▶ ${label}\n   ${command} ${args.join(" ")}\n`);
   const result = spawnSync(command, args, {

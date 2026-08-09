@@ -20,10 +20,16 @@ import {
   listContractsDirectory,
 } from "@/lib/admin/admin-directory";
 import { requirePlatformAdmin } from "@/lib/admin/auth";
+import {
+  AdminDiagnosticPanel,
+  captureAdminLoadError,
+} from "@/lib/admin/diagnostic";
 import { logAdminError } from "@/lib/admin/log";
 import { CONTRACT_STATUS_LABELS } from "@/lib/billing/labels";
 import { listPublicBillingPlans } from "@/lib/billing/plan-catalog";
 import { createAdminClientAsync } from "@/lib/supabase/admin";
+
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
@@ -40,37 +46,97 @@ export default async function AdminContractsPage({ searchParams }: PageProps) {
   const dict = await getDictionary(locale);
   const params = await searchParams;
 
-  const auth = await requirePlatformAdmin();
-  if (!auth.ok) {
-    throw new Error(auth.error ?? "Acces admin necesar");
-  }
+  try {
+    const auth = await requirePlatformAdmin();
+    if (!auth.ok) {
+      return (
+        <AdminDiagnosticPanel
+          route="/admin/contracts"
+          message={auth.error ?? "Acces admin necesar"}
+        />
+      );
+    }
 
-  const admin = await createAdminClientAsync();
-  const [plans, users, contracts] = await Promise.all([
-    listPublicBillingPlans(),
-    listAdminUserOptions(),
-    listContractsDirectory({
-      q: params.q,
-      status: params.status,
-    }),
-  ]);
+    const admin = await createAdminClientAsync();
+    const [plans, users, contracts] = await Promise.all([
+      listPublicBillingPlans(),
+      listAdminUserOptions(),
+      listContractsDirectory({
+        q: params.q,
+        status: params.status,
+      }),
+    ]);
 
-  const { data: legacyLinks, error: legacyError } = await admin
-    .from("client_contract_links")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(30);
+    const { data: legacyLinks, error: legacyError } = await admin
+      .from("client_contract_links")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(30);
 
-  if (legacyError) {
-    logAdminError(
-      { route: "/admin/contracts", operation: "client_contract_links.select" },
-      legacyError,
+    if (legacyError) {
+      logAdminError(
+        {
+          route: "/admin/contracts",
+          operation: "client_contract_links.select",
+        },
+        legacyError,
+      );
+      return (
+        <AdminDiagnosticPanel
+          route="/admin/contracts"
+          code={legacyError.code}
+          message={`Nu am putut încărca linkurile legacy: ${legacyError.message}`}
+        />
+      );
+    }
+
+    return (
+      <ContractsPageBody
+        dict={dict}
+        params={params}
+        plans={plans}
+        users={users}
+        contracts={contracts}
+        legacyLinks={legacyLinks ?? []}
+      />
     );
-    throw new Error(
-      `Nu am putut încărca linkurile legacy (${legacyError.code ?? "unknown"}): ${legacyError.message}`,
+  } catch (error) {
+    const captured = captureAdminLoadError(
+      "/admin/contracts",
+      "page.load",
+      error,
+    );
+    return (
+      <AdminDiagnosticPanel
+        route="/admin/contracts"
+        code={captured.code}
+        message={captured.message}
+      />
     );
   }
+}
 
+function ContractsPageBody({
+  dict,
+  params,
+  plans,
+  users,
+  contracts,
+  legacyLinks,
+}: {
+  dict: Awaited<ReturnType<typeof getDictionary>>;
+  params: { q?: string; status?: string };
+  plans: Awaited<ReturnType<typeof listPublicBillingPlans>>;
+  users: Awaited<ReturnType<typeof listAdminUserOptions>>;
+  contracts: Awaited<ReturnType<typeof listContractsDirectory>>;
+  legacyLinks: Array<{
+    id: string;
+    package_name?: string | null;
+    access_plan?: string | null;
+    external_contract_reference?: string | null;
+    access_ends_at?: string | null;
+  }>;
+}) {
   return (
     <div className="space-y-10">
       <header>

@@ -3,12 +3,12 @@
  *
  * Resolution order:
  * 1) OpenNext ALS Cloudflare context (`Symbol.for("__cloudflare-context__").env`)
- * 2) `getCloudflareContext({ async: true })` from `@opennextjs/cloudflare`
- * 3) Dynamic `process.env[name]` (local + OpenNext populateProcessEnv)
- * 4) Static `process.env.NEXT_PUBLIC_*` member access (Next build-time inlining)
+ * 2) Dynamic `process.env[name]` (local + OpenNext populateProcessEnv)
+ * 3) Static `process.env.NEXT_PUBLIC_*` member access (Next build-time inlining)
  *
  * IMPORTANT:
- * - Do NOT `require("@opennextjs/cloudflare")` — package is ESM-only.
+ * - Do NOT import `@opennextjs/cloudflare` here. On Workers, that package's
+ *   async fallback can pull wrangler / throw outside request ALS and crash RSC.
  * - Do NOT `import("cloudflare:workers")` — Next/webpack cannot resolve that scheme.
  *
  * Never log or return secret values from diagnostics (presence + length only).
@@ -74,7 +74,7 @@ function readFromProcessEnvDynamic(name: string): string | undefined {
 
 /**
  * OpenNext stores request-scoped `{ env, ctx, cf }` behind this symbol (ALS getter).
- * This works without importing `@opennextjs/cloudflare` (ESM-only; require always fails).
+ * Works without importing `@opennextjs/cloudflare`.
  */
 function readFromOpenNextAls(name: string): string | undefined {
   try {
@@ -82,18 +82,6 @@ function readFromOpenNextAls(name: string): string | undefined {
       CF_CONTEXT_SYMBOL
     ];
     return asNonEmptyString(ctx?.env?.[name]);
-  } catch {
-    return undefined;
-  }
-}
-
-async function readFromOpenNextApiAsync(
-  name: string,
-): Promise<string | undefined> {
-  try {
-    const { getCloudflareContext } = await import("@opennextjs/cloudflare");
-    const ctx = await getCloudflareContext({ async: true });
-    return asNonEmptyString((ctx?.env as EnvBag | undefined)?.[name]);
   } catch {
     return undefined;
   }
@@ -131,7 +119,8 @@ export function getRuntimeEnv(name: string): string | undefined {
 }
 
 /**
- * Async hydrate — use at the start of RSC/actions so async CF context is available.
+ * Mirror ALS + process.env into process.env for the request.
+ * Does not import OpenNext/wrangler (safe on Cloudflare Workers).
  */
 export async function hydrateRuntimeEnvAsync(
   keys: readonly string[] = RUNTIME_ENV_KEYS,
@@ -140,12 +129,6 @@ export async function hydrateRuntimeEnvAsync(
     const fromAls = readFromOpenNextAls(key);
     if (fromAls) {
       mirrorIntoProcessEnv(key, fromAls);
-      continue;
-    }
-
-    const fromOpenNextApi = await readFromOpenNextApiAsync(key);
-    if (fromOpenNextApi) {
-      mirrorIntoProcessEnv(key, fromOpenNextApi);
       continue;
     }
 

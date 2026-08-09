@@ -16,10 +16,16 @@ import {
 } from "@/lib/actions/admin-billing";
 import { requirePlatformAdmin } from "@/lib/admin/auth";
 import { listAdminUserOptions } from "@/lib/admin/admin-directory";
+import {
+  AdminDiagnosticPanel,
+  captureAdminLoadError,
+} from "@/lib/admin/diagnostic";
 import { logAdminError } from "@/lib/admin/log";
 import { ACCESS_SOURCE_LABELS } from "@/lib/billing/labels";
 import { listPublicBillingPlans } from "@/lib/billing/plan-catalog";
 import { createAdminClientAsync } from "@/lib/supabase/admin";
+
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
@@ -31,9 +37,36 @@ export default async function AdminSubscriptionsPage() {
   const locale = await getRequestLocale();
   const dict = await getDictionary(locale);
 
+  try {
+    return await renderSubscriptionsPage(locale, dict);
+  } catch (error) {
+    const captured = captureAdminLoadError(
+      "/admin/subscriptions",
+      "page.load",
+      error,
+    );
+    return (
+      <AdminDiagnosticPanel
+        route="/admin/subscriptions"
+        code={captured.code}
+        message={captured.message}
+      />
+    );
+  }
+}
+
+async function renderSubscriptionsPage(
+  locale: Awaited<ReturnType<typeof getRequestLocale>>,
+  dict: Awaited<ReturnType<typeof getDictionary>>,
+) {
   const auth = await requirePlatformAdmin();
   if (!auth.ok) {
-    throw new Error(auth.error ?? "Acces admin necesar");
+    return (
+      <AdminDiagnosticPanel
+        route="/admin/subscriptions"
+        message={auth.error ?? "Acces admin necesar"}
+      />
+    );
   }
 
   const admin = await createAdminClientAsync();
@@ -55,8 +88,12 @@ export default async function AdminSubscriptionsPage() {
       { route: "/admin/subscriptions", operation: "subscriptions.select" },
       subsError,
     );
-    throw new Error(
-      `Nu am putut încărca abonamentele (${subsError.code ?? "unknown"}): ${subsError.message}`,
+    return (
+      <AdminDiagnosticPanel
+        route="/admin/subscriptions"
+        code={subsError.code}
+        message={`Nu am putut încărca abonamentele: ${subsError.message}`}
+      />
     );
   }
 
@@ -80,8 +117,12 @@ export default async function AdminSubscriptionsPage() {
       { route: "/admin/subscriptions", operation: "workspaces.select" },
       wsError,
     );
-    throw new Error(
-      `Nu am putut încărca workspace-urile (${wsError.code ?? "unknown"}): ${wsError.message}`,
+    return (
+      <AdminDiagnosticPanel
+        route="/admin/subscriptions"
+        code={wsError.code}
+        message={`Nu am putut încărca workspace-urile: ${wsError.message}`}
+      />
     );
   }
 

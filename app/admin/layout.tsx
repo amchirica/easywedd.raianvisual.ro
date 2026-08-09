@@ -9,6 +9,10 @@ import { getRequestLocale } from "@/lib/i18n/locale";
 import { getCurrentUserContext } from "@/lib/workspace";
 import { hydrateRuntimeEnvAsync } from "@/lib/runtime-env";
 
+/** Admin is always request-time (session + service role). Never SSG/ISR. */
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 export default async function AdminLayout({
   children,
 }: {
