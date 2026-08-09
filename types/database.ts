@@ -1534,13 +1534,15 @@ export interface Database {
           event_type: string;
           processed_at: string;
           payload: Json;
+          processing_ok: boolean;
         };
         Insert: {
           id: string;
           event_type: string;
           payload?: Json;
+          processing_ok?: boolean;
         };
-        Update: Partial<{ payload: Json }>;
+        Update: Partial<{ payload: Json; processing_ok: boolean }>;
         Relationships: [];
       };
       one_time_payments: {

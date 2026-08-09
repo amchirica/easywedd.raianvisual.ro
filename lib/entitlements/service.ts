@@ -81,6 +81,7 @@ export async function getWorkspaceEntitlementSnapshot(
     Boolean(subscription) &&
     (subscription!.status === "canceled" ||
       subscription!.status === "incomplete" ||
+      subscription!.status === "past_due" ||
       Boolean(accessEndsAt && new Date(accessEndsAt).getTime() < now) ||
       Boolean(
         subscription!.status === "trialing" &&

@@ -17,6 +17,7 @@ import { syncWorkspaceEntitlements } from "@/lib/entitlements/service";
 import type { ErrorCode } from "@/lib/i18n/errors";
 import { getStripe, isStripeConfigured } from "@/lib/stripe";
 import { requireWeddingContext } from "@/lib/planner/context";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getSiteUrl } from "@/lib/url";
 
 export type ActionState = {
@@ -62,24 +63,27 @@ export async function startCheckoutAction(
   }
 
   const appUrl = getSiteUrl();
+  const workspaceId = ctx.context.workspaceId;
+  const admin = createAdminClient();
 
   const { data: sub } = await ctx.context.supabase
     .from("subscriptions")
     .select("*")
-    .eq("workspace_id", ctx.context.workspaceId)
+    .eq("workspace_id", workspaceId)
     .maybeSingle();
 
   let customerId = sub?.stripe_customer_id ?? undefined;
   if (!customerId) {
     const customer = await stripe.customers.create({
       email: ctx.context.user!.email,
-      metadata: { workspace_id: ctx.context.workspaceId },
+      metadata: { workspace_id: workspaceId },
     });
     customerId = customer.id;
-    await ctx.context.supabase
+    // Billing writes are service-role only (RLS blocks owner updates).
+    await admin
       .from("subscriptions")
       .update({ stripe_customer_id: customerId })
-      .eq("workspace_id", ctx.context.workspaceId);
+      .eq("workspace_id", workspaceId);
   }
 
   const session = await stripe.checkout.sessions.create({
@@ -89,7 +93,7 @@ export async function startCheckoutAction(
     success_url: `${appUrl}/dashboard/billing/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${appUrl}/dashboard/billing`,
     metadata: {
-      workspace_id: ctx.context.workspaceId,
+      workspace_id: workspaceId,
       product_key: product.key,
       plan_key: plan?.key ?? product.key,
       maps_to_plan: product.mapsToPlan,
@@ -126,8 +130,13 @@ export async function openBillingPortalAction() {
   if (portal.url) redirect(portal.url);
 }
 
-/** Dev/admin helper when Stripe is not configured — grant pass locally. */
+/**
+ * Local-only helper when Stripe is not configured.
+ * Hard-blocked in production — never self-grant paid access live.
+ */
 export async function grantLocalPassAction(productKey: BillingProductKey) {
+  if (process.env.NODE_ENV === "production") return;
+
   const ctx = await requireWeddingContext();
   if (ctx.error || !ctx.context) return;
   if (isStripeConfigured()) return;
@@ -136,7 +145,8 @@ export async function grantLocalPassAction(productKey: BillingProductKey) {
   if (!product) return;
 
   const ends = accessEndsAtFromInterval(product.interval);
-  await ctx.context.supabase
+  const admin = createAdminClient();
+  await admin
     .from("subscriptions")
     .update({
       plan: product.mapsToPlan,
