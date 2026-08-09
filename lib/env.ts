@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getRuntimeEnv } from "@/lib/runtime-env";
+import { getRuntimeEnv, getRuntimeEnvSourceFlags } from "@/lib/runtime-env";
 
 /**
  * Server-side env helpers. Never log secret values.
@@ -52,6 +52,11 @@ export function requireSupabasePublicEnv() {
 
 export function requireServiceRoleKey() {
   const key = getRuntimeEnv("SUPABASE_SERVICE_ROLE_KEY");
-  if (!key) missing("SUPABASE_SERVICE_ROLE_KEY");
+  if (!key) {
+    const flags = getRuntimeEnvSourceFlags();
+    throw new Error(
+      `Variabilă de mediu lipsă: SUPABASE_SERVICE_ROLE_KEY (als=${flags.hasAlsContext} present=${flags.serviceRolePresent}). Setează secretul pe Worker easywedd-raianvisual și verifică /admin/diagnostics/stripe.`,
+    );
+  }
   return key;
 }

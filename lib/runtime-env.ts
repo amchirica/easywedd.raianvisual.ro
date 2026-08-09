@@ -2,9 +2,14 @@
  * Single source of truth for server-side env on Cloudflare / OpenNext / Node.
  *
  * Resolution order:
- * 1) Cloudflare Worker bindings (`getCloudflareContext().env`) — production secrets/vars
- * 2) Dynamic `process.env[name]` — local `.env.local`, populated Worker process.env
- * 3) Static `process.env.NEXT_PUBLIC_*` member access — Next build-time inlining backup
+ * 1) OpenNext ALS Cloudflare context (`Symbol.for("__cloudflare-context__").env`)
+ * 2) `getCloudflareContext({ async: true })` from `@opennextjs/cloudflare`
+ * 3) Dynamic `process.env[name]` (local + OpenNext populateProcessEnv)
+ * 4) Static `process.env.NEXT_PUBLIC_*` member access (Next build-time inlining)
+ *
+ * IMPORTANT:
+ * - Do NOT `require("@opennextjs/cloudflare")` — package is ESM-only.
+ * - Do NOT `import("cloudflare:workers")` — Next/webpack cannot resolve that scheme.
  *
  * Never log or return secret values from diagnostics (presence + length only).
  * Do not import this from Client Components.
@@ -28,6 +33,8 @@ export const RUNTIME_ENV_KEYS = [
 ] as const;
 
 export type RuntimeEnvKey = (typeof RUNTIME_ENV_KEYS)[number];
+
+const CF_CONTEXT_SYMBOL = Symbol.for("__cloudflare-context__");
 
 function asNonEmptyString(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -58,48 +65,57 @@ function readStaticNextPublic(name: string): string | undefined {
 }
 
 function readFromProcessEnvDynamic(name: string): string | undefined {
-  return asNonEmptyString(process.env[name]);
-}
-
-function readFromCloudflareContextSync(name: string): string | undefined {
   try {
-    // Lazy require so module load does not fail outside Workers / in Vitest.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mod = require("@opennextjs/cloudflare") as typeof import("@opennextjs/cloudflare");
-    const ctx = mod.getCloudflareContext();
-    const env = ctx?.env as EnvBag | undefined;
-    return asNonEmptyString(env?.[name]);
+    return asNonEmptyString(process.env[name]);
   } catch {
     return undefined;
   }
 }
 
-async function readFromCloudflareContextAsync(
+/**
+ * OpenNext stores request-scoped `{ env, ctx, cf }` behind this symbol (ALS getter).
+ * This works without importing `@opennextjs/cloudflare` (ESM-only; require always fails).
+ */
+function readFromOpenNextAls(name: string): string | undefined {
+  try {
+    const ctx = (globalThis as Record<symbol, { env?: EnvBag } | undefined>)[
+      CF_CONTEXT_SYMBOL
+    ];
+    return asNonEmptyString(ctx?.env?.[name]);
+  } catch {
+    return undefined;
+  }
+}
+
+async function readFromOpenNextApiAsync(
   name: string,
 ): Promise<string | undefined> {
   try {
     const { getCloudflareContext } = await import("@opennextjs/cloudflare");
     const ctx = await getCloudflareContext({ async: true });
-    const env = ctx?.env as EnvBag | undefined;
-    return asNonEmptyString(env?.[name]);
+    return asNonEmptyString((ctx?.env as EnvBag | undefined)?.[name]);
   } catch {
     return undefined;
   }
 }
 
 function mirrorIntoProcessEnv(name: string, value: string): void {
-  process.env[name] = value;
+  try {
+    process.env[name] = value;
+  } catch {
+    // Some Next polyfills ignore writes — value still returned from getRuntimeEnv.
+  }
 }
 
 /**
- * Resolve a server env var. Prefer Worker bindings, then process.env, then
+ * Resolve a server env var. Prefer Worker request bindings, then process.env, then
  * static NEXT_PUBLIC inlining.
  */
 export function getRuntimeEnv(name: string): string | undefined {
-  const fromCf = readFromCloudflareContextSync(name);
-  if (fromCf) {
-    mirrorIntoProcessEnv(name, fromCf);
-    return fromCf;
+  const fromAls = readFromOpenNextAls(name);
+  if (fromAls) {
+    mirrorIntoProcessEnv(name, fromAls);
+    return fromAls;
   }
 
   const fromDynamic = readFromProcessEnvDynamic(name);
@@ -116,22 +132,20 @@ export function getRuntimeEnv(name: string): string | undefined {
 
 /**
  * Async hydrate — use at the start of RSC/actions so async CF context is available.
- * Same priority as getRuntimeEnv: Cloudflare bindings first, then process.env, then
- * static NEXT_PUBLIC inlining. Never prefer a stale empty local over Worker secrets.
  */
 export async function hydrateRuntimeEnvAsync(
   keys: readonly string[] = RUNTIME_ENV_KEYS,
 ): Promise<void> {
   for (const key of keys) {
-    const fromCfAsync = await readFromCloudflareContextAsync(key);
-    if (fromCfAsync) {
-      mirrorIntoProcessEnv(key, fromCfAsync);
+    const fromAls = readFromOpenNextAls(key);
+    if (fromAls) {
+      mirrorIntoProcessEnv(key, fromAls);
       continue;
     }
 
-    const fromCfSync = readFromCloudflareContextSync(key);
-    if (fromCfSync) {
-      mirrorIntoProcessEnv(key, fromCfSync);
+    const fromOpenNextApi = await readFromOpenNextApiAsync(key);
+    if (fromOpenNextApi) {
+      mirrorIntoProcessEnv(key, fromOpenNextApi);
       continue;
     }
 
@@ -171,6 +185,28 @@ export function getRuntimeEnvDiagnostics(
     present: runtimeEnvPresent(key),
     length: runtimeEnvLength(key),
   }));
+}
+
+/** Safe debug flags for admin error pages (no secret values). */
+export function getRuntimeEnvSourceFlags(): {
+  hasAlsContext: boolean;
+  serviceRolePresent: boolean;
+  supabaseUrlPresent: boolean;
+  supabaseAnonPresent: boolean;
+} {
+  let hasAlsContext = false;
+  try {
+    const ctx = (globalThis as Record<symbol, unknown>)[CF_CONTEXT_SYMBOL];
+    hasAlsContext = Boolean(ctx && typeof ctx === "object");
+  } catch {
+    hasAlsContext = false;
+  }
+  return {
+    hasAlsContext,
+    serviceRolePresent: runtimeEnvPresent("SUPABASE_SERVICE_ROLE_KEY"),
+    supabaseUrlPresent: runtimeEnvPresent("NEXT_PUBLIC_SUPABASE_URL"),
+    supabaseAnonPresent: runtimeEnvPresent("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
+  };
 }
 
 export function getStripeEnvPresence(): Record<

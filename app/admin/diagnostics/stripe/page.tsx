@@ -8,6 +8,7 @@ import { isValidStripePriceId } from "@/lib/billing/stripe-ids";
 import {
   getRuntimeEnv,
   getRuntimeEnvDiagnostics,
+  getRuntimeEnvSourceFlags,
   hydrateRuntimeEnvAsync,
   RUNTIME_ENV_KEYS,
   STRIPE_PRICE_ENV_BY_PRODUCT,
@@ -32,6 +33,7 @@ export default async function AdminRuntimeEnvDiagnosticsPage() {
   await hydrateRuntimeEnvAsync();
   const rows = getRuntimeEnvDiagnostics(RUNTIME_ENV_KEYS);
   const stripeReady = isStripeConfigured();
+  const sourceFlags = getRuntimeEnvSourceFlags();
 
   const priceMapping = (
     Object.entries(STRIPE_PRICE_ENV_BY_PRODUCT) as Array<
@@ -64,6 +66,12 @@ export default async function AdminRuntimeEnvDiagnosticsPage() {
 
       <p className="font-mono text-sm">
         isStripeConfigured(): {stripeReady ? "true" : "false"}
+      </p>
+      <p className="font-mono text-xs text-muted-foreground">
+        alsContext={sourceFlags.hasAlsContext ? "true" : "false"} ·
+        serviceRole={sourceFlags.serviceRolePresent ? "true" : "false"} ·
+        supabaseUrl={sourceFlags.supabaseUrlPresent ? "true" : "false"} ·
+        anon={sourceFlags.supabaseAnonPresent ? "true" : "false"}
       </p>
 
       <section className="space-y-2">

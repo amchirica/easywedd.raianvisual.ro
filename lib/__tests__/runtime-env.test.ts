@@ -41,6 +41,27 @@ describe("getRuntimeEnv", () => {
     });
     expect(JSON.stringify(rows)).not.toContain("sk_test_secret_value");
   });
+
+  it("reads from OpenNext ALS symbol when present", () => {
+    const symbol = Symbol.for("__cloudflare-context__");
+    const previous = Object.getOwnPropertyDescriptor(globalThis, symbol);
+    Object.defineProperty(globalThis, symbol, {
+      configurable: true,
+      get() {
+        return {
+          env: { SUPABASE_SERVICE_ROLE_KEY: " service-role-from-als " },
+        };
+      },
+    });
+    try {
+      expect(getRuntimeEnv("SUPABASE_SERVICE_ROLE_KEY")).toBe(
+        "service-role-from-als",
+      );
+    } finally {
+      if (previous) Object.defineProperty(globalThis, symbol, previous);
+      else Reflect.deleteProperty(globalThis, symbol);
+    }
+  });
 });
 
 describe("STRIPE_PRICE_ENV_BY_PRODUCT", () => {
