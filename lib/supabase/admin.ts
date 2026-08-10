@@ -2,8 +2,10 @@ import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
 
+import { logAdminInfo } from "@/lib/admin/log";
 import { requireServiceRoleKey, requireSupabasePublicEnv } from "@/lib/env";
 import {
+  getRuntimeEnvSourceFlags,
   hydrateRuntimeEnvAsync,
   hydrateSupabaseRuntimeEnv,
 } from "@/lib/runtime-env";
@@ -31,5 +33,15 @@ export function createAdminClient() {
  */
 export async function createAdminClientAsync() {
   await hydrateRuntimeEnvAsync();
+  const flags = getRuntimeEnvSourceFlags();
+  logAdminInfo(
+    { route: "/admin", operation: "createAdminClientAsync.hydrate" },
+    {
+      als: flags.hasAlsContext,
+      supabaseUrlPresent: flags.supabaseUrlPresent,
+      supabaseAnonPresent: flags.supabaseAnonPresent,
+      serviceRolePresent: flags.serviceRolePresent,
+    },
+  );
   return createAdminClient();
 }

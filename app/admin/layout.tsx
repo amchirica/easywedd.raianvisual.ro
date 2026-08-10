@@ -1,17 +1,25 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { Button } from "@/components/ui/button";
 import { logoutAction } from "@/lib/actions/auth";
+import {
+  AdminDiagnosticPanel,
+  buildAdminProductionProbe,
+} from "@/lib/admin/diagnostic";
+import { logAdminInfo } from "@/lib/admin/log";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { getRequestLocale } from "@/lib/i18n/locale";
-import { getCurrentUserContext } from "@/lib/workspace";
 import { hydrateRuntimeEnvAsync } from "@/lib/runtime-env";
+import { getCurrentUserContext } from "@/lib/workspace";
 
 /** Admin is always request-time (session + service role). Never SSG/ISR. */
 export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
+// OpenNext Cloudflare runs the Node.js runtime by default (nodejs_compat).
+// Do not set runtime = "edge". Explicit "nodejs" is redundant — omit to avoid
+// segment-runtime divergence across local Next vs Workers.
 
 export default async function AdminLayout({
   children,
@@ -19,10 +27,64 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   await hydrateRuntimeEnvAsync();
-  const { user, isPlatformAdmin } = await getCurrentUserContext();
+  logAdminInfo(
+    { route: "/admin", operation: "layout.hydrateRuntimeEnv" },
+    {
+      done: true,
+    },
+  );
+
+  const pathname = (await headers()).get("x-pathname") ?? "";
+  const isDiagnosticsRoute =
+    pathname === "/admin/diagnostics" ||
+    pathname.startsWith("/admin/diagnostics/");
+
+  const { user, isPlatformAdmin, platformAdminRpcError } =
+    await getCurrentUserContext();
 
   if (!user) {
     redirect("/login?next=/admin");
+  }
+
+  // Authenticated diagnostics page can render even when the RPC fails.
+  if (isDiagnosticsRoute) {
+    return (
+      <div className="min-h-[100svh] bg-background">
+        <main className="mx-auto max-w-3xl px-6 py-8">{children}</main>
+      </div>
+    );
+  }
+
+  if (platformAdminRpcError) {
+    const probe = buildAdminProductionProbe({
+      userPresent: true,
+      platformAdmin: false,
+      platformAdminRpcOk: false,
+      platformAdminRpcCode: platformAdminRpcError.code ?? null,
+    });
+    return (
+      <div className="mx-auto max-w-3xl px-6 py-12">
+        <AdminDiagnosticPanel
+          route="/admin"
+          title="Verificare admin eșuată (RPC)"
+          code={platformAdminRpcError.code}
+          message={`is_platform_admin RPC a eșuat: ${platformAdminRpcError.message}. Verifică migrația 20260719000022_platform_admin_access_fix.sql pe baza de producție.`}
+          probe={probe}
+        />
+        <p className="mt-4 text-sm">
+          <Link href="/dashboard" className="underline underline-offset-4">
+            Înapoi la dashboard
+          </Link>
+          {" · "}
+          <Link
+            href="/admin/diagnostics"
+            className="underline underline-offset-4"
+          >
+            Diagnostic admin
+          </Link>
+        </p>
+      </div>
+    );
   }
 
   if (!isPlatformAdmin) {
@@ -45,6 +107,7 @@ export default async function AdminLayout({
     { href: "/admin/insights", label: dict.admin.insights },
     { href: "/admin/gdpr", label: dict.admin.gdpr },
     { href: "/admin/consents", label: dict.admin.consents },
+    { href: "/admin/diagnostics", label: "Diagnostic" },
   ];
 
   return (

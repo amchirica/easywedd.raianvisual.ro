@@ -3,8 +3,47 @@ import "server-only";
 import {
   getRuntimeEnvSourceFlags,
   getSupabaseEnvPresence,
+  runtimeEnvPresent,
 } from "@/lib/runtime-env";
 import { logAdminError } from "@/lib/admin/log";
+
+export type AdminProductionProbe = {
+  supabaseUrlPresent: boolean;
+  anonKeyPresent: boolean;
+  serviceRolePresent: boolean;
+  userPresent: boolean;
+  platformAdmin: boolean;
+  platformAdminRpcOk: boolean;
+  platformAdminRpcCode: string | null;
+  runtime: string;
+  envSource: string;
+};
+
+/** Safe production probe — never includes secret values. */
+export function buildAdminProductionProbe(options?: {
+  userPresent?: boolean;
+  platformAdmin?: boolean;
+  platformAdminRpcOk?: boolean;
+  platformAdminRpcCode?: string | null;
+}): AdminProductionProbe {
+  const flags = getRuntimeEnvSourceFlags();
+  const presence = getSupabaseEnvPresence();
+  const envSource = flags.hasAlsContext
+    ? "cloudflare-als+process.env"
+    : "process.env";
+
+  return {
+    supabaseUrlPresent: presence.NEXT_PUBLIC_SUPABASE_URL,
+    anonKeyPresent: presence.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    serviceRolePresent: presence.SUPABASE_SERVICE_ROLE_KEY,
+    userPresent: Boolean(options?.userPresent),
+    platformAdmin: Boolean(options?.platformAdmin),
+    platformAdminRpcOk: options?.platformAdminRpcOk ?? true,
+    platformAdminRpcCode: options?.platformAdminRpcCode ?? null,
+    runtime: process.env.NEXT_RUNTIME ?? process.env.NODE_ENV ?? "unknown",
+    envSource,
+  };
+}
 
 /**
  * Next.js production redacts thrown Error.message in error.tsx.
@@ -15,14 +54,19 @@ export function AdminDiagnosticPanel({
   title,
   message,
   code,
+  probe,
 }: {
   route: string;
   title?: string;
   message: string;
   code?: string | null;
+  probe?: AdminProductionProbe;
 }) {
-  const flags = getRuntimeEnvSourceFlags();
-  const presence = getSupabaseEnvPresence();
+  const resolved =
+    probe ??
+    buildAdminProductionProbe({
+      userPresent: runtimeEnvPresent("NEXT_PUBLIC_SUPABASE_URL"),
+    });
 
   return (
     <div className="space-y-4 border border-border bg-card p-6">
@@ -43,16 +87,7 @@ export function AdminDiagnosticPanel({
         {message}
       </pre>
       <pre className="overflow-x-auto rounded border border-border bg-background p-3 font-mono text-xs whitespace-pre-wrap">
-        {JSON.stringify(
-          {
-            als: flags.hasAlsContext,
-            NEXT_PUBLIC_SUPABASE_URL: presence.NEXT_PUBLIC_SUPABASE_URL,
-            NEXT_PUBLIC_SUPABASE_ANON_KEY: presence.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-            SUPABASE_SERVICE_ROLE_KEY: presence.SUPABASE_SERVICE_ROLE_KEY,
-          },
-          null,
-          2,
-        )}
+        {JSON.stringify(resolved, null, 2)}
       </pre>
     </div>
   );

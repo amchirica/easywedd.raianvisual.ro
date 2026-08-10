@@ -125,24 +125,60 @@ export function getRuntimeEnv(name: string): string | undefined {
 export async function hydrateRuntimeEnvAsync(
   keys: readonly string[] = RUNTIME_ENV_KEYS,
 ): Promise<void> {
+  let alsHits = 0;
+  let processHits = 0;
+  let staticHits = 0;
+  let missing = 0;
+
   for (const key of keys) {
     const fromAls = readFromOpenNextAls(key);
     if (fromAls) {
       mirrorIntoProcessEnv(key, fromAls);
+      alsHits += 1;
       continue;
     }
 
     const fromDynamic = readFromProcessEnvDynamic(key);
     if (fromDynamic) {
       mirrorIntoProcessEnv(key, fromDynamic);
+      processHits += 1;
       continue;
     }
 
     const fromStatic = readStaticNextPublic(key);
     if (fromStatic) {
       mirrorIntoProcessEnv(key, fromStatic);
+      staticHits += 1;
+    } else {
+      missing += 1;
     }
   }
+
+  // Presence counts only — never key names that are secrets with values.
+  console.info(
+    "[runtime-env:hydrate]",
+    JSON.stringify({
+      keys: keys.length,
+      alsHits,
+      processHits,
+      staticHits,
+      missing,
+      serviceRolePresent: Boolean(readFromOpenNextAls("SUPABASE_SERVICE_ROLE_KEY") || readFromProcessEnvDynamic("SUPABASE_SERVICE_ROLE_KEY")),
+      supabaseUrlPresent: Boolean(
+        readFromOpenNextAls("NEXT_PUBLIC_SUPABASE_URL") ||
+          readFromProcessEnvDynamic("NEXT_PUBLIC_SUPABASE_URL") ||
+          readStaticNextPublic("NEXT_PUBLIC_SUPABASE_URL"),
+      ),
+      hasAlsContext: (() => {
+        try {
+          const ctx = (globalThis as Record<symbol, unknown>)[CF_CONTEXT_SYMBOL];
+          return Boolean(ctx && typeof ctx === "object");
+        } catch {
+          return false;
+        }
+      })(),
+    }),
+  );
 }
 
 export function runtimeEnvPresent(name: string): boolean {

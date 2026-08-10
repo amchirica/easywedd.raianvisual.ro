@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { cookies } from "next/headers";
 
+import { logAdminError } from "@/lib/admin/log";
 import { WORKSPACE_COOKIE } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile, Wedding, Workspace } from "@/types/database";
@@ -68,11 +69,16 @@ export const getCurrentUserContext = cache(async () => {
       activeWorkspace: null as Workspace | null,
       wedding: null as Wedding | null,
       isPlatformAdmin: false,
+      platformAdminRpcError: null as { code?: string; message: string } | null,
     };
   }
 
-  const [{ data: profile }, { data: memberships }, { data: isPlatformAdmin }, cookieWorkspaceId] =
-    await Promise.all([
+  const [
+    { data: profile },
+    { data: memberships },
+    adminRpc,
+    cookieWorkspaceId,
+  ] = await Promise.all([
       supabase
         .from("profiles")
         .select(
@@ -88,6 +94,15 @@ export const getCurrentUserContext = cache(async () => {
       supabase.rpc("is_platform_admin"),
       getActiveWorkspaceId(),
     ]);
+
+  const { data: isPlatformAdmin, error: platformAdminRpcError } = adminRpc;
+  if (platformAdminRpcError) {
+    // Never treat RPC failure as "not admin" without a server log.
+    logAdminError(
+      { route: "getCurrentUserContext", operation: "is_platform_admin" },
+      platformAdminRpcError,
+    );
+  }
 
   const workspaceIds = (memberships ?? []).map((m) => m.workspace_id);
   let workspaces: Workspace[] = [];
@@ -126,7 +141,14 @@ export const getCurrentUserContext = cache(async () => {
     workspaces,
     activeWorkspace,
     wedding,
-    isPlatformAdmin: Boolean(isPlatformAdmin),
+    // Fail closed on RPC error — but expose the error so /admin can diagnose.
+    isPlatformAdmin: Boolean(isPlatformAdmin) && !platformAdminRpcError,
+    platformAdminRpcError: platformAdminRpcError
+      ? {
+          code: platformAdminRpcError.code,
+          message: platformAdminRpcError.message,
+        }
+      : null,
   };
 });
 

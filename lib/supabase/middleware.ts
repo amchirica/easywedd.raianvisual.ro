@@ -148,7 +148,12 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
-  let supabaseResponse = NextResponse.next({ request });
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", pathname);
+
+  let supabaseResponse = NextResponse.next({
+    request: { headers: requestHeaders },
+  });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -170,7 +175,9 @@ export async function updateSession(request: NextRequest) {
         cookiesToSet.forEach(({ name, value }) => {
           request.cookies.set(name, value);
         });
-        supabaseResponse = NextResponse.next({ request });
+        supabaseResponse = NextResponse.next({
+          request: { headers: requestHeaders },
+        });
         cookiesToSet.forEach(({ name, value, options }) => {
           supabaseResponse.cookies.set(name, value, options);
         });
@@ -204,7 +211,12 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user && (pathname.startsWith("/dashboard") || pathname.startsWith("/admin"))) {
-    const isAdminPath = pathname.startsWith("/admin");
+    // Diagnostics stays authenticated-only; skip platform-admin gate so RPC
+    // failures can be inspected without a redirect loop.
+    const isAdminDiagnostics =
+      pathname === "/admin/diagnostics" ||
+      pathname.startsWith("/admin/diagnostics/");
+    const isAdminPath = pathname.startsWith("/admin") && !isAdminDiagnostics;
     // Profile + admin RPC in parallel on /admin (saves one RTT).
     const [{ data: profile }, adminCheck] = await Promise.all([
       supabase
@@ -253,7 +265,22 @@ export async function updateSession(request: NextRequest) {
 
     if (isAdminPath) {
       const { data: isAdmin, error } = adminCheck;
-      if (error || !isAdmin) {
+      if (error) {
+        // Fail closed, but do not pretend the user is merely "not admin".
+        console.error(
+          "[middleware:is_platform_admin]",
+          JSON.stringify({
+            code: error.code ?? null,
+            message: (error.message ?? "").slice(0, 300),
+            path: pathname,
+          }),
+        );
+        const redirectUrl = request.nextUrl.clone();
+        redirectUrl.pathname = "/admin/diagnostics";
+        redirectUrl.searchParams.set("rpc", "error");
+        return NextResponse.redirect(redirectUrl);
+      }
+      if (!isAdmin) {
         const redirectUrl = request.nextUrl.clone();
         redirectUrl.pathname = "/dashboard";
         return NextResponse.redirect(redirectUrl);

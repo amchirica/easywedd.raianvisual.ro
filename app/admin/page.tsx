@@ -4,9 +4,10 @@ import { mrrEstimateRon } from "@/lib/billing/catalog";
 import { requirePlatformAdmin } from "@/lib/admin/auth";
 import {
   AdminDiagnosticPanel,
+  buildAdminProductionProbe,
   captureAdminLoadError,
 } from "@/lib/admin/diagnostic";
-import { logAdminError } from "@/lib/admin/log";
+import { logAdminError, logAdminInfo } from "@/lib/admin/log";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { getRequestLocale } from "@/lib/i18n/locale";
 import {
@@ -35,6 +36,13 @@ export default async function AdminHomePage() {
         <AdminDiagnosticPanel
           route="/admin"
           message={auth.error ?? "Acces admin necesar"}
+          code={auth.rpcError?.code}
+          probe={buildAdminProductionProbe({
+            userPresent: Boolean(auth.user),
+            platformAdmin: false,
+            platformAdminRpcOk: !auth.rpcError,
+            platformAdminRpcCode: auth.rpcError?.code ?? null,
+          })}
         />
       );
     }
@@ -42,6 +50,13 @@ export default async function AdminHomePage() {
     const supabase = await createAdminClientAsync();
     const envPresence = getSupabaseEnvPresence();
     const envFlags = getRuntimeEnvSourceFlags();
+    logAdminInfo(
+      { route: "/admin", operation: "overview.initialQuery" },
+      {
+        serviceRolePresent: envPresence.SUPABASE_SERVICE_ROLE_KEY,
+        als: envFlags.hasAlsContext,
+      },
+    );
 
     const [
       { count: usersCount, error: usersErr },
@@ -198,6 +213,11 @@ export default async function AdminHomePage() {
         route="/admin"
         code={captured.code}
         message={captured.message}
+        probe={buildAdminProductionProbe({
+          userPresent: true,
+          platformAdmin: true,
+          platformAdminRpcOk: true,
+        })}
       />
     );
   }
