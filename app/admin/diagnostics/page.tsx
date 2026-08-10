@@ -1,71 +1,95 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { DiagnosticsDashboard } from "@/app/admin/diagnostics/diagnostics-ui";
 import {
   AdminDiagnosticPanel,
   buildAdminProductionProbe,
 } from "@/lib/admin/diagnostic";
-import { createClient } from "@/lib/supabase/server";
+import { requirePlatformAdmin } from "@/lib/admin/auth";
+import { buildDiagnosticReport } from "@/lib/admin/diagnostics";
+import { getPublicSiteUrlFromEnv } from "@/lib/env";
 import { hydrateRuntimeEnvAsync } from "@/lib/runtime-env";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export const metadata: Metadata = {
-  title: "Admin diagnostics",
+  title: "Production Diagnostics",
+  robots: { index: false, follow: false },
 };
 
 type PageProps = {
-  searchParams: Promise<{ rpc?: string }>;
+  searchParams: Promise<{ format?: string; rpc?: string }>;
 };
 
+function resolveOrigin(h: Headers): string {
+  const envUrl = getPublicSiteUrlFromEnv();
+  if (envUrl) return envUrl.replace(/\/$/, "");
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  if (host) return `${proto}://${host}`.replace(/\/$/, "");
+  return "http://127.0.0.1:3000";
+}
+
 /**
- * Safe production probe for /admin. Booleans only — no secret values.
- * Accessible to authenticated users when RPC fails (middleware may land here).
- * Non-admins without RPC error are redirected away.
+ * Full production diagnostics dashboard.
+ * Platform admin only. Never exposes secret values.
  */
 export default async function AdminDiagnosticsPage({ searchParams }: PageProps) {
   await hydrateRuntimeEnvAsync();
   const params = await searchParams;
+  const h = await headers();
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const auth = await requirePlatformAdmin();
 
-  if (!user) {
-    redirect("/login?next=/admin/diagnostics");
-  }
-
-  const { data: isAdmin, error: rpcError } = await supabase.rpc(
-    "is_platform_admin",
-  );
-
-  const probe = buildAdminProductionProbe({
-    userPresent: true,
-    platformAdmin: Boolean(isAdmin) && !rpcError,
-    platformAdminRpcOk: !rpcError,
-    platformAdminRpcCode: rpcError?.code ?? null,
-  });
-
-  // Allow viewing diagnostics when RPC failed (production debug).
-  // Deny pure non-admins when RPC succeeded with false.
-  if (!rpcError && !isAdmin && params.rpc !== "error") {
+  if (!auth.ok) {
+    if (auth.rpcError) {
+      const probe = buildAdminProductionProbe({
+        userPresent: Boolean(auth.user),
+        platformAdmin: false,
+        platformAdminRpcOk: false,
+        platformAdminRpcCode: auth.rpcError.code ?? null,
+      });
+      return (
+        <AdminDiagnosticPanel
+          route="/admin/diagnostics"
+          title="Diagnostics unavailable — admin RPC failed"
+          code={auth.rpcError.code}
+          message={`is_platform_admin RPC a eșuat: ${auth.rpcError.message}. Full diagnostics requires a working platform-admin check.`}
+          probe={probe}
+        />
+      );
+    }
+    if (!auth.user) {
+      redirect("/login?next=/admin/diagnostics");
+    }
     redirect("/dashboard");
   }
 
-  const message = rpcError
-    ? `is_platform_admin RPC error: ${rpcError.message}`
-    : isAdmin
-      ? "Platform admin OK. Env presence listed below."
-      : "Authenticated but not platform admin.";
+  const report = await buildDiagnosticReport({
+    headersList: h,
+    origin: resolveOrigin(h),
+    user: auth.user,
+    platformAdmin: true,
+  });
 
-  return (
-    <AdminDiagnosticPanel
-      route="/admin/diagnostics"
-      title="Admin production diagnostics"
-      code={rpcError?.code ?? (params.rpc === "error" ? "rpc_redirect" : null)}
-      message={message}
-      probe={probe}
-    />
-  );
+  if (params.format === "json") {
+    return (
+      <main className="min-h-[100svh] bg-background p-4">
+        <p className="mb-3 text-xs text-muted-foreground">
+          Sanitized JSON · platform admin only ·{" "}
+          <a href="/admin/diagnostics" className="underline underline-offset-4">
+            UI view
+          </a>
+        </p>
+        <pre className="overflow-x-auto border border-border bg-card p-4 font-mono text-xs whitespace-pre-wrap">
+          {JSON.stringify(report, null, 2)}
+        </pre>
+      </main>
+    );
+  }
+
+  return <DiagnosticsDashboard report={report} />;
 }

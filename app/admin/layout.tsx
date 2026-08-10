@@ -46,11 +46,12 @@ export default async function AdminLayout({
     redirect("/login?next=/admin");
   }
 
-  // Authenticated diagnostics page can render even when the RPC fails.
-  if (isDiagnosticsRoute) {
+  // On RPC failure, only /admin/diagnostics may render (limited probe).
+  // Full admin chrome still requires a successful platform-admin check.
+  if (platformAdminRpcError && isDiagnosticsRoute) {
     return (
       <div className="min-h-[100svh] bg-background">
-        <main className="mx-auto max-w-3xl px-6 py-8">{children}</main>
+        <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
       </div>
     );
   }
